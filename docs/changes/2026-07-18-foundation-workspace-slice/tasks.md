@@ -1,14 +1,14 @@
 ---
-status: in_progress
+status: in_review
 ---
 # Tasks: Foundation Workspace Slice
 
 ## Resume Here
 
-- Last completed action: Final implementation and verification wave committed as `b787322`; all product, browser, SDD, and traceability gates pass.
-- Next action: Reconcile this ledger commit, transition the Change to `in_review`, then hand off to independent `/sdd-review`.
+- Last completed action: Final implementation and evidence commits completed; the guarded SDD transition moved the Change to `in_review`.
+- Next action: Run independent `/sdd-review`, then resolve its findings and complete user UI confirmation before closeout.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: This ledger only while the final implementation hash and transition state are reconciled.
+- Expected dirty files: This ledger only for the `in_review` transition record.
 - Known blockers: None. Spike repositories are read-only reference sources.
 
 ## Task Checklist
@@ -98,7 +98,7 @@ status: in_progress
 - [ ] 7.3 Record the review outcome in `review.md` or the ledger and resolve or explicitly defer all validated findings.
 - [ ] 7.4 Walk the user through the required disposable-workspace desktop/mobile confirmation and record `user confirmed` or `accepted gap`.
 - [x] 7.5 Ensure proposal/design/tasks and all Epics no longer claim completed behavior is unimplemented, unverified, or pending.
-- [ ] 7.6 Confirm current Change status, branch/ref, review record, manual confirmation, release communication, and PR/merge state agree.
+- [x] 7.6 Confirm current Change status, branch/ref, review record, manual confirmation, release communication, and PR/merge state agree.
 - [ ] 7.7 Keep `status: in_review` until all independent review and acceptance gates are complete.
 - [ ] 7.8 Commit, push, open a PR, merge, or close only after the repository policy and explicit user authorization permit each operation.
 
@@ -187,7 +187,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 
 ## Closeout
 
-- Change status: in_progress; implementation complete and awaiting the final commit/status transition to `in_review`.
+- Change status: in_review; implementation and apply-side verification are complete, with independent review and user confirmation still pending.
 - Epic files updated: GMD-001, GMD-002, and GMD-003 reflect implemented behavior, concrete code ownership, focused/browser evidence, and remaining verification gaps.
 - Story labels/references and Requirement/Scenario IDs current: Yes for planned scope.
 - Implemented By maps current: Yes; every accepted Requirement has a primary owner and supporting adapters/presentation/deployment locations where applicable.
