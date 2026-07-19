@@ -30,7 +30,7 @@ export class LocalSearchService {
 
   async rebuild(): Promise<{ indexed: number }> {
     const cacheDirectory = join(this.workspaceRoot, '.graphite', 'cache')
-    await mkdir(cacheDirectory, { recursive: true, mode: 0o700 })
+    await ensureConfinedDirectory(this.workspaceRoot, ['.graphite', 'cache'])
     await assertOrdinaryDatabase(this.databasePath)
     const temporaryPath = join(cacheDirectory, `.search.${randomUUID()}.sqlite`)
     const snapshot = await this.workspace.refresh()
@@ -95,6 +95,26 @@ export class LocalSearchService {
       }
     } catch {
       throw new LocalSearchUnavailableError()
+    }
+  }
+}
+
+async function ensureConfinedDirectory(root: string, segments: readonly string[]): Promise<void> {
+  let current = root
+  for (const segment of segments) {
+    current = join(current, segment)
+    try {
+      const metadata = await lstat(current)
+      if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new LocalSearchUnavailableError()
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      try {
+        await mkdir(current, { mode: 0o700 })
+      } catch (creationError) {
+        if ((creationError as NodeJS.ErrnoException).code !== 'EEXIST') throw creationError
+      }
+      const metadata = await lstat(current)
+      if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new LocalSearchUnavailableError()
     }
   }
 }

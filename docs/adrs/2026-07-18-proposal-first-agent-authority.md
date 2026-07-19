@@ -2,8 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-07-18
-- Related change: None yet; the foundation Change must apply this decision.
-- Related Epics / Stories: None yet.
+- Related Change: [Foundation Workspace Slice](../changes/2026-07-18-foundation-workspace-slice/proposal.md) (architectural constraint; agent behavior is deferred)
+- Related Epics / Stories: None implemented yet; the foundation Change establishes capability boundaries but explicitly defers Assistant proposals, grants, and autonomous runs.
 - Supersedes: None in this repository.
 - Superseded by:
 

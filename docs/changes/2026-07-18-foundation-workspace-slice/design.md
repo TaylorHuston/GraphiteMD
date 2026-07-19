@@ -2,7 +2,7 @@
 
 ## Context
 
-GraphiteMD has a clean canonical repository, four accepted ADRs, and no application code. Two reference spikes provide complementary implementation evidence:
+GraphiteMD began this Change as a clean canonical repository with four accepted ADRs and no application code. The implementation now follows the service-first monorepo selected below; this section retains the original spike evidence that informed that choice:
 
 - Dashboard proves general Markdown inventory, YAML parsing, source-preserving editing, note history, conflict-safe autosave, rename, disposable FTS search, responsive workbench behavior, a static bundled-plugin registry, Storybook fixtures, and safe disposable-vault E2E.
 - Coordinator proves the intended pnpm/AdonisJS/React monorepo, framework-neutral contracts and domain packages, persistent service authority, opaque resource locators, bounded and no-follow file operations, native no-overwrite rename, runtime-neutral capability mediation, service-owned reconnect behavior, normalized failure contracts, and a broader test harness.
@@ -43,10 +43,10 @@ The only major foundation capability without a direct spike implementation is re
 
 ## Epic Changes
 
-### Create Epic: GMD-001 Secure Workspace Access
+### Epic: GMD-001 Secure Workspace Access
 
-- Proposed directory: `docs/epics/gmd-001-secure-workspace-access/`
-- Proposed file: `docs/epics/gmd-001-secure-workspace-access/epic.md`
+- Implemented directory: `docs/epics/gmd-001-secure-workspace-access/`
+- Canonical file: `docs/epics/gmd-001-secure-workspace-access/epic.md`
 
 #### Epic
 
@@ -57,23 +57,21 @@ The self-hosting owner establishes and recovers one built-in account while brows
 - R1 Host-local owner setup: prove first setup and refusal to overwrite an existing owner.
 - R2 Browser session authentication: prove valid login/session regeneration, generic invalid login, and server-side logout invalidation.
 - R3 Browser request protection: prove missing CSRF and untrusted credentialed origins fail before mutation.
-- Implemented By: Not implemented yet.
-- Verified By: Not verified yet.
-- Verification Gaps: All `GMD-001/S1` Scenarios are pending.
+- Current implementation and verification: Reconciled in the canonical Epic Story; this design entry records the accepted planning baseline.
+- Current gaps: See the canonical `GMD-001/S1` Implementation Gaps and Verification Gaps; this planning snapshot is not the evidence ledger.
 
 #### Story GMD-001/S2: Maintain And Recover Access
 
 - R1 In-app password change: prove current-password validation and global session invalidation.
 - R2 Host-local password reset: prove atomic interactive reset and cancellation safety.
 - R3 Session reconnection: prove valid reconnect and invalidated-session return to login.
-- Implemented By: Not implemented yet.
-- Verified By: Not verified yet.
-- Verification Gaps: All `GMD-001/S2` Scenarios are pending.
+- Current implementation and verification: Reconciled in the canonical Epic Story; this design entry records the accepted planning baseline.
+- Current gaps: See the canonical `GMD-001/S2` Implementation Gaps and Verification Gaps; this planning snapshot is not the evidence ledger.
 
-### Create Epic: GMD-002 Markdown Workbench
+### Epic: GMD-002 Markdown Workbench
 
-- Proposed directory: `docs/epics/gmd-002-markdown-workbench/`
-- Proposed file: `docs/epics/gmd-002-markdown-workbench/epic.md`
+- Implemented directory: `docs/epics/gmd-002-markdown-workbench/`
+- Canonical file: `docs/epics/gmd-002-markdown-workbench/epic.md`
 
 #### Epic
 
@@ -85,9 +83,8 @@ The authenticated owner browses, reads, edits, renames, and searches Markdown in
 - R2 Confined Markdown inventory: prove nested tree, internal/unsafe exclusion, and empty state.
 - R3 Exact note reading and navigation: prove source/revision reads plus safe Back/Forward/reload.
 - R4 Responsive workspace composition: prove desktop and mobile-browser access.
-- Implemented By: Not implemented yet.
-- Verified By: Not verified yet.
-- Verification Gaps: All `GMD-002/S1` Scenarios are pending.
+- Current implementation and verification: Reconciled in the canonical Epic Story; this design entry records the accepted planning baseline.
+- Current gaps: See the canonical `GMD-002/S1` Implementation Gaps and Verification Gaps; this planning snapshot is not the evidence ledger.
 
 #### Story GMD-002/S2: Edit And Rename A Note Safely
 
@@ -95,23 +92,21 @@ The authenticated owner browses, reads, edits, renames, and searches Markdown in
 - R2 Conflict-safe autosave: prove debounced save, single-flight queue, conflict retention, and guarded transitions.
 - R3 Safe selected-note rename: prove success reconciliation, pre-commit denial, and post-commit reconciliation.
 - R4 Confined human writes: prove traversal/symlink denial and direct owner authority distinct from agent grants.
-- Implemented By: Not implemented yet.
-- Verified By: Not verified yet.
-- Verification Gaps: All `GMD-002/S2` Scenarios are pending.
+- Current implementation and verification: Reconciled in the canonical Epic Story; this design entry records the accepted planning baseline.
+- Current gaps: See the canonical `GMD-002/S2` Implementation Gaps and Verification Gaps; this planning snapshot is not the evidence ledger.
 
 #### Story GMD-002/S3: Search The Workspace Locally
 
 - R1 Baseline search experience: prove matches, empty/no-result states, and recoverable index failure.
 - R2 Rebuildable search projection: prove deletion/rebuild, external-source convergence, and `.graphite/` exclusion.
 - R3 Local search boundary: prove baseline queries and note content stay on the host.
-- Implemented By: Not implemented yet.
-- Verified By: Not verified yet.
-- Verification Gaps: All `GMD-002/S3` Scenarios are pending.
+- Current implementation and verification: Reconciled in the canonical Epic Story; this design entry records the accepted planning baseline.
+- Current gaps: See the canonical `GMD-002/S3` Implementation Gaps and Verification Gaps; this planning snapshot is not the evidence ledger.
 
-### Create Epic: GMD-003 Bundled Plugin Platform
+### Epic: GMD-003 Bundled Plugin Platform
 
-- Proposed directory: `docs/epics/gmd-003-bundled-plugin-platform/`
-- Proposed file: `docs/epics/gmd-003-bundled-plugin-platform/epic.md`
+- Implemented directory: `docs/epics/gmd-003-bundled-plugin-platform/`
+- Canonical file: `docs/epics/gmd-003-bundled-plugin-platform/epic.md`
 
 #### Epic
 
@@ -123,9 +118,8 @@ The owner inspects and controls bundled plugins while manifests, capability medi
 - R2 Owner-controlled enablement: prove contribution removal and restart persistence.
 - R3 Capability-mediated access: prove declared in-scope operations and denied out-of-scope operations.
 - R4 Namespaced inspectable state and recovery: prove isolation, interruption recovery, and shared conformance.
-- Implemented By: Not implemented yet.
-- Verified By: Not verified yet.
-- Verification Gaps: All `GMD-003/S1` Scenarios are pending.
+- Current implementation and verification: Reconciled in the canonical Epic Story; this design entry records the accepted planning baseline.
+- Current gaps: See the canonical `GMD-003/S1` Implementation Gaps and Verification Gaps; this planning snapshot is not the evidence ledger.
 
 ## Epic File Rules
 

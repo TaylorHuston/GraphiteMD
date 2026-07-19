@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
 type Contribution = { id: string; title: string }
-type Plugin = {
+export type Plugin = {
   id: string
   status: 'active' | 'disabled' | 'invalid' | 'incompatible' | 'duplicate' | 'dependency_missing' | 'activation_failed'
   message?: string
@@ -23,7 +23,7 @@ function statusLabel(status: Plugin['status']) {
   return status.split('_').map((part) => `${part[0]?.toUpperCase()}${part.slice(1)}`).join(' ')
 }
 
-export function SettingsPanel({ onSessionExpired }: { onSessionExpired: () => void }) {
+export function SettingsPanel({ onSessionExpired, onPluginsChanged }: { onSessionExpired: () => void; onPluginsChanged?: () => void }) {
   const [plugins, setPlugins] = useState<Plugin[] | null>(null)
   const [pluginError, setPluginError] = useState<string | null>(null)
   const [changingPlugin, setChangingPlugin] = useState<string | null>(null)
@@ -43,7 +43,7 @@ export function SettingsPanel({ onSessionExpired }: { onSessionExpired: () => vo
       if (active) setPlugins(result.plugins)
     }).catch(() => { if (active) setPluginError('Plugin status is unavailable.') })
     return () => { active = false }
-  }, [onSessionExpired])
+  }, [onPluginsChanged, onSessionExpired])
 
   async function changePassword(event: FormEvent) {
     event.preventDefault(); setPasswordError(null)
@@ -82,6 +82,7 @@ export function SettingsPanel({ onSessionExpired }: { onSessionExpired: () => vo
       if (!response.ok) { setPluginError(`GraphiteMD could not ${enabled ? 'enable' : 'disable'} ${plugin.manifest?.name ?? plugin.id}.`); return }
       const result = await response.json() as { plugin: Plugin }
       setPlugins((current) => current?.map((item) => item.id === result.plugin.id ? result.plugin : item) ?? null)
+      onPluginsChanged?.()
     } catch { setPluginError(`GraphiteMD could not ${enabled ? 'enable' : 'disable'} ${plugin.manifest?.name ?? plugin.id}.`) }
     finally { setChangingPlugin(null) }
   }

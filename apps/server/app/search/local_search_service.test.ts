@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -74,5 +74,16 @@ describe('GMD-002/S3 local search', () => {
     await authority.openConfigured()
     await expect(service.search('forbiddenword')).resolves.toEqual([])
     await expect(service.search('allowedword')).resolves.toHaveLength(1)
+  })
+
+  it('R2-S3 refuses a cache path redirected through a symbolic link', async () => {
+    const { root, authority, service } = await fixture()
+    const outside = await mkdtemp(join(tmpdir(), 'graphitemd-search-outside-'))
+    roots.push(outside)
+    await writeFile(join(root, 'Visible.md'), '# Visible\nneedle\n')
+    await symlink(outside, join(root, '.graphite'))
+    await authority.openConfigured()
+    await expect(service.search('needle')).rejects.toThrow('unavailable')
+    await expect(readFile(join(outside, 'cache', 'search.sqlite'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

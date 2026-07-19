@@ -103,6 +103,15 @@ h1, h2, p { margin-top: 0; }
 .rename-note label { font-size: .75rem; color: var(--muted); }
 .rename-note input { min-width: 0; max-width: 22rem; }
 .rename-note p { margin: 0; color: var(--danger); }
+.save-recovery { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 1rem; padding: .75rem; border: 1px solid #6d4f3c; border-radius: .5rem; background: #241a16; }
+.save-recovery p { margin: 0; color: #ffd2b8; font-size: .85rem; }
+.save-recovery button { flex: none; border-color: #6d4f3c; background: #34231b; }
+.system-status-contribution { margin-top: 1rem; padding: .8rem .35rem; border-top: 1px solid var(--line); }
+.system-status-contribution h2 { font-size: 1rem; }
+.system-status-contribution dl { display: grid; gap: .5rem; margin: 0; }
+.system-status-contribution dl > div { display: flex; justify-content: space-between; gap: 1rem; font-size: .78rem; }
+.system-status-contribution dt { color: var(--muted); }
+.system-status-contribution dd { margin: 0; }
 .markdown-editor { min-height: 0; height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .editor-mode-switch { display: flex; justify-content: flex-end; gap: .25rem; padding: .5rem 1rem; }
 .editor-mode-switch button[aria-pressed="true"] { color: var(--text); background: var(--raised); }

@@ -45,6 +45,16 @@ describe('GMD-003/S1 R2 inspectable enablement', () => {
     await writeFile(join(root, '.graphite', 'plugins.json'), '{"enabled":{"system-status":"no"}}')
     await expect(new PluginEnablementStore(root).read()).rejects.toThrow('invalid')
   })
+
+  it('serializes concurrent enablement updates without losing either setting', async () => {
+    const root = await workspaceRoot()
+    const store = new PluginEnablementStore(root)
+    await Promise.all([store.set('system-status', false), store.set('future-plugin', true)])
+    await expect(store.read()).resolves.toEqual({
+      schemaVersion: 1,
+      enabled: { 'system-status': false, 'future-plugin': true },
+    })
+  })
 })
 
 describe('GMD-003/S1 R4 atomic namespaced state', () => {

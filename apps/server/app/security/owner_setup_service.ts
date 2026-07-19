@@ -6,6 +6,25 @@ import { Scrypt } from '@adonisjs/hash/drivers/scrypt'
 
 const DATABASE_FILE = 'security.sqlite'
 const OWNER_ID = 1
+export const PASSWORD_MINIMUM_BYTES = 12
+export const PASSWORD_MAXIMUM_BYTES = 1024
+
+export class PasswordPolicyError extends Error {
+  constructor() {
+    super(`Password must be between ${PASSWORD_MINIMUM_BYTES} and ${PASSWORD_MAXIMUM_BYTES} UTF-8 bytes`)
+    this.name = 'PasswordPolicyError'
+  }
+}
+
+export function acceptsPasswordInput(password: unknown): password is string {
+  if (typeof password !== 'string') return false
+  const bytes = Buffer.byteLength(password, 'utf8')
+  return bytes >= PASSWORD_MINIMUM_BYTES && bytes <= PASSWORD_MAXIMUM_BYTES
+}
+
+function requirePassword(password: unknown): asserts password is string {
+  if (!acceptsPasswordInput(password)) throw new PasswordPolicyError()
+}
 
 export class OwnerAlreadyExistsError extends Error {
   constructor() {
@@ -55,6 +74,7 @@ export class OwnerSetupService {
   }
 
   async createOwner(password: string): Promise<void> {
+    requirePassword(password)
     const passwordHash = await this.#hasher.make(password)
     const database = await this.#openDatabase()
     try {
@@ -76,6 +96,7 @@ export class OwnerSetupService {
   }
 
   async verifyPassword(password: string): Promise<boolean> {
+    if (!acceptsPasswordInput(password)) return false
     const database = await this.#openDatabase()
     try {
       const owner = database
@@ -88,6 +109,8 @@ export class OwnerSetupService {
   }
 
   async changePassword(currentPassword: string, replacementPassword: string): Promise<boolean> {
+    if (!acceptsPasswordInput(currentPassword)) return false
+    requirePassword(replacementPassword)
     const database = await this.#openDatabase()
     try {
       const owner = database
@@ -120,6 +143,7 @@ export class OwnerSetupService {
   }
 
   async resetPassword(replacementPassword: string): Promise<void> {
+    requirePassword(replacementPassword)
     const replacementHash = await this.#hasher.make(replacementPassword)
     const database = await this.#openDatabase()
     try {

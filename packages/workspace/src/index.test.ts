@@ -375,4 +375,36 @@ describe('ConfiguredWorkspaceAuthority', () => {
     await expect(authority.saveNote(note.resourceId, note.revision, '# Escaped\n')).rejects.toBeInstanceOf(Error)
     expect(await readFile(outsidePath, 'utf8')).toBe('# Outside\n')
   })
+
+  it('GMD-002/S2/R3-S2 rejects rename after root replacement or resource symlink escape', async () => {
+    const workspaceRoot = await createWorkspace()
+    const outsideRoot = await createWorkspace()
+    const notePath = join(workspaceRoot, 'Safe.md')
+    const outsidePath = join(outsideRoot, 'Outside.md')
+    await writeFile(notePath, '# Safe\n', 'utf8')
+    await writeFile(outsidePath, '# Outside\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    let opened = await authority.openConfigured()
+    let note = await authority.readNote(opened.notes[0]!.resourceId)
+    await rm(notePath)
+    await symlink(outsidePath, notePath)
+
+    await expect(authority.renameNote(note.resourceId, note.revision, 'Escaped.md')).rejects.toBeInstanceOf(Error)
+    expect(await readFile(outsidePath, 'utf8')).toBe('# Outside\n')
+
+    await rm(notePath)
+    await writeFile(notePath, '# Safe again\n', 'utf8')
+    opened = await authority.openConfigured()
+    note = await authority.readNote(opened.notes[0]!.resourceId)
+    const replacedRoot = `${workspaceRoot}-before-rename`
+    temporaryDirectories.push(replacedRoot)
+    await rename(workspaceRoot, replacedRoot)
+    await mkdir(workspaceRoot)
+    await writeFile(join(workspaceRoot, 'Safe.md'), '# Replacement\n', 'utf8')
+
+    await expect(authority.renameNote(note.resourceId, note.revision, 'Escaped.md')).rejects.toMatchObject({
+      name: 'WorkspaceUnavailableError',
+    })
+    expect(await readFile(join(workspaceRoot, 'Safe.md'), 'utf8')).toBe('# Replacement\n')
+  })
 })

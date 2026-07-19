@@ -10,11 +10,14 @@ import {
 
 import Owner from '#models/owner'
 import {
+  acceptsPasswordInput,
   OwnerSetupService,
+  PasswordPolicyError,
   resolveSecurityStateDirectory,
 } from '../app/security/owner_setup_service.js'
 import { PluginRuntimeService } from '../app/plugins/plugin_runtime_service.js'
 import { LocalSearchService, LocalSearchUnavailableError } from '../app/search/local_search_service.js'
+import { LoginAttemptLimiter } from '../app/security/login_attempt_limiter.js'
 
 const ownerSetup = new OwnerSetupService(resolveSecurityStateDirectory())
 const workspace = new ConfiguredWorkspaceAuthority(process.env.GRAPHITEMD_WORKSPACE_ROOT)
@@ -25,6 +28,7 @@ const plugins = process.env.GRAPHITEMD_WORKSPACE_ROOT
   ? new PluginRuntimeService(process.env.GRAPHITEMD_WORKSPACE_ROOT, workspace)
   : undefined
 let pluginsStarted: Promise<void> | undefined
+const loginAttempts = new LoginAttemptLimiter()
 
 async function pluginRuntime(): Promise<PluginRuntimeService | undefined> {
   if (!plugins) return undefined
@@ -36,12 +40,17 @@ async function pluginRuntime(): Promise<PluginRuntimeService | undefined> {
 router.get('/api/v1/health', () => serviceDescriptor)
 
 router.post('/api/v1/auth/login', async ({ auth, request, response }) => {
+  const source = request.ip()
+  if (!loginAttempts.allows(source)) {
+    return response.tooManyRequests({ error: { code: 'invalid_credentials', message: 'Invalid credentials.' } })
+  }
   const account = request.input('account')
   const password = request.input('password')
   const validAccount = account === 'owner'
-  const validPassword = typeof password === 'string' && (await ownerSetup.verifyPassword(password))
+  const validPassword = acceptsPasswordInput(password) && (await ownerSetup.verifyPassword(password))
 
   if (!validAccount || !validPassword) {
+    loginAttempts.failed(source)
     return response.unauthorized({ error: { code: 'invalid_credentials', message: 'Invalid credentials.' } })
   }
 
@@ -51,6 +60,7 @@ router.post('/api/v1/auth/login', async ({ auth, request, response }) => {
   }
 
   await auth.use('web').login(owner)
+  loginAttempts.succeeded(source)
   return { owner: { id: 'owner' } }
 })
 
@@ -86,8 +96,15 @@ router.put('/api/v1/auth/password', async ({ auth, request, response }) => {
     return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
   }
 
-  if (!(await ownerSetup.changePassword(currentPassword, replacementPassword))) {
-    return response.unauthorized({ error: { code: 'invalid_credentials', message: 'Invalid credentials.' } })
+  try {
+    if (!(await ownerSetup.changePassword(currentPassword, replacementPassword))) {
+      return response.unauthorized({ error: { code: 'invalid_credentials', message: 'Invalid credentials.' } })
+    }
+  } catch (error) {
+    if (error instanceof PasswordPolicyError) {
+      return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
+    }
+    throw error
   }
 
   await auth.use('web').logout()

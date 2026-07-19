@@ -28,7 +28,7 @@ Stop before implementation when no active or explicitly selected Planned Change 
 docs/adrs/        Accepted cross-cutting architecture decisions.
 ```
 
-The application package layout will be established through the first foundation Change rather than assumed in this guide.
+The application is a pnpm monorepo with `apps/server`, `apps/web`, framework-neutral packages under `packages/`, and bundled plugins under `plugins/`. See `README.md` for current commands and runtime configuration.
 
 ## Invariants
 
@@ -41,7 +41,7 @@ The application package layout will be established through the first foundation 
 
 ## Commands
 
-No application package or executable commands exist yet. The foundation Change must introduce and document installation, lint, typecheck, test, build, and development commands together.
+Use the root pnpm scripts documented in `README.md` for installation, development, lint, typecheck, tests, builds, and production startup. Run focused package tests before broad root gates.
 
 ## Completion Gate
 

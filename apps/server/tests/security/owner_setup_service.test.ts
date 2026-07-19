@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 import {
   OwnerAlreadyExistsError,
   OwnerSetupService,
+  PasswordPolicyError,
 } from '../../app/security/owner_setup_service.js'
 
 describe('GMD-001/S1 R1 host-local owner setup', () => {
@@ -88,5 +89,18 @@ describe('GMD-001/S2 owner credential maintenance', () => {
 
     expect(await service.verifyPassword('existing password')).toBe(true)
     expect(await service.verifyPassword('uncommitted password')).toBe(false)
+  })
+})
+
+describe('GMD-001 password input policy', () => {
+  it('applies one UTF-8 byte policy to setup, verification, change, and reset', async () => {
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const service = new OwnerSetupService(stateDirectory)
+    await expect(service.createOwner('short')).rejects.toBeInstanceOf(PasswordPolicyError)
+    await service.createOwner('valid password')
+    await expect(service.verifyPassword('x'.repeat(1025))).resolves.toBe(false)
+    await expect(service.changePassword('valid password', 'tiny')).rejects.toBeInstanceOf(PasswordPolicyError)
+    await expect(service.resetPassword('tiny')).rejects.toBeInstanceOf(PasswordPolicyError)
+    expect(await service.verifyPassword('valid password')).toBe(true)
   })
 })

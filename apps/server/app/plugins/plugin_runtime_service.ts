@@ -1,4 +1,6 @@
-import { lstat, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { lstat, mkdir, open, readFile, readdir, rename, rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import {
@@ -21,9 +23,32 @@ const PLUGIN_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 async function atomicJsonWrite(path: string, value: unknown): Promise<void> {
   await mkdir(dirname(path), { recursive: true })
-  const temporary = `${path}.tmp`
-  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 })
-  await rename(temporary, path)
+  const temporary = `${path}.${randomUUID()}.tmp`
+  let created = false
+  try {
+    const handle = await open(
+      temporary,
+      constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
+      0o600,
+    )
+    created = true
+    try {
+      await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`, 'utf8')
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
+    await rename(temporary, path)
+    created = false
+    const directory = await open(dirname(path), constants.O_RDONLY)
+    try {
+      await directory.sync()
+    } finally {
+      await directory.close()
+    }
+  } finally {
+    if (created) await rm(temporary, { force: true })
+  }
 }
 
 async function readJson(path: string): Promise<unknown | undefined> {
@@ -50,6 +75,7 @@ async function assertNoSymlink(root: string, segments: readonly string[]): Promi
 
 export class PluginEnablementStore {
   readonly #path: string
+  #pending: Promise<unknown> = Promise.resolve()
 
   constructor(workspaceRoot: string) {
     this.#path = join(workspaceRoot, '.graphite', 'plugins.json')
@@ -73,14 +99,19 @@ export class PluginEnablementStore {
 
   async set(id: string, enabled: boolean): Promise<EnablementDocument> {
     if (!PLUGIN_ID.test(id)) throw new Error('Invalid plugin identity.')
-    const current = await this.read()
-    const replacement = { schemaVersion: 1 as const, enabled: { ...current.enabled, [id]: enabled } }
-    await atomicJsonWrite(this.#path, replacement)
-    return replacement
+    const operation = this.#pending.then(async () => {
+      const current = await this.read()
+      const replacement = { schemaVersion: 1 as const, enabled: { ...current.enabled, [id]: enabled } }
+      await atomicJsonWrite(this.#path, replacement)
+      return replacement
+    })
+    this.#pending = operation.catch(() => undefined)
+    return operation
   }
 }
 
 export class FilesystemPluginStateBackend implements PluginStateBackend {
+  readonly #pending = new Map<string, Promise<unknown>>()
   constructor(private readonly workspaceRoot: string) {}
 
   #statePath(pluginId: string): string {
@@ -96,13 +127,27 @@ export class FilesystemPluginStateBackend implements PluginStateBackend {
 
   async transaction(pluginId: string, value: unknown): Promise<void> {
     await this.#assertSafe(pluginId)
-    await atomicJsonWrite(this.#statePath(pluginId), value)
+    const previous = this.#pending.get(pluginId) ?? Promise.resolve()
+    const operation = previous.then(() => atomicJsonWrite(this.#statePath(pluginId), value))
+    this.#pending.set(pluginId, operation.catch(() => undefined))
+    await operation
   }
 
   async recovery(pluginId: string): Promise<'clean' | 'recovered' | 'failed'> {
     await this.#assertSafe(pluginId)
     const path = this.#statePath(pluginId)
-    const temporary = `${path}.tmp`
+    const directory = dirname(path)
+    const base = path.slice(directory.length + 1)
+    const candidates = await readdir(directory).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return []
+      throw error
+    })
+    const temporaryNames = candidates
+      .filter((name) => name === `${base}.tmp` || (name.startsWith(`${base}.`) && name.endsWith('.tmp')))
+      .sort()
+    if (temporaryNames.length === 0) return 'clean'
+    if (temporaryNames.length > 1) return 'failed'
+    const temporary = join(directory, temporaryNames[0]!)
     try {
       await stat(temporary)
     } catch (error) {

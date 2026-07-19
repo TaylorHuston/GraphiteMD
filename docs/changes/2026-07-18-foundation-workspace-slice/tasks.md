@@ -5,10 +5,10 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: `GMD-002/S3` local search and owner Settings for password/plugin control pass all root gates and scoped Epic validation.
-- Next action: Commit search and Settings, then add deterministic E2E/Storybook coverage and close or explicitly accept the remaining editor/plugin/manual gaps.
+- Last completed action: Apply-side self-check wave completed and its safe frontend, security, filesystem, plugin-boundary, documentation, and traceability findings were remediated; root and scoped gates pass.
+- Next action: Commit the remediation batch, then implement the promised Storybook/Playwright gates and finish the remaining accepted editor/rename/plugin behavior before the regression self-check.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: Editor/workspace/server/plugin/web files, GMD-002/GMD-003 Epics, dependency manifests, and this ledger for the current integrated slices.
+- Expected dirty files: Self-check remediation across server/web/workspace tests, all three Epics, README/CHANGELOG/ADRs/design, and this ledger.
 - Known blockers: None. Spike repositories are read-only reference sources.
 
 ## Task Checklist
@@ -67,9 +67,9 @@ status: in_progress
   - [x] R3 prove baseline search uses only the local service/index path. (automated network-egress isolation remains a verification gap.)
 - [ ] 4.7 Implement `GMD-003/S1` Inspect Control And Trust Bundled Plugins through BDD/TDD.
   - [x] R1 manifests, compatibility, plugin inventory, and failed activation.
-  - [ ] R2 inspectable enable/disable state and contribution teardown/restart. (atomic `.graphite/plugins.json`, service lifecycle, and authenticated control complete; browser controls pending.)
-  - [ ] R3 capability broker, opaque identities, normalized denial, and forbidden imports. (workspace status provider complete; broader providers and forbidden-import gate pending.)
-  - [ ] R4 namespaced state, recovery, shared conformance, and the System Status plugin. (atomic filesystem backend, recovery, service mounting, and conformance complete; browser contribution mounting and process-kill fault proof pending.)
+  - [x] R2 inspectable enable/disable state and contribution teardown/restart.
+  - [ ] R3 capability broker, opaque identities, normalized denial, and forbidden imports. (System Status provider and enforceable forbidden-import gate complete; broader resource providers/current-user propagation remain classified in the Epic.)
+  - [x] R4 namespaced state, recovery, shared conformance, and the System Status plugin. (process-kill durability remains a verification gap, not an implementation gap.)
 - [ ] 4.8 Reconcile all affected Epic `Implemented By` and Implementation Gaps immediately after each Requirement slice.
 
 ### 5. Reuse And Migration Discipline
@@ -125,6 +125,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | `GMD-003/S1` plugin persistence and production service slice | Delegated TDD; Dashboard config-backed lifecycle and Coordinator broker/confinement concepts adapted | Atomic plugin config/state service, System Status production host/provider, authenticated inventory/control routes, GMD-003 Epic | Inspectable enablement, namespaced atomic state/recovery, symlink denial, restart-safe activation, and authenticated inventory/control implemented; browser mounting and broader static/runtime boundaries remain | `90fcdb2` |
 | 2026-07-18 | `GMD-002/S3` local kernel search | Delegated TDD; Dashboard FTS/reconciliation/result-navigation patterns adapted | Local FTS5 service, authenticated search/rebuild routes, workbench Search UI, GMD-002 Epic | `.graphite/cache/search.sqlite` projection searches title/path/frontmatter/body with bounded opaque results and rebuild-on-search external reconciliation; fault-injection/egress/manual evidence remain | `40c95ad` |
 | 2026-07-18 | Owner Settings for access and plugins | Delegated TDD; existing spike Settings interaction patterns adapted | SettingsPanel, workbench drawer integration, GMD-001/GMD-003 Epics | Password change forces reauthentication; plugin inventory, permissions, contributions, status, and enable/disable control are inspectable; contribution mounting remains | `40c95ad` |
+| 2026-07-18 | Apply-side implementation self-check and remediation wave | Delegated fresh-context code/coverage, security, and docs/traceability passes; TDD/component guidance | Browser transitions and recovery; auth/password/rate limits; search/plugin filesystem confinement; import/build boundaries; README/CHANGELOG/ADRs/design/Epics | Three browser-path defects, conflict recovery, System Status mounting, high-risk production defaults and write boundaries, build leakage, and stale artifacts remediated; no scope expansion | pending commit |
 
 ## Verification Ledger
 
@@ -147,6 +148,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Server 20-test and web 7-test suites; root test/typecheck/lint; scoped SDD validation | deterministic integration and component evidence plus supporting gates | `GMD-002/S1/R3-S1..R3-S2`: authenticated exact-note reads, path-free denial, opaque-resource selection/history restoration, invalid-route recovery, and note-read session expiry. | Passing; responsive manual confirmation remains explicit |
 | 2026-07-18 | Workspace 18, web 14, and server 29 tests; root build/test/lint/typecheck; scoped GMD-002/GMD-003 validation; diff check | focused, integration, component, and broad supporting evidence | Partial `GMD-002/S2` exact editor/autosave/save/rename behavior and `GMD-003/S1` atomic plugin persistence, production host/provider, restart/recovery, confinement, and authenticated control. | Passing; documented editor/plugin browser and fault-injection gaps remain; Vite reports a roughly 700 KB chunk warning |
 | 2026-07-18 | Workspace 18, web 20, and server 36 tests; root build/test/lint/typecheck; scoped Epic validation; diff check | focused, integration, component, and broad supporting evidence | `GMD-002/S3` local FTS/rebuild/reconciliation/navigation plus owner password and plugin Settings interactions. | Passing; deterministic DB-fault/network-isolation and manual responsive confirmation remain explicit gaps |
+| 2026-07-18 | Workspace 19, web 26, and server 42 tests; root test/typecheck/lint/build; scoped Change and all Epic validation; production bundle/config inspection | focused automated, integration, broad gate, and debug inspection evidence | Self-check remediations: rename/search/history transitions, save recovery, plugin contribution lifecycle, password policy/throttling, fail-closed APP_KEY, confined atomic state/index writes, forbidden imports, and deployable-build exclusion. | Passing; Vite chunk warning and documented OS-level TOCTOU/process-kill/manual gaps remain |
 
 ## Manual Feedback
 
