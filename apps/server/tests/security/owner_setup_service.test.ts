@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 
 import { describe, expect, it } from 'vitest'
 
@@ -38,5 +39,54 @@ describe('GMD-001/S1 R1 host-local owner setup', () => {
     )
     expect(await service.verifyPassword('original password')).toBe(true)
     expect(await service.verifyPassword('replacement password')).toBe(false)
+  })
+})
+
+describe('GMD-001/S2 owner credential maintenance', () => {
+  it('R1-S1 atomically replaces a proven password and invalidates every session', async () => {
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const service = new OwnerSetupService(stateDirectory)
+    await service.createOwner('original password')
+
+    expect(await service.changePassword('original password', 'replacement password')).toBe(true)
+
+    expect(await service.verifyPassword('original password')).toBe(false)
+    expect(await service.verifyPassword('replacement password')).toBe(true)
+  })
+
+  it('R2-S1 atomically replaces a forgotten password', async () => {
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const service = new OwnerSetupService(stateDirectory)
+    await service.createOwner('forgotten password')
+
+    await service.resetPassword('recovered password')
+
+    expect(await service.verifyPassword('forgotten password')).toBe(false)
+    expect(await service.verifyPassword('recovered password')).toBe(true)
+  })
+
+  it('R2-S2 rolls back the credential when session invalidation fails before commit', async () => {
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const service = new OwnerSetupService(stateDirectory)
+    await service.createOwner('existing password')
+    const database = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+    database.prepare('INSERT INTO sessions (id, data, expires_at) VALUES (?, ?, ?)').run(
+      'failure-fixture',
+      '{}',
+      '2099-01-01T00:00:00.000Z'
+    )
+    database.exec(`
+      CREATE TRIGGER reject_session_deletion
+      BEFORE DELETE ON sessions
+      BEGIN
+        SELECT RAISE(ABORT, 'fixture failure');
+      END
+    `)
+    database.close()
+
+    await expect(service.resetPassword('uncommitted password')).rejects.toThrow('fixture failure')
+
+    expect(await service.verifyPassword('existing password')).toBe(true)
+    expect(await service.verifyPassword('uncommitted password')).toBe(false)
   })
 })

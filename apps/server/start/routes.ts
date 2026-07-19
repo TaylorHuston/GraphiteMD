@@ -51,6 +51,27 @@ router.post('/api/v1/auth/logout', async ({ auth, response }) => {
   }
 })
 
+router.put('/api/v1/auth/password', async ({ auth, request, response }) => {
+  try {
+    await auth.use('web').authenticate()
+  } catch {
+    return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+
+  const currentPassword = request.input('currentPassword')
+  const replacementPassword = request.input('password')
+  if (typeof currentPassword !== 'string' || typeof replacementPassword !== 'string') {
+    return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
+  }
+
+  if (!(await ownerSetup.changePassword(currentPassword, replacementPassword))) {
+    return response.unauthorized({ error: { code: 'invalid_credentials', message: 'Invalid credentials.' } })
+  }
+
+  await auth.use('web').logout()
+  return response.noContent()
+})
+
 router.get('/api/v1/workspace', async ({ auth, response }) => {
   try {
     await auth.use('web').authenticate()

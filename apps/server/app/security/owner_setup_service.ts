@@ -14,6 +14,13 @@ export class OwnerAlreadyExistsError extends Error {
   }
 }
 
+export class OwnerNotFoundError extends Error {
+  constructor() {
+    super('No owner account exists')
+    this.name = 'OwnerNotFoundError'
+  }
+}
+
 export function resolveSecurityStateDirectory(environment = process.env): string {
   const configured = environment.GRAPHITEMD_STATE_DIR?.trim()
   if (!configured) {
@@ -80,6 +87,64 @@ export class OwnerSetupService {
     }
   }
 
+  async changePassword(currentPassword: string, replacementPassword: string): Promise<boolean> {
+    const database = await this.#openDatabase()
+    try {
+      const owner = database
+        .prepare('SELECT password_hash FROM owners WHERE id = ?')
+        .get(OWNER_ID) as { password_hash: string } | undefined
+      if (!owner || !(await this.#hasher.verify(owner.password_hash, currentPassword))) return false
+
+      const replacementHash = await this.#hasher.make(replacementPassword)
+      database.exec('BEGIN IMMEDIATE')
+      const result = database
+        .prepare(`
+          UPDATE owners
+          SET password_hash = ?, revocation_generation = revocation_generation + 1
+          WHERE id = ? AND password_hash = ?
+        `)
+        .run(replacementHash, OWNER_ID, owner.password_hash)
+      if (result.changes !== 1) {
+        database.exec('ROLLBACK')
+        return false
+      }
+      database.prepare('DELETE FROM sessions').run()
+      database.exec('COMMIT')
+      return true
+    } catch (error) {
+      if (database.isTransaction) database.exec('ROLLBACK')
+      throw error
+    } finally {
+      database.close()
+    }
+  }
+
+  async resetPassword(replacementPassword: string): Promise<void> {
+    const replacementHash = await this.#hasher.make(replacementPassword)
+    const database = await this.#openDatabase()
+    try {
+      database.exec('BEGIN IMMEDIATE')
+      const result = database
+        .prepare(`
+          UPDATE owners
+          SET password_hash = ?, revocation_generation = revocation_generation + 1
+          WHERE id = ?
+        `)
+        .run(replacementHash, OWNER_ID)
+      if (result.changes !== 1) {
+        database.exec('ROLLBACK')
+        throw new OwnerNotFoundError()
+      }
+      database.prepare('DELETE FROM sessions').run()
+      database.exec('COMMIT')
+    } catch (error) {
+      if (database.isTransaction) database.exec('ROLLBACK')
+      throw error
+    } finally {
+      database.close()
+    }
+  }
+
   async #openDatabase(): Promise<DatabaseSync> {
     await mkdir(this.#stateDirectory, { recursive: true, mode: 0o700 })
     await chmod(this.#stateDirectory, 0o700)
@@ -88,7 +153,8 @@ export class OwnerSetupService {
     database.exec(`
       CREATE TABLE IF NOT EXISTS owners (
         id INTEGER PRIMARY KEY CHECK (id = 1),
-        password_hash TEXT NOT NULL
+        password_hash TEXT NOT NULL,
+        revocation_generation INTEGER NOT NULL DEFAULT 0
       ) STRICT;
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
@@ -99,6 +165,12 @@ export class OwnerSetupService {
       CREATE INDEX IF NOT EXISTS sessions_user_id_index ON sessions (user_id);
       CREATE INDEX IF NOT EXISTS sessions_expires_at_index ON sessions (expires_at)
     `)
+    const ownerColumns = database.prepare('PRAGMA table_info(owners)').all() as Array<{ name: string }>
+    if (!ownerColumns.some(({ name }) => name === 'revocation_generation')) {
+      database.exec(
+        'ALTER TABLE owners ADD COLUMN revocation_generation INTEGER NOT NULL DEFAULT 0'
+      )
+    }
     return database
   }
 }

@@ -50,7 +50,7 @@ A self-hosting owner will be able to establish one local GraphiteMD account, sig
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
 | S1 | implemented | partial | Establish an owner account and authenticate a browser session. | 2026-07-18 | Host-local setup, browser session authentication, XSRF enforcement, and exact credentialed origins are implemented; terminal masking awaits manual confirmation. |
-| S2 | not implemented | unverified | Maintain and recover access without weakening session boundaries. |  | Foundation Change. |
+| S2 | partial | partial | Maintain and recover access without weakening session boundaries. | 2026-07-18 | Password maintenance, global revocation, host reset, and reconnect boundaries are implemented; the in-app password form and expiry-specific HTTP proof remain gaps. |
 
 ## Stories
 
@@ -160,11 +160,11 @@ The system SHALL accept credentialed browser requests only from configured exact
 
 ### Story S2: Maintain And Recover Access
 
-Implementation: not implemented
-Verification: unverified
+Implementation: partial
+Verification: partial
 Created: 2026-07-18
 Modified: 2026-07-18
-Last verified:
+Last verified: 2026-07-18
 
 As the workspace owner, I want to change or recover my password and reconnect safely, so that losing a credential or closing a browser does not require replacing my workspace.
 
@@ -224,26 +224,31 @@ The system SHALL restore an authenticated browser from valid service-owned sessi
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
-| S2/R1 | Not implemented yet. | primary | Authenticated password-change transaction and invalidation. |
-| S2/R2 | Not implemented yet. | primary | Host-local recovery command and atomic reset. |
-| S2/R3 | Not implemented yet. | primary | Current-session query and reconnect behavior. |
+| S2/R1 | `apps/server/app/security/owner_setup_service.ts#OwnerSetupService.changePassword`; `apps/server/start/routes.ts` — `PUT /api/v1/auth/password` | primary | Proves the current credential, atomically swaps the hash and revocation generation, deletes all persisted sessions, and forces the caller to sign in again. |
+| S2/R2 | `apps/server/app/security/owner_setup_service.ts#OwnerSetupService.resetPassword` | primary | Atomically replaces the host-owned credential and invalidates all persisted sessions with rollback on failure. |
+| S2/R2 | `apps/server/commands/reset_owner.ts#runOwnerReset`; `apps/server/commands/reset_owner.ts#ResetOwner` | adapter | Exposes explicit confirmation and secure matching prompts through the host-local `owner:reset` Ace command without logging credential material. |
+| S2/R3 | `apps/server/start/routes.ts` — `GET /api/v1/auth/current`; `apps/web/src/App.tsx#App` | primary | Restores valid service-owned sessions and normalizes rejected reconnects into the login experience without making browser state authoritative. |
 
 #### Implementation Gaps
 
-- `S2/R1`: In-app password change does not exist yet.
-- `S2/R2`: Host-local password reset does not exist yet.
-- `S2/R3`: Authenticated reconnect behavior does not exist yet.
+- `S2/R1`: The authenticated password-change API exists, but its Settings form is not implemented yet.
 
 #### Verified By
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
+| `S2/R1-S1` | `apps/server/tests/security/owner_setup_service.test.ts`; `apps/server/tests/http/access_maintenance.test.ts` — `R1-S1 requires the replacement password and invalidates every existing session` | Focused service and disposable real-HTTP evidence proves atomic hash replacement, global persisted-session invalidation, forced re-login, rejection of the old credential, and acceptance of the replacement. | Passing 2026-07-18. |
+| `S2/R1-S2` | `apps/server/tests/http/access_maintenance.test.ts` — `R1-S2 rejects an incorrect current password without changing credentials or sessions` | Disposable real-HTTP evidence proves the generic rejection leaves both the established session and prior credential valid without accepting the proposed replacement. | Passing 2026-07-18. |
+| `S2/R2-S1` | `apps/server/tests/commands/reset_owner.test.ts`; `apps/server/tests/http/access_maintenance.test.ts` — `R2-S1 resets the credential and invalidates every persisted session` | Command-adapter and disposable real-HTTP evidence proves explicit host confirmation, matching secure prompts, atomic reset, global invalidation, and next login with only the recovered credential. | Passing 2026-07-18. |
+| `S2/R2-S2` | `apps/server/tests/commands/reset_owner.test.ts`; `apps/server/tests/security/owner_setup_service.test.ts` — `R2-S2 rolls back the credential when session invalidation fails before commit` | Focused evidence proves cancel and confirmation mismatch perform no write, while an injected failure during session revocation rolls back the credential replacement. | Passing 2026-07-18. |
+| `S2/R3-S1` | `apps/server/tests/http/authentication.test.ts` — `R2-S1 establishes an official server-owned session and protects workspace delivery` | Disposable real-HTTP evidence proves the same persisted cookie reconnects to current-owner and workspace APIs while the response omits the host workspace path. | Passing 2026-07-18. |
+| `S2/R3-S2` | `apps/server/tests/http/authentication.test.ts`; `apps/server/tests/http/access_maintenance.test.ts`; `apps/web/src/App.test.tsx` — `returns an expired session to an honest login state` | HTTP evidence proves logout, password change, and host reset reject replayed cookies generically; browser-component evidence proves a generic unauthenticated response returns to the login experience without prior workspace content. | Passing with gap 2026-07-18. |
 
 #### Verification Gaps
 
-- `S2/R1-S1`, `S2/R1-S2`: Not verified yet.
-- `S2/R2-S1`, `S2/R2-S2`: Not verified yet.
-- `S2/R3-S1`, `S2/R3-S2`: Not verified yet.
+- `S2/R1`: The Settings password-change form remains unimplemented and therefore lacks browser evidence.
+- `S2/R2`: Real terminal masking/no-echo behavior still needs manual confirmation; automated coverage proves the adapter uses AdonisJS's documented secure prompt seam.
+- `S2/R3-S2`: Expired persisted-session rejection is not isolated in a real-HTTP test; logout, password-change, reset, and browser login-state paths are covered.
 
 #### Story Notes
 
