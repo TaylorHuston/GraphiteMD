@@ -5,8 +5,8 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: `GMD-001/S1 R3` request protection was committed in `7e0d5a5`; the headless `GMD-003/S1` SDK/host/conformance slice is green with explicit persistence and service/web gaps.
-- Next action: Commit the plugin core slice, then implement `.graphite/plugins.json` plus atomic plugin-state persistence before mounting authenticated service/browser controls.
+- Last completed action: The headless `GMD-003/S1` SDK/host/conformance slice was committed in `ba074f7`; request protection is at `7e0d5a5`.
+- Next action: Implement `GMD-001/S2` password maintenance/recovery and `GMD-002/S1 R4` responsive browse composition as non-overlapping TDD slices.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
 - Expected dirty files: `packages/workspace/`, `apps/server/`, `packages/contracts/`, `docs/epics/gmd-002-markdown-workbench/epic.md`, and this ledger for the current Requirement slice.
 - Known blockers: None. Spike repositories are read-only reference sources.
@@ -117,7 +117,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | `GMD-001/S1 R2` browser session authentication and `GMD-002/S1 R1` delivery | Delegated TDD; official Adonis Auth/Session/Lucid guidance | Auth/session/database configs, singleton Owner model, login/current/logout/workspace routes, real HTTP fixture, GMD-001/GMD-002 Epics | Regenerated persistent sessions, generic denial, server-side logout invalidation, and authenticated confined workspace projection implemented | `323a053` |
 | 2026-07-18 | `GMD-002/S1 R3` exact note read package slice | Delegated TDD; Dashboard YAML cases plus Coordinator locator/no-follow patterns | `packages/workspace`; GMD-002 Epic | Exact bounded UTF-8 source, revision, YAML state, stale/unknown locator and symlink/root replacement denial implemented; HTTP/browser history remains | `323a053` |
 | 2026-07-18 | `GMD-001/S1 R3` browser request protection | Delegated TDD; official Adonis Shield/CORS guidance | Shield/CORS config and middleware; real HTTP fixture; GMD-001 Epic | Missing/invalid XSRF fails before logout mutation; exact configured origin receives credentialed CORS while near-match untrusted origin receives none | `7e0d5a5` |
-| 2026-07-18 | `GMD-003/S1` headless plugin core | Delegated TDD; Dashboard enablement semantics plus Coordinator capability-host patterns | Plugin SDK/testkit, System Status plugin, GMD-003 Epic | Versioned manifest/host lifecycle, capability broker, namespaced state contract, and shared conformance implemented; inspectable filesystem persistence and service/web integration remain | commit pending |
+| 2026-07-18 | `GMD-003/S1` headless plugin core | Delegated TDD; Dashboard enablement semantics plus Coordinator capability-host patterns | Plugin SDK/testkit, System Status plugin, GMD-003 Epic | Versioned manifest/host lifecycle, capability broker, namespaced state contract, and shared conformance implemented; inspectable filesystem persistence and service/web integration remain | `ba074f7` |
 
 ## Verification Ledger
 
