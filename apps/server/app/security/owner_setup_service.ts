@@ -89,7 +89,15 @@ export class OwnerSetupService {
       CREATE TABLE IF NOT EXISTS owners (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         password_hash TEXT NOT NULL
-      ) STRICT
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        user_id TEXT,
+        expires_at TEXT NOT NULL
+      ) STRICT;
+      CREATE INDEX IF NOT EXISTS sessions_user_id_index ON sessions (user_id);
+      CREATE INDEX IF NOT EXISTS sessions_expires_at_index ON sessions (expires_at)
     `)
     return database
   }

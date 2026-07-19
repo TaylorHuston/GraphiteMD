@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": ".", "outDir": "build", "declaration": false, "declarationMap": false, "rewriteRelativeImportExtensions": true },
+  "compilerOptions": { "rootDir": ".", "outDir": "build", "declaration": false, "declarationMap": false, "rewriteRelativeImportExtensions": true, "experimentalDecorators": true },
   "include": ["**/*.ts"]
 }

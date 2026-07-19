@@ -55,7 +55,7 @@ An authenticated owner will be able to browse, read, edit, rename, and search Ma
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | partial | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-18 | Service-owned workspace authority and confined tree-ready Markdown inventory implemented; HTTP/auth adapter, reads, and UI remain. |
+| S1 | partial | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-18 | Service-owned authority, confined inventory, and exact resource reads are implemented; HTTP/auth adapter and UI navigation remain. |
 | S2 | not implemented | unverified | Edit and rename a note with source and revision safety. |  | Foundation Change. |
 | S3 | not implemented | unverified | Search the workspace through a rebuildable local index. |  | Foundation Change. |
 
@@ -153,35 +153,38 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
 | S1/R1 | `packages/workspace/src/index.ts` — `ConfiguredWorkspaceAuthority` | primary | Host-configured root validation, opaque service-owned identity, root-identity revalidation, authority clearing, and reconnect snapshots. |
+| S1/R1-S1 | `apps/server/start/routes.ts` — `GET /api/v1/workspace` | adapter | Requires an official authenticated owner session before delivering the confined workspace projection configured by `GRAPHITEMD_WORKSPACE_ROOT`. |
 | S1/R2 | `packages/workspace/src/index.ts` — `ConfiguredWorkspaceAuthority`, `inventoryMarkdown` | primary | Recursive tree-ready Markdown inventory, deterministic ordering, opaque resource identities, relative display paths, configured/internal exclusions, no-follow bounded reads, strict UTF-8 eligibility, and honest empty results. |
-| S1/R3 | Not implemented yet. | primary | Resource read and navigation contract. |
+| S1/R3 | `packages/workspace/src/index.ts` — `ConfiguredWorkspaceAuthority.readNote`, `parseMarkdownYamlProperties` | primary | Currently issued opaque-resource resolution, root-identity revalidation, no-follow bounded exact UTF-8 reads, content revisions, and generic YAML property/parse state. |
 | S1/R4 | Not implemented yet. | presentation | Responsive and accessible workbench composition. |
 
 #### Implementation Gaps
 
-- `S1/R1-S1`: The authenticated Adonis adapter remains pending on `GMD-001`; the workspace package now returns the confined inventory projection.
 - `S1/R2-S1`: Accessible client tree expansion, collapse, and selection remain pending; the service-owned inventory is tree-ready.
 - `S1/R2-S3`: The browser empty-state presentation with reachable search and settings remains pending; the authority returns an honest empty inventory.
-- `S1/R3`: GraphiteMD note reads and resource history do not exist yet.
+- `S1/R3-S1`: The authenticated HTTP contract and browser selection route remain pending; exact package-level note reads are implemented.
+- `S1/R3-S2`: Browser-owned Back, Forward, and reload restoration remain pending; the workspace authority accepts only currently issued opaque resource identities and rejects stale or unknown entries.
 - `S1/R4`: GraphiteMD responsive workbench does not exist yet.
 
 #### Verified By
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
-| S1/R1-S1 | `packages/workspace/src/index.test.ts` — `opens the configured directory without exposing its host path` | The public service authority opens a readable configured directory, returns an opaque identity and inventory projection, and serializes no absolute host path. | Partial; authenticated HTTP delivery awaits `GMD-001`. |
+| S1/R1-S1 | `packages/workspace/src/index.test.ts` — `opens the configured directory without exposing its host path`; `apps/server/tests/http/authentication.test.ts` — `R2-S1 establishes an official server-owned session and protects workspace delivery` | Package and real HTTP evidence prove a readable configured directory returns an opaque identity and inventory only to an authenticated browser, with no serialized absolute host path. | Passing 2026-07-18. |
 | S1/R1-S2 | `packages/workspace/src/index.test.ts` — `clears authority when the configured root changes identity`; `fails closed for missing, non-directory, and unreadable roots` | Missing, unreadable, non-directory, and replaced roots fail closed without retaining the opened identity. | Passing 2026-07-18. |
 | S1/R1-S3 | `packages/workspace/src/index.test.ts` — `reconnects to the service-owned workspace identity` | Repeated client-facing current-state reads return the same service-owned snapshot without client filesystem state. | Passing 2026-07-18. |
 | S1/R2-S1 | `packages/workspace/src/index.test.ts` — `inventories nested Markdown in deterministic tree order` | Eligible root and nested Markdown produce deterministic folders-before-files, tree-ready relative entries with opaque resource identities and no host paths. | Partial; accessible browser tree interactions remain pending. |
 | S1/R2-S2 | `packages/workspace/src/index.test.ts` — `excludes internal, configured, symlinked, unsupported, and oversized sources` | `.graphite/`, configured exclusions, symlinks, non-Markdown entries, invalid UTF-8, and over-limit sources issue no resource locator; bounded reads use no-follow file opens. | Passing 2026-07-18. |
 | S1/R2-S3 | `packages/workspace/src/index.test.ts` — `returns an honest empty inventory for a workspace without eligible Markdown` | A workspace with only internal or unsupported content returns empty notes and inventory projections. | Partial; browser empty-state navigation remains pending. |
+| S1/R3-S1 | `packages/workspace/src/index.test.ts` — `reads exact source, generic YAML properties, and a content revision`; `reports malformed YAML while preserving exact source`; `changes the revision after an external edit` | A currently issued opaque resource returns its relative display path, byte-preserved mixed-line-ending UTF-8 source, content-derived revision, and valid or malformed generic YAML state; external edits produce a new revision without changing the resource identity. | Partial; authenticated HTTP delivery and browser selection remain pending. |
+| S1/R3-S2 | `packages/workspace/src/index.test.ts` — `rejects unknown and stale resource identities without guessing a path`; `fails closed when the opened root is replaced`; `rejects an issued note replaced by a symlink` | Unknown and prior-inventory resource IDs fail without path guessing, root replacement clears authority, and an issued path replaced by a symlink cannot redirect a read. | Partial; browser Back, Forward, and reload restoration remain pending. |
 
 #### Verification Gaps
 
-- `S1/R1-S1`: Authenticated Adonis route proof remains pending on `GMD-001`; real inventory behavior is owned by `S1/R2`.
 - `S1/R2-S1`: Accessible browser expansion, collapse, and selection are not implemented or verified yet.
 - `S1/R2-S3`: Browser empty-state presentation with reachable search and settings is not implemented or verified yet.
-- `S1/R3-S1`, `S1/R3-S2`: Not verified yet.
+- `S1/R3-S1`: Authenticated HTTP and browser selection proof remain pending.
+- `S1/R3-S2`: Browser Back, Forward, and reload restoration are not implemented or verified yet.
 - `S1/R4-S1`, `S1/R4-S2`: Not verified yet.
 
 #### Story Notes

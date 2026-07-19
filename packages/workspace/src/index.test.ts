@@ -175,4 +175,118 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(workspace.notes).toEqual([])
     expect(workspace.inventory).toEqual([])
   })
+
+  it('GMD-002/S1/R3-S1 reads exact source, generic YAML properties, and a content revision', async () => {
+    const workspaceRoot = await createWorkspace()
+    const source = [
+      '---\r\n',
+      'created: 2026-07-18\n',
+      'tags: [graphite, markdown]\r\n',
+      'nested: { owner: Taylor, count: 2 }\n',
+      '---\r\n',
+      '# Exact\n',
+    ].join('')
+    await mkdir(join(workspaceRoot, 'Notes'))
+    await writeFile(join(workspaceRoot, 'Notes', 'Exact.md'), source, 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+
+    const note = await authority.readNote(opened.notes[0]!.resourceId)
+
+    expect(note).toEqual({
+      resourceId: opened.notes[0]!.resourceId,
+      displayPath: 'Notes/Exact.md',
+      source,
+      revision: expect.stringMatching(/^rev_[a-f0-9]{64}$/),
+      yamlProperties: [
+        { name: 'created', value: '2026-07-18' },
+        { name: 'tags', value: ['graphite', 'markdown'] },
+        { name: 'nested', value: { owner: 'Taylor', count: 2 } },
+      ],
+      yamlParseError: null,
+    })
+    expect(JSON.stringify(note)).not.toContain(workspaceRoot)
+  })
+
+  it('GMD-002/S1/R3-S1 reports malformed YAML while preserving exact source', async () => {
+    const workspaceRoot = await createWorkspace()
+    const source = '---\ntags: [graphite\n---\n# Broken\n'
+    await writeFile(join(workspaceRoot, 'Broken.md'), source, 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+
+    await expect(authority.readNote(opened.notes[0]!.resourceId)).resolves.toMatchObject({
+      source,
+      yamlProperties: [],
+      yamlParseError: expect.any(String),
+    })
+  })
+
+  it('GMD-002/S1/R3-S1 changes the revision after an external edit', async () => {
+    const workspaceRoot = await createWorkspace()
+    const notePath = join(workspaceRoot, 'External.md')
+    await writeFile(notePath, '# Before\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+    const resourceId = opened.notes[0]!.resourceId
+    const before = await authority.readNote(resourceId)
+
+    await writeFile(notePath, '# After\n', 'utf8')
+    const after = await authority.readNote(resourceId)
+
+    expect(after.source).toBe('# After\n')
+    expect(after.revision).not.toBe(before.revision)
+    expect(after.resourceId).toBe(resourceId)
+  })
+
+  it('GMD-002/S1/R3-S2 rejects unknown and stale resource identities without guessing a path', async () => {
+    const workspaceRoot = await createWorkspace()
+    await writeFile(join(workspaceRoot, 'Known.md'), '# Known\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const first = await authority.openConfigured()
+    const staleResourceId = first.notes[0]!.resourceId
+
+    await expect(authority.readNote('res_unknown')).rejects.toMatchObject({
+      name: 'WorkspaceResourceUnavailableError',
+    })
+    await authority.openConfigured()
+    await expect(authority.readNote(staleResourceId)).rejects.toMatchObject({
+      name: 'WorkspaceResourceUnavailableError',
+    })
+  })
+
+  it('GMD-002/S1/R3-S2 fails closed when the opened root is replaced', async () => {
+    const workspaceRoot = await createWorkspace()
+    await writeFile(join(workspaceRoot, 'Original.md'), '# Original\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+    const replacedRoot = `${workspaceRoot}-original`
+    temporaryDirectories.push(replacedRoot)
+
+    await rename(workspaceRoot, replacedRoot)
+    await mkdir(workspaceRoot)
+    await writeFile(join(workspaceRoot, 'Original.md'), '# Replacement\n', 'utf8')
+
+    await expect(authority.readNote(opened.notes[0]!.resourceId)).rejects.toMatchObject({
+      name: 'WorkspaceUnavailableError',
+      reason: 'identity_changed',
+    })
+  })
+
+  it('GMD-002/S1/R3-S2 rejects an issued note replaced by a symlink', async () => {
+    const workspaceRoot = await createWorkspace()
+    const outsideRoot = await createWorkspace()
+    const notePath = join(workspaceRoot, 'Issued.md')
+    await writeFile(notePath, '# Issued\n', 'utf8')
+    await writeFile(join(outsideRoot, 'Outside.md'), '# Outside\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+
+    await rm(notePath)
+    await symlink(join(outsideRoot, 'Outside.md'), notePath)
+
+    await expect(authority.readNote(opened.notes[0]!.resourceId)).rejects.toMatchObject({
+      name: 'WorkspaceResourceUnavailableError',
+    })
+  })
 })

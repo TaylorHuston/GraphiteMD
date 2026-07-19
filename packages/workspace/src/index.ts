@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { access, open, readdir, realpath, stat } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { join, posix } from 'node:path'
+import { isMap, isScalar, parseDocument } from 'yaml'
 
 export type WorkspaceId = `wrk_${string}`
 export type ResourceId = `res_${string}`
@@ -36,6 +37,31 @@ export type CurrentWorkspaceSnapshot = WorkspaceSnapshot | UnavailableWorkspaceS
 export interface WorkspaceAuthority {
   openConfigured(): Promise<WorkspaceSnapshot>
   current(): Promise<CurrentWorkspaceSnapshot>
+  readNote(resourceId: string): Promise<MarkdownNote>
+}
+
+export type MarkdownNoteYamlValue =
+  | string
+  | number
+  | boolean
+  | null
+  | MarkdownNoteYamlValue[]
+  | { [key: string]: MarkdownNoteYamlValue }
+
+export interface MarkdownNoteYamlProperty {
+  readonly name: string
+  readonly value: MarkdownNoteYamlValue
+}
+
+export type NoteRevision = `rev_${string}`
+
+export interface MarkdownNote {
+  readonly resourceId: ResourceId
+  readonly displayPath: string
+  readonly source: string
+  readonly revision: NoteRevision
+  readonly yamlProperties: readonly MarkdownNoteYamlProperty[]
+  readonly yamlParseError: string | null
 }
 
 interface FileIdentity {
@@ -60,6 +86,13 @@ export class WorkspaceUnavailableError extends Error {
   constructor(readonly reason: UnavailableWorkspaceSnapshot['reason']) {
     super('The configured workspace is unavailable.')
     this.name = 'WorkspaceUnavailableError'
+  }
+}
+
+export class WorkspaceResourceUnavailableError extends Error {
+  constructor() {
+    super('The requested workspace resource is unavailable.')
+    this.name = 'WorkspaceResourceUnavailableError'
   }
 }
 
@@ -123,6 +156,114 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
       this.#opened = null
       return { available: false, reason: 'unavailable' }
     }
+  }
+
+  async readNote(resourceId: string): Promise<MarkdownNote> {
+    const current = await this.current()
+    if (!current.available) throw new WorkspaceUnavailableError(current.reason)
+
+    const opened = this.#opened
+    const note = current.notes.find((candidate) => candidate.resourceId === resourceId)
+    if (!opened || !note) throw new WorkspaceResourceUnavailableError()
+
+    const expectedPath = join(opened.root, ...note.displayPath.split('/'))
+    let resolvedPath: string
+    try {
+      resolvedPath = await realpath(expectedPath)
+    } catch {
+      throw new WorkspaceResourceUnavailableError()
+    }
+    if (resolvedPath !== expectedPath) throw new WorkspaceResourceUnavailableError()
+
+    let handle
+    try {
+      handle = await open(expectedPath, constants.O_RDONLY | constants.O_NOFOLLOW)
+      const metadata = await handle.stat()
+      if (!metadata.isFile() || metadata.size > this.#inventoryOptions.maxSourceBytes) {
+        throw new WorkspaceResourceUnavailableError()
+      }
+      const bytes = Buffer.alloc(metadata.size)
+      const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0)
+      if (bytesRead !== metadata.size) throw new WorkspaceResourceUnavailableError()
+      const source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
+      const yaml = parseMarkdownYamlProperties(source)
+      return {
+        resourceId: note.resourceId,
+        displayPath: note.displayPath,
+        source,
+        revision: `rev_${createHash('sha256').update(bytes).digest('hex')}`,
+        ...yaml,
+      }
+    } catch (error) {
+      if (error instanceof WorkspaceResourceUnavailableError) throw error
+      throw new WorkspaceResourceUnavailableError()
+    } finally {
+      await handle?.close()
+    }
+  }
+}
+
+function normalizeYamlValue(value: unknown): MarkdownNoteYamlValue {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value
+  }
+  if (value instanceof Date) return value.toISOString()
+  if (Array.isArray(value)) return value.map(normalizeYamlValue)
+  if (typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, nested]) => [
+        key,
+        normalizeYamlValue(nested),
+      ]),
+    )
+  }
+  return String(value)
+}
+
+function frontmatterBlock(source: string): string | null {
+  const opening = /^---[ \t]*(?:\r\n|\r|\n)/.exec(source)
+  if (!opening) return null
+  const rest = source.slice(opening[0].length)
+  const closing = /(?:^|\r\n|\r|\n)---[ \t]*(?:(?:\r\n|\r|\n)|$)/.exec(rest)
+  return closing?.index === undefined ? null : rest.slice(0, closing.index)
+}
+
+export function parseMarkdownYamlProperties(source: string): {
+  yamlProperties: MarkdownNoteYamlProperty[]
+  yamlParseError: string | null
+} {
+  const block = frontmatterBlock(source)
+  if (block === null) {
+    return /^---[ \t]*(?:\r\n|\r|\n)/.test(source)
+      ? { yamlProperties: [], yamlParseError: 'YAML frontmatter is missing a closing delimiter' }
+      : { yamlProperties: [], yamlParseError: null }
+  }
+  if (block.trim() === '') return { yamlProperties: [], yamlParseError: null }
+
+  const document = parseDocument(block.replace(/\r\n|\r/g, '\n'), { prettyErrors: false })
+  if (document.errors.length > 0) {
+    return {
+      yamlProperties: [],
+      yamlParseError: document.errors[0]?.message ?? 'Invalid YAML frontmatter',
+    }
+  }
+  if (!isMap(document.contents)) return { yamlProperties: [], yamlParseError: null }
+  const parsed = document.toJS() as Record<string, unknown> | null
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { yamlProperties: [], yamlParseError: null }
+  }
+  return {
+    yamlProperties: document.contents.items.map((item) => {
+      const key = isScalar(item.key) ? item.key.value : item.key?.toString()
+      const name = String(key ?? '')
+      return { name, value: normalizeYamlValue(parsed[name]) }
+    }),
+    yamlParseError: null,
   }
 }
 

@@ -49,7 +49,7 @@ A self-hosting owner will be able to establish one local GraphiteMD account, sig
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | partial | partial | Establish an owner account and authenticate a browser session. | 2026-07-18 | Host-local setup is implemented; browser authentication and request protection remain pending. |
+| S1 | partial | partial | Establish an owner account and authenticate a browser session. | 2026-07-18 | Host-local setup and browser session authentication are implemented; request protection remains pending. |
 | S2 | not implemented | unverified | Maintain and recover access without weakening session boundaries. |  | Foundation Change. |
 
 ## Stories
@@ -128,12 +128,12 @@ The system SHALL accept credentialed browser requests only from configured exact
 | S1/R1 | `apps/server/app/security/owner_setup_service.ts#OwnerSetupService` | primary | Owns singleton owner creation, Scrypt hashing, machine-local SQLite persistence, and overwrite refusal. |
 | S1/R1-S1 | `apps/server/commands/setup_owner.ts#runOwnerSetup` | adapter | Collects password and confirmation through secure prompt callbacks and emits credential-free operator messages. |
 | S1/R1-S1 | `apps/server/commands/setup_owner.ts#SetupOwner` | adapter | Exposes the host-local `owner:setup` Ace command and resolves `GRAPHITEMD_STATE_DIR`. |
-| S1/R2 | Not implemented yet. | primary | Credential validation and session lifecycle. |
+| S1/R2 | `apps/server/start/routes.ts` — `/api/v1/auth/login`, `/api/v1/auth/current`, `/api/v1/auth/logout` | primary | Validates the singleton owner credential and uses the official AdonisJS Auth session guard for regenerated login, current-owner checks, and server-side logout. |
+| S1/R2 | `apps/server/config/auth.ts`; `apps/server/config/session.ts`; `apps/server/config/database.ts` | configuration | Configures the official session guard and persistent database session store in machine-local `security.sqlite` with HTTP-only SameSite cookies. |
 | S1/R3 | Not implemented yet. | primary | Origin, cookie, and CSRF enforcement. |
 
 #### Implementation Gaps
 
-- `S1/R2`: Browser authentication and protected routes do not exist yet.
 - `S1/R3`: GraphiteMD-specific origin and CSRF enforcement does not exist yet.
 
 #### Verified By
@@ -142,11 +142,13 @@ The system SHALL accept credentialed browser requests only from configured exact
 |---|---|---|---|
 | `S1/R1-S1` | `apps/server/tests/security/owner_setup_service.test.ts`; `apps/server/tests/commands/setup_owner.test.ts` | Focused automated evidence proves the first owner is stored only as a verifiable Scrypt hash in permission-restricted `security.sqlite`, and the command adapter uses secure prompts without printing the password or hash. | Passing |
 | `S1/R1-S2` | `apps/server/tests/security/owner_setup_service.test.ts`; `apps/server/tests/commands/setup_owner.test.ts` | Focused automated evidence proves an existing owner is preserved, setup refuses before prompting, and the operator is directed to explicit reset. | Passing |
+| `S1/R2-S1` | `apps/server/tests/http/authentication.test.ts` — `R2-S1 establishes an official server-owned session and protects workspace delivery` | Real HTTP evidence proves login replaces an anonymous session identifier, returns only the public owner identity, and the resulting cookie reaches protected current-owner and workspace routes. | Passing 2026-07-18. |
+| `S1/R2-S2` | `apps/server/tests/http/authentication.test.ts` — `R2-S2 returns the same generic response and no authenticated session for unknown and incorrect credentials` | Real HTTP evidence proves unknown-account and incorrect-password attempts return the same generic 401 body and cannot access the protected workspace route. | Passing 2026-07-18. |
+| `S1/R2-S3` | `apps/server/tests/http/authentication.test.ts` — `R2-S3 destroys the server-side session so replaying its cookie remains unauthorized` | Real HTTP evidence proves logout destroys the persisted server session and replaying its old cookie cannot reach current-owner or workspace routes. | Passing 2026-07-18. |
 
 #### Verification Gaps
 
 - `S1/R1-S1`: Real terminal masking/no-echo behavior still needs manual confirmation; automated coverage proves the adapter calls AdonisJS's documented secure prompt seam.
-- `S1/R2-S1`, `S1/R2-S2`, `S1/R2-S3`: Not verified yet.
 - `S1/R3-S1`, `S1/R3-S2`: Not verified yet.
 
 #### Story Notes
