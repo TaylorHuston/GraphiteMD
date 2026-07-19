@@ -6,7 +6,7 @@ status: in_progress
 ## Resume Here
 
 - Last completed action: `GMD-001/S1 R2` official browser sessions/authenticated workspace delivery and the package portion of `GMD-002/S1 R3` exact note reads pass focused and build-then-test root gates; a generated-test discovery regression was fixed with an explicit Vitest exclusion.
-- Next action: Commit the auth/read slices, then implement `GMD-001/S1 R3` exact-origin and CSRF protection before adding note-read HTTP/browser navigation.
+- Next action: Commit `GMD-001/S1 R3` request protection, then finish the headless bundled-plugin platform and add note-read HTTP/browser navigation.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
 - Expected dirty files: `packages/workspace/`, `apps/server/`, `packages/contracts/`, `docs/epics/gmd-002-markdown-workbench/epic.md`, and this ledger for the current Requirement slice.
 - Known blockers: None. Spike repositories are read-only reference sources.
@@ -43,10 +43,10 @@ status: in_progress
   - [x] Remove Coordinator-specific routes, SDD/Git/Pi/runtime packages, assets, and state assumptions before GraphiteMD behavior is added.
   - [x] Create runtime-validated GraphiteMD contract, domain, workspace, plugin SDK, and plugin testkit package boundaries.
   - [x] Document install, dev, lint, typecheck, test, build, and production start commands.
-- [ ] 4.2 Implement `GMD-001/S1` Establish And Authenticate The Owner Account through BDD/TDD.
+- [x] 4.2 Implement `GMD-001/S1` Establish And Authenticate The Owner Account through BDD/TDD.
   - [x] R1 host-local first-owner setup and existing-owner refusal.
   - [x] R2 valid/invalid login, session regeneration, protected APIs, and logout invalidation.
-  - [ ] R3 exact-origin, secure-cookie, and CSRF/XSRF enforcement.
+  - [x] R3 exact-origin, secure-cookie, and CSRF/XSRF enforcement.
 - [ ] 4.3 Implement `GMD-001/S2` Maintain And Recover Access through BDD/TDD.
   - [ ] R1 authenticated password change with global session invalidation.
   - [ ] R2 host-local atomic reset and cancellation safety.
@@ -116,6 +116,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | `GMD-001/S1 R1` host-local owner setup | Delegated TDD; current AdonisJS v7 Ace/hash guidance | Server security service, `owner:setup` command, focused tests, `GMD-001` Epic | Machine-local permission-restricted SQLite owner store, Scrypt hash, secure prompt seam, and overwrite refusal implemented; real TTY masking is a manual evidence gap | `88ea988` |
 | 2026-07-18 | `GMD-001/S1 R2` browser session authentication and `GMD-002/S1 R1` delivery | Delegated TDD; official Adonis Auth/Session/Lucid guidance | Auth/session/database configs, singleton Owner model, login/current/logout/workspace routes, real HTTP fixture, GMD-001/GMD-002 Epics | Regenerated persistent sessions, generic denial, server-side logout invalidation, and authenticated confined workspace projection implemented | `323a053` |
 | 2026-07-18 | `GMD-002/S1 R3` exact note read package slice | Delegated TDD; Dashboard YAML cases plus Coordinator locator/no-follow patterns | `packages/workspace`; GMD-002 Epic | Exact bounded UTF-8 source, revision, YAML state, stale/unknown locator and symlink/root replacement denial implemented; HTTP/browser history remains | `323a053` |
+| 2026-07-18 | `GMD-001/S1 R3` browser request protection | Delegated TDD; official Adonis Shield/CORS guidance | Shield/CORS config and middleware; real HTTP fixture; GMD-001 Epic | Missing/invalid XSRF fails before logout mutation; exact configured origin receives credentialed CORS while near-match untrusted origin receives none | commit pending |
 
 ## Verification Ledger
 
@@ -131,6 +132,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Real HTTP auth fixture plus server tests | deterministic integration evidence | `GMD-001/S1/R2-S1..R2-S3` and `GMD-002/S1/R1-S1`: session replacement, generic denial, logout replay denial, protected workspace delivery, and no host-path exposure. | Passing: 7 source tests after generated-output exclusion |
 | 2026-07-18 | Workspace 13-test suite | focused automated evidence | `GMD-002/S1/R3-S1..R3-S2`: exact reads, revisions, YAML states, external edits, stale/unknown identities, root replacement, and symlink substitution. | Passing: 13 tests |
 | 2026-07-18 | `pnpm build && pnpm test` | broad supporting regression gate | Generated output does not get rediscovered as duplicate tests; every workspace package remains green after a full build. | Passing after adding `apps/server/vitest.config.ts` |
+| 2026-07-18 | Server 9-test suite plus lint/typecheck/build and scoped SDD validation | deterministic integration evidence plus supporting gates | `GMD-001/S1/R3-S1..R3-S2`: missing/invalid/valid XSRF behavior and exact trusted versus near-match untrusted credentialed origins. | Passing |
 
 ## Manual Feedback
 
