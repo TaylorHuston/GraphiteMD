@@ -1,14 +1,14 @@
 ---
-status: in_progress
+status: in_review
 ---
 # Tasks: Foundation Workspace Slice
 
 ## Resume Here
 
-- Last completed action: `/sdd-apply` integrated the consolidated review remediation over `6ad9633`: authentication concurrency/throttling, durable and confined workspace state, browser accessibility/responsive behavior, and the accepted implemented preview matrix all have focused and production-path evidence.
-- Next action: Complete the final changed-surface audit and commit reconciliation, transition the Change to `in_review`, then run a fresh independent `/sdd-review`; manual visual/device/terminal acceptance remains pending user.
+- Last completed action: Consolidated review remediation, final verification, artifact reconciliation, and reverse traceability were committed as `949dd77`; the Change transitioned from `in_progress` to `in_review`.
+- Next action: Run a fresh independent `/sdd-review` against `949dd77`; manual visual/device/terminal acceptance remains pending user.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: The integrated remediation source/tests plus README, CHANGELOG, design, task ledger, and GMD-001/GMD-002/GMD-003 reconciliation until the authorized local commits are created.
+- Expected dirty files: This commit/status hash reconciliation only; application and artifact remediation are committed.
 - Known blockers: No implementation blocker. Manual terminal, visual/device, and screen-reader confirmation remains pending user and the prior `changes-requested` verdict awaits a fresh independent review.
 
 ## Task Checklist
@@ -130,7 +130,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Storybook and deterministic browser integration gate | Delegated TDD/component/browser-verification guidance; Coordinator/Dashboard harness patterns adapted | Storybook configuration/states, Playwright disposable setup/teardown, desktop+narrow foundation flow, package scripts | Eight accessible preview states and one production-path browser flow cover auth, workspace, search, editing/conflict/rename, reconnect, password/session invalidation, and plugin lifecycle | `b787322` |
 | 2026-07-18 | Changed-surface reverse traceability | `sdd-orphan-audit --changed-from develop` for GMD-001/GMD-002/GMD-003 plus consolidated classification | 107-file final changed surface | Zero missing implementation/evidence references; behavior sources/tests are Epic-owned; Storybook/Playwright/bootstrap/manifests are support; contracts/domain are now runtime-owned rather than scaffold-only | `b787322` |
 | 2026-07-18 | Same-origin production delivery | Context7 official AdonisJS v7 static guidance; delegated production-path remediation | Static provider/middleware, SPA fallback, staged browser build, conditional compiled package exports, production Playwright server | `pnpm build && pnpm start` now serves the compiled browser, hashed assets, client history, and API from one Adonis origin; API 404s never fall through to HTML | `b787322` |
-| 2026-07-18 | Consolidated review remediation | Delegated TDD slices plus fresh combined-tree security, coverage/UI, and artifact self-checks | Auth issuance/revocation and bounded limiter; persisted workspace identity/selective ignores/durable rename receipts; workspace/plugin confinement; logout/accessibility/responsive panes; 18 Storybook states; README/CHANGELOG/design/Epics | Blocking credential race and required restart, confinement, throttling, browser, accessibility, responsive, preview, and documentation findings remediated; self-check edge cases folded into the same wave | commit pending |
+| 2026-07-18 | Consolidated review remediation | Delegated TDD slices plus fresh combined-tree security, coverage/UI, and artifact self-checks | Auth issuance/revocation and bounded limiter; persisted workspace identity/selective ignores/durable rename receipts; workspace/plugin confinement; logout/accessibility/responsive panes; 18 Storybook states; README/CHANGELOG/design/Epics | Blocking credential race and required restart, confinement, throttling, browser, accessibility, responsive, preview, and documentation findings remediated; self-check edge cases folded into the same wave | `949dd77` |
 
 ## Verification Ledger
 
@@ -195,7 +195,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 
 ## Closeout
 
-- Change status: in_progress pending final commit/status transition; implementation remediation is complete and ready for independent rereview.
+- Change status: in_review; implementation remediation is complete at `949dd77` and awaits independent rereview.
 - Epic files updated: GMD-001, GMD-002, and GMD-003 reconcile the remediated security, restart, confinement, browser, accessibility, responsive, and preview behavior with current evidence.
 - Story labels/references and Requirement/Scenario IDs current: Yes for planned scope.
 - Implemented By maps current: Yes; new auth, workspace, plugin persistence, and browser owners have stable code anchors.
