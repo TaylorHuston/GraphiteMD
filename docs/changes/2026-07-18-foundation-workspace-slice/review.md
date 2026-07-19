@@ -2,83 +2,95 @@
 
 ## Verdict
 
-changes-requested
+ready
+
+Technical review is clean. Required manual terminal, visual/device, and screen-reader confirmation remains `pending user`, so integration and closeout are not yet eligible.
 
 ## Gate Scorecard
 
 | Gate | Result | Notes |
 |---|---|---|
-| Change artifacts | pass after safe fixes | System Status scope and cold-resume truth were reconciled. |
-| Change status | pass | Returned to `in_progress` for implementation remediation. |
-| Epic truth | pass after safe fix | GMD-003 now describes the implemented status contribution. |
-| Requirements and Scenarios | findings | Stable accepted workspace identity is not enforced across later reinitialization paths. |
-| Story reference traceability | pass | Epic-scoped Story, Requirement, and Scenario identifiers remain unique and current. |
+| Artifact truth | pass | Change, Epic, evidence, review, and supporting truth agree with implementation. |
+| Cold navigation | pass | Every changed Requirement reaches a primary owner and stable anchor from its Epic. |
+| Source-vs-target code review | pass | The foundation and final identity remediation are correct and within accepted scope. |
 | Reverse traceability | pass | 113 changed candidates audited per affected Epic; zero missing implementation or verification references. |
-| Tests and verification | findings | All existing checks pass, but replacement-root coverage misses reauthorization through refresh, workspace retrieval, search rebuild, and first plugin startup. |
-| Manual UI confirmation | pending user | Walkthrough is complete and current; confirmation remains intentionally unclaimed. |
-| Code review | findings | Accepted workspace identity can be silently replaced in-process. |
-| Visual / UX consistency | pass | Required responsive states, interaction previews, accessibility checks, and deterministic E2E pass. |
-| Security review | findings | Replacement-root reauthorization permits reads and later mutations against a path the service previously rejected. |
-| Documentation | pass after safe fixes | Design, Epic, changelog, task ledger, and Idea front door were reconciled. |
-| Idea repository / current-state truth | pass after safe fix | The Idea front door now routes to the remaining remediation. |
-| Release communication | pass after safe fix | The changelog no longer overstates System Status health coverage. |
-| Branch and merge readiness | blocked | Branch and conflict state are clean, but the blocking authority defect and pending manual acceptance prevent integration. |
-| PRD alignment | pass | Scope remains within the accepted foundation boundary. |
+| Verification | pass | Focused Scenario evidence and every required broad gate pass. |
+| Risk-shaped evidence | pass | Replacement-root, auth/session, migration, filesystem, async editor, responsive, contract, and fresh/existing-install risks have deterministic evidence or explicit accepted gaps. |
+| Security and data safety | pass | Accepted workspace identity remains pinned for the service lifetime; replacement roots receive no workspace, search, or plugin state. |
+| Manual acceptance | pass, pending user | The walkthrough is complete and current; user confirmation remains separate from technical readiness. |
+| Supporting truth | pass | Epics, ADRs, README, changelog, Idea front door, and PRD align. |
+| Integration readiness | blocked on acceptance | Branch, target, conflict state, and checks are ready; required manual confirmation still blocks merge/closeout. |
 
 ## Findings
 
 ### BLOCKING
 
-- [ ] `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority.current/refresh`, `apps/server/start/routes.ts#GET /api/v1/workspace`, `apps/server/app/plugins/plugin_runtime_service.ts#PluginRuntimeService.start` - After an accepted workspace root is replaced, `current()` reports `identity_changed` but clears the accepted handle; later refresh, authenticated workspace retrieval, or first plugin startup can call `openConfigured()` and silently provision and authorize the replacement path. The service then exposes replacement notes and permits later search/plugin/workspace mutations there. Preserve the accepted identity after loss and fail closed until service restart or an explicit host-authorized reconfiguration; add deterministic coverage for every reopening path.
+None.
 
 ### REQUIRED
 
-- [ ] User manual terminal, visual/device, and screen-reader confirmation remains pending after the implementation defect is remediated and rereviewed.
+None for technical readiness. Manual confirmation remains a closeout gate.
 
 ### SUGGESTION
 
-- [ ] Track the existing 812 KB initial browser chunk and Node `module.register()` deprecation outside this correctness gate.
+- Track the existing 812 KB initial browser chunk and Node `module.register()` deprecation outside this correctness gate.
 
 ## Verification Evidence
 
 | Command / Scenario | Evidence Type | Requirement / Scenario | Result | What It Proves |
 |---|---|---|---|---|
-| `sdd validate graphitemd --change 2026-07-18-foundation-workspace-slice ... --json` | broad supporting gate | all affected Epics | pass, zero errors/warnings | Canonical artifacts and references are structurally valid. |
-| Per-Epic `sdd_orphan_audit.py . --epic GMD-00N --changed-from develop --format json` | reverse traceability | GMD-001, GMD-002, GMD-003 | pass | 113 candidates per pass; zero broken implementation or verification references. |
-| `pnpm lint && pnpm typecheck && pnpm test && pnpm build` | focused and broad automated evidence | mapped Scenarios | pass | Contracts 6, domain 4, plugin SDK 7, workspace 30, web 44, System Status 1, and server 60 tests pass and production artifacts build. |
-| `pnpm test:storybook` | component/accessibility evidence | GMD-001..003 UI states | 30/30 pass | Required deterministic component states and configured accessibility checks pass. |
+| `pnpm --filter @graphitemd/workspace test` | focused automated | GMD-002/S1 R1-S2 | 31/31 pass | Accepted identity survives authority loss; direct reopen and refresh reject replacements without provisioning state. |
+| Server HTTP, search, and plugin suites | focused integration | GMD-002/S1 R1-S2; GMD-002/S3 R2; GMD-003/S1 R2 | server 63/63 pass | Authenticated workspace retrieval, search rebuild, and first plugin startup fail closed after replacement; cold first-start retry remains valid. |
+| `pnpm lint && pnpm typecheck && pnpm test && pnpm build` | broad supporting gate | all affected Epics | pass | Contracts 6, domain 4, plugin SDK 7, workspace 31, web 44, System Status 1, and server 63 tests pass; production artifacts build. |
+| `pnpm test:storybook` | component/accessibility | GMD-001..003 UI states | 30/30 pass | Required deterministic component states and configured accessibility checks pass. |
 | `pnpm test:e2e` | deterministic E2E | foundation owner paths | 2/2 pass | Compiled same-origin desktop and 390x844 flows pass. |
 | `pnpm audit --prod --audit-level=high` | dependency security | production dependencies | pass | No known vulnerabilities reported. |
-| Replacement-root adversarial probe against `514e15f` | focused adversarial evidence | GMD-002/S1 R1-S1/R1-S2 | reproduced | `current()` reports `identity_changed`, then `refresh()` adopts a new workspace ID and inventories `Replacement.md`. |
+| Per-Epic `sdd_orphan_audit.py . --epic GMD-00N --changed-from develop --format json` | reverse traceability | GMD-001, GMD-002, GMD-003 | pass | 113 candidates per pass; zero broken implementation or verification references. |
+| `sdd validate graphitemd --change 2026-07-18-foundation-workspace-slice ... --json` | artifact validation | all affected Epics | pass, zero findings | Canonical structure and forward references are valid. |
 
 ## Review Bundle
 
 - Source branch/ref: `change/foundation-workspace-slice`
-- Reviewed source commit: `514e15fbcee18824d902db4344b93f218499bbff`
+- Reviewed implementation commit: `7e74a6ff00e98676f5f9edecfc8b1a4dab64c4ba`
 - Target branch/ref: `develop` at `15901773ce4565c4facfc7c50d1835463ef808c8`
 - Merge base: `15901773ce4565c4facfc7c50d1835463ef808c8`
-- Source-only commits: 36
 - Target-only commits: 0
 - Changed files: 113
-- Conflict check: clean; merge tree `a0a968f2d06de084f8602acf4dc7021228420159`
-- Dirty state: clean at discovery; only review reconciliation files changed afterward.
+- Conflict check: clean.
+- Dirty state: clean after the implementation commit; final review/status reconciliation follows separately.
 - Branch policy: correct `change/*` source targeting non-production `develop`; no PR, merge, or closeout authorized.
+
+## Reverse Traceability
+
+- Candidate scope: 113 files changed from `develop`.
+- Epic ownership reconciled: GMD-001, GMD-002, and GMD-003.
+- Support/generated/framework classifications: resolved by each Epic-scoped audit.
+- Stranded refactor surfaces checked: routes, plugin registration, search ordering, runtime contracts, migrations, tests, and build staging; none found.
+- Explicit gaps: manual terminal/visual/device/screen-reader acceptance and documented platform limits only.
 
 ## Consolidated Remediation
 
-- Safe-fix batch: narrowed System Status claims in design, Epic, and changelog; corrected Change resume state and private Idea current-state routing.
-- Deferred implementation: preserve accepted workspace identity after replacement and deny every implicit reopening path, with focused regression tests.
-- Regression rereview: documentation validation and diff hygiene rerun after safe fixes; no application code changed.
-- New regressions introduced by remediation: none.
+- Root cause addressed: `ConfiguredWorkspaceAuthority` previously conflated the live snapshot with the process-lifetime accepted filesystem identity.
+- Safe-fix batch: retained accepted identity independently, validated it before any re-open provisioning, moved search authority validation before cache creation, and added direct/HTTP/search/plugin regressions.
+- Artifact fixes: refreshed GMD-002 evidence, task ledger, review record, and Idea current-state routing.
+- Regression-focused rereview: clean across code/security, verification/integration, and artifact/product passes.
+- New regressions introduced: none.
+
+## Manual Acceptance
+
+- Status: `pending user`.
+- Walkthrough: `tasks.md` Manual UI Confirmation section is complete and current.
+- Required before merge/closeout: terminal masking/reset, desktop workflow, 390x844 touch/safe-area/overflow behavior, and VoiceOver announcement order.
 
 ## PR / Merge Readiness
 
 - PR status: none; routine local integration does not require one.
-- Merge status: blocked by the workspace identity defect and pending user acceptance.
-- Closeout status: not authorized and not eligible.
+- Merge status: technically ready but blocked on required manual confirmation.
+- Closeout status: not authorized and not eligible until confirmation.
 
 ## Review Log
 
 - 2026-07-18: Initial deep review; verdict `changes-requested`.
 - 2026-07-19: Rereview found additional adversarial and contract/experience findings; verdict `changes-requested`.
-- 2026-07-19: Fresh review against `514e15f`; all automated gates passed, but replacement-root reauthorization remains blocking. Safe documentation truth fixes applied and Change returned to `in_progress`.
+- 2026-07-19: Review against `514e15f` reproduced replacement-root reauthorization and returned the Change to remediation.
+- 2026-07-19: `--until-ready` remediation committed as `7e74a6f`; full verification and three independent regression passes are clean. Verdict `ready`; manual confirmation remains pending.

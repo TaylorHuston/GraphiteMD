@@ -1,14 +1,14 @@
 ---
-status: in_progress
+status: in_review
 ---
 # Tasks: Foundation Workspace Slice
 
 ## Resume Here
 
-- Last completed action: The `--until-ready` review cycle retained the accepted workspace identity for the service lifetime, moved search authority checks before cache provisioning, and added direct, HTTP, search, and plugin replacement-root regressions; all automated gates pass.
-- Next action: Complete regression-focused rereview and transition the technically ready Change to `in_review`; user manual terminal, visual/device, and screen-reader confirmation remains intentionally pending.
+- Last completed action: The `--until-ready` review cycle committed workspace-identity remediation as `7e74a6f`; full verification and independent code/security, verification/integration, and artifact regression rereviews are clean.
+- Next action: Complete the documented user manual terminal, visual/device, and screen-reader confirmation; then recheck review staleness before merge/closeout.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: Workspace authority/search implementation, focused regression tests, GMD-002 evidence, and review/task reconciliation until the review-fix commit.
+- Expected dirty files: Final review/status reconciliation only until committed.
 - Known blockers: None for technical rereview. Manual terminal, visual/device, and screen-reader confirmation remains pending user and is not claimed by automated evidence.
 
 ## Task Checklist
@@ -212,7 +212,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 
 ## Closeout
 
-- Change status: in_progress while regression-focused rereview completes; technical remediation and automated verification pass.
+- Change status: in_review; technical verdict `ready`, with required manual confirmation pending user.
 - Epic files updated: GMD-001, GMD-002, and GMD-003 describe the remediated implementation and evidence truth.
 - Story labels/references and Requirement/Scenario IDs current: Yes for planned scope.
 - Implemented By maps current: Yes; new auth, workspace, plugin persistence, and browser owners have stable code anchors.
@@ -220,11 +220,11 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 - Superseded earlier Epic truth reconciled: Not applicable; spike Epics remain reference truth in their own repositories.
 - ADR status: Four Accepted ADRs remain linked; runtime contracts and the accepted trusted-first-party bundled-plugin boundary are implemented, while untrusted community isolation remains deferred.
 - Release communication current: README and public-safe `CHANGELOG.md` describe the implemented foundation and operator boundary.
-- `sdd-review` verdict: `changes-requested` against source commit `514e15fbcee18824d902db4344b93f218499bbff` and target `develop@15901773ce4565c4facfc7c50d1835463ef808c8`.
+- `sdd-review` verdict: `ready` against implementation commit `7e74a6ff00e98676f5f9edecfc8b1a4dab64c4ba` and target `develop@15901773ce4565c4facfc7c50d1835463ef808c8`; manual confirmation remains pending.
 - Review record: `docs/changes/2026-07-18-foundation-workspace-slice/review.md`.
 - `review.md` findings resolved: Yes in the current review tree; accepted workspace identity remains fail-closed through every formerly reopening path.
 - Planning updates resolved: Yes for the accepted Change scope; manual confirmation and deferred product scope remain explicit.
 - Manual UI confirmation status: pending user; deterministic desktop/narrow browser evidence passes, but user acceptance remains intentionally unclaimed.
-- PR / merge state: Local implementation branch created; no remote, PR, or merge.
+- PR / merge state: No remote, PR, or merge; technical branch readiness passes, but manual confirmation blocks integration and closeout.
 - Deferred scope accepted: Recorded in proposal/design/Epics.
 - Change moved to `docs/changes/closed/`: No; active repository Change.
