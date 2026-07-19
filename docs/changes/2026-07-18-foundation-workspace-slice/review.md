@@ -89,7 +89,7 @@ changes-requested
 
 ## Consolidated Remediation
 
-- Safe review fixes: refreshed this review record and Change resume state; corrected stale GMD-002 wording, manual walkthrough setup, rename-receipt retention documentation, and the private Idea front door.
+- Safe review fixes: repository review/current-state, GMD-002, manual walkthrough, and rename-receipt retention corrections were committed as `49078f7`; the private Idea front door was committed in its owning vault repository as `41a8c3c4`.
 - Apply-side work: every code, runtime-contract, security, responsive-composition, and preview finding above.
 - Required next verification: focused adversarial tests for each finding, then the full root/Storybook/production-E2E gate and a fresh independent review.
 - Manual acceptance remains deferred until the implementation review is clean.

@@ -5,7 +5,7 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: Fresh deep `/sdd-review` against immutable implementation source `0196774` passed every existing automated gate but found two blocking and eight required findings; review-safe truth corrections are being committed separately.
+- Last completed action: Fresh deep `/sdd-review` against immutable implementation source `0196774` passed every existing automated gate but found two blocking and eight required findings; review-safe repository truth corrections were committed as `49078f7`, and the private Idea front door was committed in its owning vault as `41a8c3c4`.
 - Next action: Run `/sdd-apply` from `review.md`, starting with credential-generation/session persistence and workspace-bound plugin authority, then remediate the required rename, plugin isolation, confinement, runtime-contract, responsive, preview, and Epic-evidence findings.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
 - Expected dirty files: None after the review-safe artifact commit; implementation findings remain intentionally unmodified by review.
