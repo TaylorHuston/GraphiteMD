@@ -254,7 +254,7 @@ The host points GraphiteMD at one workspace through explicit operator configurat
 
 - Use schema-versioned JSON and atomic same-directory replacement for stable GraphiteMD files.
 - Exclude `.graphite/` from ordinary note navigation and baseline note search.
-- Treat `cache/` as disposable. Rename receipts under `operations/` are ignored operational recovery state: retain them in full-filesystem backups when possible, but never treat them as note or configuration authority.
+- Treat `cache/` as disposable. Prepared rename receipts are removed after a known rollback. Committed receipts are retained indefinitely in this foundation so old-resource retries remain idempotent; a future versioned compaction policy may bound retention only after it preserves that guarantee. Receipts under `operations/` are ignored operational recovery state: retain them in full-filesystem backups when possible, but never treat them as note or configuration authority.
 - Back up ordinary workspace content, `workspace.json`, `plugins.json`, and durable plugin namespaces together. Back up machine-local security/session state separately with host secrets; the workspace alone cannot restore owner access.
 - Preserve nested Git repository boundaries; this Change does not run Git commands.
 - Auth state, secrets, locks, and transient buffers remain outside the workspace.

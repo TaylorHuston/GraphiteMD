@@ -8,113 +8,101 @@ changes-requested
 
 | Gate | Result | Notes |
 |---|---|---|
-| Change artifacts | findings | Accepted state, interaction, and preview contracts are not fully implemented. |
-| Change status | pass | Returned to `in_progress` after the consolidated review. |
-| Epic truth | findings | Current maps navigate correctly, but security and restart behavior require remediation and evidence reconciliation. |
-| Requirements and Scenarios | findings | Credential revocation, rename recovery, logout, accessibility, and responsive behavior are incomplete. |
-| Story reference traceability | pass | Epic-scoped Story, Requirement, and Scenario identifiers are unique and structurally valid. |
-| Reverse traceability | pass | 107 changed candidates classified; no broken implementation or verification references. |
-| Tests and verification | findings | Existing gates pass, but risk-shaped and accepted preview evidence is incomplete. |
-| Manual UI confirmation | pending user | Walkthrough refreshed; run only after implementation findings are resolved. |
-| Code review | findings | Restart durability, auth concurrency, and accepted UI behavior need work. |
-| Visual / UX consistency | findings | Keyboard, touch, focus, status, pane, and state-preview contracts are incomplete. |
-| Security review | findings | One blocking credential-revocation race plus throttling and confinement findings. |
-| Documentation | pass after safe fixes | Production secret, current product scope, E2E path, and Idea routing corrected. |
-| Idea repository / current-state truth | pass after safe fix | Canonical repository and active Change now match live SDD topology. |
-| Release communication | pass | `CHANGELOG.md` contains only the current user-facing foundation. |
-| Branch and merge readiness | blocked | Correct branch and conflict-free target, but findings remain. |
-| PRD alignment | pass | Foundation remains within the accepted product boundary. |
+| Change artifacts | findings | Runtime-contract and required-preview commitments remain incomplete. |
+| Change status | pass after safe fix | Returned to `in_progress` for implementation remediation. |
+| Epic truth | findings | GMD-002 contains stale or overstated verification evidence. |
+| Requirements and Scenarios | findings | Credential revocation, plugin authority, rename retry, responsive composition, and contract validation are incomplete. |
+| Story reference traceability | pass | Epic-scoped Story, Requirement, and Scenario identifiers remain unique and structurally valid. |
+| Reverse traceability | pass | 108 changed candidates classified with no broken implementation or verification references. |
+| Tests and verification | findings | All existing gates pass, but they do not exercise the uncovered risk windows or complete the accepted preview matrix. |
+| Manual UI confirmation | pending user | Deferred until the implementation findings are remediated. |
+| Code review | findings | Two blocking authority/revocation defects and required stale-state/confinement defects remain. |
+| Visual / UX consistency | findings | Desktop Search composition, intermediate-width containment, and mobile touch targets remain incomplete. |
+| Security review | findings | Session persistence, workspace-bound plugin authority, plugin isolation, and remaining path-commit windows require remediation. |
+| Documentation | pass after safe fixes | Current review state, manual steps, and rename-receipt retention were corrected. |
+| Idea repository / current-state truth | pass after safe fix | The private Idea front door now reflects rereview and remediation status. |
+| Release communication | pass | README and changelog remain public-safe and aligned to the implemented foundation. |
+| Branch and merge readiness | blocked | The policy-correct branch is conflict-free with `develop`, but blocking/required findings and manual acceptance remain. |
+| PRD alignment | pass | The Change remains within the accepted foundation boundary. |
 
 ## Findings
 
 ### BLOCKING
 
-- [ ] `apps/server/start/routes.ts#login`, `apps/server/app/security/owner_setup_service.ts#changePassword` - An in-flight login can verify the old password before a password change/reset deletes sessions, then create a new session after revocation completes. The stored `revocation_generation` is never bound to login completion or authenticated sessions. Recommendation: serialize verification/session issuance with credential mutation or bind issued sessions to a checked credential generation; add deterministic race coverage.
+- [ ] `apps/server/app/security/owner_setup_service.ts#authenticate`, `apps/server/start/routes.ts#login` - Credential revocation can still lose to deferred Adonis session persistence. The credential lock and generation check finish before session middleware commits the new session row, so a password change or host reset can delete sessions and increment the generation before the old-password login is persisted afterward. Recommendation: bind every authenticated session to `revocation_generation` and reject mismatches on load, or establish an equivalent authoritative atomic boundary; add a deterministic HTTP-level post-route persistence race test.
+- [ ] `apps/server/app/plugins/plugin_runtime_service.ts#PluginRuntimeService` - Plugin enablement and state authority are bound to the raw configured pathname rather than the workspace identity accepted by `ConfiguredWorkspaceAuthority`. After the configured root is replaced, workspace reads correctly fail with `identity_changed`, but plugin mutations can create `.graphite/plugins.json` in the replacement directory. Recommendation: retain and validate the canonical workspace/root identity for every plugin read and mutation, and fail closed whenever workspace authority is unavailable; add replacement-root coverage.
 
 ### REQUIRED
 
-- [ ] `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority`, `docs/changes/2026-07-18-foundation-workspace-slice/design.md#workspace-and-state-layout` - Workspace identity is regenerated on every open, so opaque note URLs and bookmarks go stale after service restart. The accepted `workspace.json` and default `.graphite/.gitignore` are not provisioned even though the ledger claims the state rules were verified. Recommendation: persist and validate versioned workspace identity/configuration, derive stable resource identities, provision selective cache ignores, document backup behavior, and reconcile ADR/task evidence.
-- [ ] `packages/workspace/src/index.ts#renameNote` - Indeterminate rename receipts exist only in memory and only after the source unlink. A process exit after commit loses the receipt, preventing retry-based authoritative reconciliation after restart. Recommendation: durably record an idempotent operation before commit and reconcile/finalize it at startup or retry; add process-boundary evidence.
-- [ ] `packages/workspace/src/index.ts#saveNote`, `apps/server/app/plugins/plugin_runtime_service.ts#atomicJsonWrite` - Parent-directory confinement is checked separately from later create/rename operations. Replacing a writable parent with a symlink between validation and commit can redirect a write outside the workspace. Recommendation: use descriptor-relative confined operations where supported or retain and revalidate ancestor identities immediately before commit; add deterministic swap coverage and document unavoidable platform limits.
-- [ ] `apps/server/app/security/login_attempt_limiter.ts#LoginAttemptLimiter`, `apps/server/start/routes.ts#login` - Parallel login attempts all pass the pre-verification check before failures are counted, and sub-threshold sources remain in an unbounded map indefinitely. Recommendation: reserve/count in-flight attempts atomically and use expiring bounded storage or LRU eviction; add parallel and eviction tests.
-- [ ] `apps/web/src/App.tsx#App`, `apps/web/src/SettingsPanel.tsx#SettingsPanel` - A first-time unauthenticated browser is mislabeled as an expired session, and the accepted Settings flow has no logout action. Recommendation: distinguish initial authentication from later invalidation and add a CSRF-protected logout path that respects dirty/in-flight draft guards, with component and E2E evidence.
-- [ ] `apps/web/src/App.tsx#Drawer`, `apps/web/src/App.tsx#FileTree`, `apps/web/src/MarkdownEditor.tsx#MarkdownEditor` - The accepted accessibility contract is incomplete: modal focus can escape and is not restored, the ARIA tree lacks roving focus and Arrow/Home/End behavior, save state is not announced, and CodeMirror removes its focus outline without a replacement. Recommendation: implement and test the complete keyboard/focus/status behavior.
-- [ ] `apps/web/src/styles.css`, `apps/web/src/App.tsx#Workbench` - Narrow generic/tree controls are below the accepted touch-safe target and omit safe-area handling; desktop navigation/context are fixed with no accepted resize/collapse controls; the editor mode pressed state uses undefined `--raised`. Recommendation: complete the responsive composition and focused visual states, then verify with mobile-device and component evidence.
-- [ ] `apps/web/src/App.stories.tsx`, `docs/changes/2026-07-18-foundation-workspace-slice/design.md#component-and-state-contract` - Eight passing stories do not cover the accepted editor, auth, workbench, mobile, and plugin failure/recovery state matrix. Recommendation: add previews for implemented required states and explicitly reconcile any state that is intentionally deferred.
-- [ ] `docs/changes/2026-07-18-foundation-workspace-slice/tasks.md#manual-ui-confirmation` - Manual acceptance remains pending and must cover terminal masking, host reset, desktop/mobile use, conflict recovery, Settings, and session invalidation after implementation remediation.
+- [ ] `packages/workspace/src/index.ts#renameNote` - A successful rename result is cached indefinitely. If the renamed note is edited through its new resource ID, retrying the original rename returns the stale pre-edit source and revision instead of current authoritative target state. Recommendation: reconcile cached committed receipts against the current target before returning and add a rename-edit-retry regression.
+- [ ] `packages/plugin-sdk/src/index.ts#PluginHost.enable`, `apps/server/tests/plugins/bundled_import_boundary.test.ts` - Bundled plugins activate in the unrestricted server process, while the current boundary test checks only static import text. A plugin can access `process.env`, global network APIs, or dynamic Node imports without declared capability permission, contradicting GMD-003 and the accepted capability ADR. Recommendation: add a real runtime isolation/enforcement boundary, or explicitly revise the accepted trusted-plugin contract and product claims.
+- [ ] `apps/server/app/plugins/plugin_runtime_service.ts#FilesystemPluginStateBackend.recovery`, `apps/server/app/search/local_search_service.ts#rebuild` - Recovery and search commit paths validate directories before later pathname mutations but do not retain and revalidate ancestor identity immediately before delete/rename. A directory swap can redirect recovery mutations or the content-bearing FTS database outside the workspace. Recommendation: use the established retained-identity precommit pattern and deterministic early/late swap tests.
+- [ ] `packages/contracts/src/index.ts`, `apps/web/src/App.tsx`, `apps/web/src/SettingsPanel.tsx` - The public API is not runtime-validated as designed. The contracts package defines only workspace identity/service metadata, while the browser trusts response JSON through TypeScript casts. Recommendation: define shared request/response schemas, validate browser responses through a typed adapter, normalize malformed-response recovery, and add malformed/forward-incompatible response tests.
+- [ ] `apps/web/src/App.tsx#Search`, `apps/web/src/styles.css` - Desktop Search always opens as a modal even though the accepted desktop design places Files and Search in persistent navigation. Widened desktop panes can also overflow between 60rem and 79rem, and mobile plugin/rebuild controls remain below the accepted touch target. Recommendation: implement the accepted desktop switcher, constrain intermediate tracks, cover every interactive mobile control, and add responsive evidence.
+- [ ] `apps/web/src/App.stories.tsx`, `docs/changes/2026-07-18-foundation-workspace-slice/design.md#component-and-state-contract` - The 18 passing stories still omit accepted preview states, including editor active-syntax/table-overflow/read-only, tree unavailable/collapsed/stale-route, search idle/loading/no-results/long-path/mobile, and plugin incompatible. The design explicitly claims incompatible coverage that does not exist. Recommendation: add the rendered states or reconcile the accepted design with equivalent explicit evidence.
+- [ ] `docs/epics/gmd-002-markdown-workbench/epic.md` - Evidence truth remains inconsistent: the Epic claims a missing rename component test despite current focused coverage and claims a no-result Storybook preview that does not exist. Reconcile these statements with the implementation and new preview work.
+- [ ] `docs/changes/2026-07-18-foundation-workspace-slice/tasks.md#manual-ui-confirmation` - Manual terminal, visual, device, safe-area, and screen-reader acceptance remains pending after implementation remediation.
 
 ### SUGGESTION
 
-- [ ] `apps/web/src/MarkdownEditor.tsx#TableRowWidget` - `row` and `cell` roles have no table/rowgroup owner. Use a valid table semantic owner or leave the exact source with non-table presentation semantics.
-- [ ] `apps/web/src/App.tsx`, `apps/web/src/SettingsPanel.tsx` - Add stable form names, disable autocomplete for search/rename, and show actionable password-policy guidance.
-- [ ] `apps/web/src/styles.css#.drawer` - Add scroll containment and intentional touch/tap-highlight behavior.
+- [ ] `apps/web/src/App.tsx#Search` - Announce completed search result state through a live region.
+- [ ] `apps/web/src/App.tsx#logout` - Surface logout network failure with a recoverable message rather than silently returning to the workbench.
+- [ ] Production builds report a roughly 718 KB initial browser chunk and a Node `module.register()` deprecation warning; track optimization/toolchain cleanup outside this correctness gate unless either becomes operationally material.
 
 ## Verification Evidence
 
-| Command / Scenario | Evidence Type | Requirement / Scenario | Result | What It Proves |
-|---|---|---|---|---|
-| `sdd validate graphitemd --change 2026-07-18-foundation-workspace-slice ...` | broad supporting gate | Change and affected Epics | pass | Canonical artifacts and forward references are structurally valid. |
-| `sdd-orphan-audit ... --changed-from develop` for all three Epics | reverse-traceability inventory | GMD-001, GMD-002, GMD-003 | pass | 107 candidates, zero missing implementation or verification paths; remaining files classify across other Epics or support. |
-| `pnpm lint && pnpm typecheck && pnpm test && pnpm build` | broad supporting gate | foundation | pass at reviewed commit | All packages compile and focused suites pass. |
-| `pnpm test:storybook` | browser/component evidence | UI state coverage | 8/8 pass with coverage findings | Existing preview interactions and configured axe checks pass. |
-| `pnpm test:e2e` | deterministic production E2E | owner foundation path | 2/2 pass with risk gaps | Compiled same-origin delivery and current desktop/narrow owner path work. |
-| `pnpm audit --prod --audit-level=high` | dependency security check | production dependencies | pass | No known high-severity production dependency vulnerability was reported. |
+| Command / Scenario | Evidence Type | Result | What It Proves |
+|---|---|---|---|
+| `sdd validate change` plus scoped GMD-001/GMD-002/GMD-003 validation | broad supporting gate | pass, zero errors/warnings | Canonical artifacts and forward references are structurally valid. |
+| `sdd-orphan-audit ... --changed-from develop` for all three Epics | reverse-traceability inventory | pass | 108 candidates classify across affected Epics or support; no missing implementation/verification paths. |
+| `pnpm lint && pnpm typecheck && pnpm test && pnpm build` | broad supporting gate | pass | All packages compile, current focused suites pass, and production artifacts build. |
+| `pnpm test:storybook` | component/browser evidence | 18/18 pass with coverage findings | Existing previews and configured accessibility checks pass; the accepted matrix is incomplete. |
+| `pnpm test:e2e` | deterministic production E2E | 2/2 pass with risk gaps | Compiled same-origin desktop/narrow owner paths work; uncovered concurrency and filesystem cases remain outside this coverage. |
+| `pnpm audit --prod --audit-level=high` | dependency security check | pass | No known high-severity production advisory was reported. |
+| independent replacement-root and rename-edit-retry probes | focused adversarial evidence | reproduced | Plugin mutation crosses a replaced workspace identity; cached rename retry returns stale state. |
 
 ## Review Bundle
 
 - Source branch/ref: `change/foundation-workspace-slice`
-- Reviewed source commit: `ee54ee16a5161e9d3759ca7a763fff82afd42187`
+- Reviewed source commit: `019677434dd1108798ef68e63f4db85d9fe0ee78`
 - Target branch/ref: `develop` at `15901773ce4565c4facfc7c50d1835463ef808c8`
 - Merge base: `15901773ce4565c4facfc7c50d1835463ef808c8`
-- Source-only commits: 27
+- Source-only commits: 31
 - Target-only commits: 0
-- Changed files: 107
-- Diff stat: 14,257 insertions, 103 deletions
-- Conflict check: clean; `git merge-tree --write-tree develop HEAD` produced `a7518be2c973e60e9dbde8969a3c2f86e9734939`
-- Dirty state: clean at discovery and after review-safe commits.
-- Branch policy: correct `change/*` source targeting non-production `develop`; local merge allowed only after passing review and acceptance.
-- Reverse-traceability command/result: packaged JSON audit per GMD-001/GMD-002/GMD-003 and consolidated pass; no broken paths.
-
-## Reverse Traceability
-
-- Candidate scope: 107 files from `develop...ee54ee1`.
-- Epic ownership reconciled: behavior sources and focused tests map across GMD-001, GMD-002, and GMD-003.
-- Support/generated/framework classifications: Storybook/Playwright harnesses, boot/config, manifests, lockfile, and build staging are support.
-- Stranded refactor surfaces checked: routes, middleware, package registrations, production exports, static staging, tests, and spike imports.
-- Explicit gaps or tracked cleanup: findings above return to `/sdd-apply`; no deletion candidate identified.
+- Changed files: 108
+- Diff stat: 15,416 insertions, 104 deletions
+- Conflict check: clean; `git merge-tree --write-tree develop HEAD` produced `0bbc51b658cd57124b3ae6124459a67c9bc22ac1`
+- Dirty state: clean at discovery.
+- Branch policy: correct `change/*` source targeting non-production `develop`; no PR, merge, or closeout authorized.
+- Manual confirmation: pending user; not run against a source with unresolved implementation findings.
 
 ## Discovery Wave
 
-| Pass | Reviewer | Result | Notes |
-|---|---|---|---|
-| Artifact truth | fresh artifact/product pass | findings | State layout, manual walkthrough, production docs, and Idea routing reviewed. |
-| Reverse traceability | orchestrator | pass | Per-Epic and consolidated changed-surface audit complete. |
-| Code diff | fresh code/security pass plus orchestrator | findings | Auth concurrency, restart durability, and confinement require remediation. |
-| Verification coverage | fresh verification/UI pass | findings | Passing tests do not cover every accepted risk/state. |
-| Security | fresh code/security pass | findings | One blocking race and three required hardening gaps. |
-| UI / visual identity | fresh UI pass with current Web Interface Guidelines | findings | Accepted interaction and responsive contract incomplete. |
-| Docs / Idea truth / release communication / PRD | fresh artifact/product pass | pass after safe fixes | Current routing and startup instructions corrected; PRD and changelog align. |
-| Integration readiness | orchestrator | blocked | Clean branch/conflict state, but implementation findings remain. |
+| Pass | Result | Notes |
+|---|---|---|
+| Artifact/product truth | findings | Preview, Epic evidence, manual, retention, and Idea current-state truth reviewed. |
+| Reverse traceability | pass | Per-Epic and consolidated changed-surface audit complete. |
+| Code/security diff | findings | Adversarial authority, concurrency, stale-retry, isolation, and confinement cases found. |
+| Verification/UI | findings | Existing evidence is useful but does not cover the accepted state/risk surface. |
+| Docs/PRD/release communication | pass after safe fixes | Product boundary and public docs align; review/current-state corrections applied. |
+| Integration readiness | blocked | Clean branch/conflict state does not outweigh blocking and required findings. |
 
 ## Consolidated Remediation
 
-- Root causes addressed: stale Idea routing, missing required production secret documentation, future/current README ambiguity, stale E2E wording, and non-executable manual setup.
-- Safe-fix batch: documentation and task/review truth only, committed as `27ce592`; the separate private Idea front door was committed in its owning vault repository as `2365c1b6`.
-- Deferred or unsafe findings: all code, security, filesystem, state-layout, responsive, accessibility, and preview findings above require `/sdd-apply`.
-- Affected verification union: docs diff check and scoped SDD validation for this review batch; full focused/broad/browser gates after implementation remediation.
-- Regression-focused rereview: documentation and lifecycle consistency only; implementation rereview required after the next apply.
-- New regressions introduced by remediation: none identified.
+- Safe review fixes: refreshed this review record and Change resume state; corrected stale GMD-002 wording, manual walkthrough setup, rename-receipt retention documentation, and the private Idea front door.
+- Apply-side work: every code, runtime-contract, security, responsive-composition, and preview finding above.
+- Required next verification: focused adversarial tests for each finding, then the full root/Storybook/production-E2E gate and a fresh independent review.
+- Manual acceptance remains deferred until the implementation review is clean.
 
 ## PR / Merge Readiness
 
 - Source branch: `change/foundation-workspace-slice`
-- Reviewed source commit: `ee54ee16a5161e9d3759ca7a763fff82afd42187`
 - Target branch: `develop`
-- Conflict check: clean at reviewed commit
-- Commit state: review record and safe source-repository documentation committed as `27ce592`; private Idea current-state correction committed separately as `2365c1b6`
-- PR status: none; not required for routine non-production integration
-- Merge status: not ready; blocking and required findings remain
+- PR status: none; not required for routine local integration.
+- Merge status: not ready; blocking and required findings remain.
+- Closeout status: not authorized and not eligible.
 
 ## Review Log
 
-- 2026-07-18: Deep independent review completed against `ee54ee1`; verdict `changes-requested`, safe documentation corrections committed as `27ce592` and `2365c1b6`, and implementation findings returned to `/sdd-apply`.
+- 2026-07-18: Deep review against `ee54ee1`; verdict `changes-requested`.
+- 2026-07-19: Fresh deep rereview against `0196774`; all existing verification gates passed, but new adversarial and contract/experience findings keep the verdict at `changes-requested`. Safe artifact corrections were applied; implementation returns to `/sdd-apply`.

@@ -331,7 +331,7 @@ None.
 #### Verification Gaps
 
 - `S2/R2-S4`: Navigation and late-response state-machine evidence passes; a browser-level dirty-navigation confirmation remains pending.
-- `S2/R3-S1`: Tree/resource/history reconciliation is implemented but the UI rename path lacks focused browser-component coverage and search reconciliation awaits `S3`.
+- `S2/R3-S1`: Focused component and E2E rename/reload coverage now passes; manual browser confirmation remains pending, and retry-after-post-rename-edit authority needs focused remediation evidence.
 - `S2/R4-S1`: Save and rename now cover resource symlink replacement and replaced-root denial; explicit `.graphite/` mutation remains structurally unreachable through issued opaque resources rather than separately exercised through an HTTP mutation case.
 
 #### Story Notes
@@ -431,7 +431,7 @@ None.
 | S3/R2-S3 | `apps/server/app/search/local_search_service.test.ts` — `.graphite` exclusion and `refuses a cache path redirected through a symbolic link` | Internal `.graphite/` Markdown never enters the inventory or FTS projection, and a symlinked internal/cache component fails closed without creating an index outside the workspace. | Passing 2026-07-18. |
 | S3/R3-S1 | `apps/server/tests/http/authentication.test.ts` — `protects host-local search and returns opaque results`; source inspection of `apps/server/app/search/local_search_service.ts#LocalSearchService` and dependency manifests | The authenticated service invokes an in-process local SQLite implementation; the search slice has no external provider dependency or outbound search adapter. | Partial; automated network egress isolation is not configured. |
 | S3/R1, S3/R2 | `tests/e2e/foundation.spec.ts` — local search and external reconciliation path | Deterministic real-browser evidence proves local search selects an opaque result, rebuild/reconciliation reflects host changes, and the active workbench remains usable on desktop and narrow layouts. | Passing 2026-07-18. |
-| S3/R1 | `apps/web/src/App.stories.tsx` — search results, empty, and failure previews | Storybook browser evidence renders bounded result and recovery states with configured accessibility checks. | Passing 2026-07-18. |
+| S3/R1 | `apps/web/src/App.stories.tsx` — search results and failure previews | Storybook browser evidence renders bounded result and recovery states with configured accessibility checks. | Partial 2026-07-19; accepted no-result, loading, long-path, and mobile search previews remain missing. |
 
 #### Verification Gaps
 

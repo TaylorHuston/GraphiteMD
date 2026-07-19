@@ -1,15 +1,15 @@
 ---
-status: in_review
+status: in_progress
 ---
 # Tasks: Foundation Workspace Slice
 
 ## Resume Here
 
-- Last completed action: Consolidated review remediation, final verification, artifact reconciliation, and reverse traceability were committed as `949dd77`; the Change transitioned from `in_progress` to `in_review`.
-- Next action: Run a fresh independent `/sdd-review` against `949dd77`; manual visual/device/terminal acceptance remains pending user.
+- Last completed action: Fresh deep `/sdd-review` against immutable implementation source `0196774` passed every existing automated gate but found two blocking and eight required findings; review-safe truth corrections are being committed separately.
+- Next action: Run `/sdd-apply` from `review.md`, starting with credential-generation/session persistence and workspace-bound plugin authority, then remediate the required rename, plugin isolation, confinement, runtime-contract, responsive, preview, and Epic-evidence findings.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: This commit/status hash reconciliation only; application and artifact remediation are committed.
-- Known blockers: No implementation blocker. Manual terminal, visual/device, and screen-reader confirmation remains pending user and the prior `changes-requested` verdict awaits a fresh independent review.
+- Expected dirty files: None after the review-safe artifact commit; implementation findings remain intentionally unmodified by review.
+- Known blockers: Credential revocation can still race deferred session persistence, and plugin mutations are not bound to the accepted workspace identity. Required findings and manual terminal/visual/device/screen-reader confirmation also remain open.
 
 ## Task Checklist
 
@@ -95,11 +95,11 @@ status: in_review
 
 - [x] 7.1 Update README, architecture, testing, security/deployment guidance, and `CHANGELOG.md` with current implemented behavior only.
 - [x] 7.2 Run `/sdd-review` as the independent local integration gate for Story truth, source reuse, tests, security, docs, ADRs, and branch readiness.
-- [x] 7.3 Record the review outcome in `review.md` and remediate its code/artifact findings; manual acceptance remains explicitly pending rather than claimed.
+- [ ] 7.3 Record the review outcome in `review.md` and remediate its code/artifact findings; the 2026-07-19 rereview is recorded, but its implementation findings remain open and manual acceptance remains explicitly pending.
 - [ ] 7.4 Walk the user through the required disposable-workspace desktop/mobile confirmation and record `user confirmed` or `accepted gap`.
-- [x] 7.5 Ensure proposal/design/tasks and all Epics no longer claim completed remediation behavior is unimplemented, unverified, or pending.
+- [ ] 7.5 Ensure proposal/design/tasks and all Epics no longer claim completed remediation behavior is unimplemented, unverified, or pending after the fresh finding set is resolved.
 - [x] 7.6 Confirm current Change status, branch/ref, review record, manual confirmation, release communication, and PR/merge state agree.
-- [x] 7.7 Return the implementation-complete Change to `in_review` while independent rereview and manual acceptance remain open.
+- [ ] 7.7 Return the implementation-complete Change to `in_review` only after the fresh finding set is remediated and self-checked; manual acceptance may remain open.
 - [ ] 7.8 Commit, push, open a PR, merge, or close only after the repository policy and explicit user authorization permit each operation.
 
 ## Implementation Ledger
@@ -183,8 +183,9 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 - App URL / route: `http://127.0.0.1:3333/` with the disposable setup below running.
 - Required setup or test data: From the repository root, create a disposable directory with `mktemp -d`, record the printed path, and create `workspace/Projects` plus `state` beneath it. Add `Welcome.md` and `Projects/Plan.md` containing non-sensitive test Markdown. Export absolute `GRAPHITEMD_WORKSPACE_ROOT` and `GRAPHITEMD_STATE_DIR` paths, `GRAPHITEMD_ALLOWED_ORIGINS=http://127.0.0.1:3333`, and a newly generated throwaway `APP_KEY` of at least 32 characters.
 - Host setup: Run `pnpm --filter @graphitemd/server exec node ace owner:setup`; confirm both password prompts mask input and no credential/hash is printed. Run `pnpm build && pnpm start`, keeping the terminal open. After browser testing, stop the service before running `pnpm --filter @graphitemd/server exec node ace owner:reset`; confirm its password prompts are masked, restart the service, and verify the prior browser session and credential are rejected.
-- Browser steps: Log in from a fresh browser and confirm it does not claim an earlier session expired. Inspect the desktop regions and collapse/resize controls; browse/search/open a nested note; exercise Source and Rendered modes; edit and wait for Saved. In another terminal, append a line to the open test note, then edit again in the browser and confirm the conflict preserves the draft and offers recovery. Rename the note, reload its URL, and restart the service to confirm the same note URL remains valid. Inspect Settings; disable/re-enable System Status; log out with a clean draft; sign in again; change the password; and confirm a second session is revoked. The in-flight credential race is covered by deterministic automated evidence rather than this walkthrough.
+- Browser steps: After implementation rereview passes, log in from a fresh browser and confirm it does not claim an earlier session expired. Open a second private/browser-profile session with the same owner credential and keep it active for revocation testing. Inspect the desktop regions and collapse/resize controls; browse/search/open a nested note; exercise Source and Rendered modes; edit without waiting for save, attempt navigation, cancel it, and confirm the draft and URL remain; then save. In another terminal, append a line to the open test note, edit again in the browser, and confirm the conflict preserves the draft and offers recovery. Rename the note, reload its URL, and restart the service to confirm the same note URL remains valid. Inspect Settings; disable/re-enable System Status; log out with a clean draft; sign in again; change the password; and confirm the second session is revoked.
 - Narrow-browser steps: At approximately 390x844, confirm Files/Search/Context/Settings remain reachable, drawers contain and restore keyboard focus, tree Arrow/Home/End navigation works, controls are touch-sized, safe areas do not hide controls, and the page has no horizontal overflow.
+- Screen-reader steps: With VoiceOver, confirm the login form, Files tree selection/expansion, drawer name and close control, editor identity, save-state announcements, search result/recovery state, Settings/plugin status, and logout/password errors are announced in a usable order without relying on color.
 - Expected result: The complete foundation path is usable without copying workspace files to the browser, unsafe writes, external search, or plugin privilege bypass.
 - Feedback that would change artifacts: Authentication or host-recovery friction, unusable mobile composition, source loss, confusing conflict/rename recovery, unacceptable plugin UX, or a request to expand the first Change into Assistant behavior.
 
@@ -195,18 +196,18 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 
 ## Closeout
 
-- Change status: in_review; implementation remediation is complete at `949dd77` and awaits independent rereview.
-- Epic files updated: GMD-001, GMD-002, and GMD-003 reconcile the remediated security, restart, confinement, browser, accessibility, responsive, and preview behavior with current evidence.
+- Change status: in_progress; the fresh review against `0196774` returned implementation findings to `/sdd-apply`.
+- Epic files updated: GMD-001, GMD-002, and GMD-003 remain structurally valid, but implementation/evidence truth must be reconciled again with the fresh findings.
 - Story labels/references and Requirement/Scenario IDs current: Yes for planned scope.
 - Implemented By maps current: Yes; new auth, workspace, plugin persistence, and browser owners have stable code anchors.
-- Scenario-mapped Verified By maps current: Yes for automated remediation evidence; manual terminal/visual/device/screen-reader confirmation remains an explicit gap.
+- Scenario-mapped Verified By maps current: No; the fresh review identified missing risk-shaped evidence and an overstated GMD-002 preview claim. Manual confirmation remains an explicit gap.
 - Superseded earlier Epic truth reconciled: Not applicable; spike Epics remain reference truth in their own repositories.
-- ADR status: Four Accepted ADRs remain linked; the foundation filesystem-canonical identity/layout/ignore/backup obligations are implemented, with the documented Node pathname residual risk.
+- ADR status: Four Accepted ADRs remain linked; plugin isolation and client runtime-contract obligations are not yet satisfied. Initial rename-receipt retention is now documented.
 - Release communication current: README and public-safe `CHANGELOG.md` describe the implemented foundation and operator boundary.
-- `sdd-review` verdict: `changes-requested` against source commit `ee54ee16a5161e9d3759ca7a763fff82afd42187` and target `develop@15901773ce4565c4facfc7c50d1835463ef808c8`.
+- `sdd-review` verdict: `changes-requested` against source commit `019677434dd1108798ef68e63f4db85d9fe0ee78` and target `develop@15901773ce4565c4facfc7c50d1835463ef808c8`.
 - Review record: `docs/changes/2026-07-18-foundation-workspace-slice/review.md`.
-- `review.md` findings resolved: Implementation findings are remediated with focused and production-path evidence; manual acceptance remains pending and the historical verdict awaits independent rereview.
-- Planning updates resolved: Yes; accepted design behavior was implemented, and host-only/operation-only preview states were explicitly reconciled rather than revised away.
+- `review.md` findings resolved: No; two blocking and seven required roots remain for `/sdd-apply`.
+- Planning updates resolved: No; accepted runtime-contract, responsive composition, plugin authority/isolation, and preview behavior remain incomplete.
 - Manual UI confirmation status: pending user; deterministic desktop/narrow browser evidence passes, but user acceptance remains intentionally unclaimed.
 - PR / merge state: Local implementation branch created; no remote, PR, or merge.
 - Deferred scope accepted: Recorded in proposal/design/Epics.
