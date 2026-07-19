@@ -5,10 +5,10 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: Deep `/sdd-review` completed against `ee54ee1`; the consolidated verdict is `changes-requested`, safe documentation drift was corrected, and the Change returned to `in_progress`.
+- Last completed action: Deep `/sdd-review` completed against `ee54ee1`; the consolidated verdict is `changes-requested`, safe review/docs were committed as `27ce592`, the private Idea correction as `2365c1b6`, and the Change returned to `in_progress`.
 - Next action: Resume `/sdd-apply` from `review.md`, beginning with the credential-revocation race, then address the remaining security/state and accepted UI-contract findings as one planned remediation wave.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: Review record, safe README/design/task corrections, plus the related private Idea front-door correction pending separate vault commit policy.
+- Expected dirty files: This final hash reconciliation only; both repository worktrees should otherwise be clean.
 - Known blockers: Review findings block integration; no external dependency blocks remediation. Spike repositories remain read-only reference sources.
 
 ## Task Checklist

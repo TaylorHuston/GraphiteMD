@@ -71,7 +71,7 @@ changes-requested
 - Changed files: 107
 - Diff stat: 14,257 insertions, 103 deletions
 - Conflict check: clean; `git merge-tree --write-tree develop HEAD` produced `a7518be2c973e60e9dbde8969a3c2f86e9734939`
-- Dirty state: clean at discovery; review-safe documentation fixes followed.
+- Dirty state: clean at discovery and after review-safe commits.
 - Branch policy: correct `change/*` source targeting non-production `develop`; local merge allowed only after passing review and acceptance.
 - Reverse-traceability command/result: packaged JSON audit per GMD-001/GMD-002/GMD-003 and consolidated pass; no broken paths.
 
@@ -99,7 +99,7 @@ changes-requested
 ## Consolidated Remediation
 
 - Root causes addressed: stale Idea routing, missing required production secret documentation, future/current README ambiguity, stale E2E wording, and non-executable manual setup.
-- Safe-fix batch: documentation and task/review truth only.
+- Safe-fix batch: documentation and task/review truth only, committed as `27ce592`; the separate private Idea front door was committed in its owning vault repository as `2365c1b6`.
 - Deferred or unsafe findings: all code, security, filesystem, state-layout, responsive, accessibility, and preview findings above require `/sdd-apply`.
 - Affected verification union: docs diff check and scoped SDD validation for this review batch; full focused/broad/browser gates after implementation remediation.
 - Regression-focused rereview: documentation and lifecycle consistency only; implementation rereview required after the next apply.
@@ -111,10 +111,10 @@ changes-requested
 - Reviewed source commit: `ee54ee16a5161e9d3759ca7a763fff82afd42187`
 - Target branch: `develop`
 - Conflict check: clean at reviewed commit
-- Commit state: clean at discovery; review record/safe docs pending commit
+- Commit state: review record and safe source-repository documentation committed as `27ce592`; private Idea current-state correction committed separately as `2365c1b6`
 - PR status: none; not required for routine non-production integration
 - Merge status: not ready; blocking and required findings remain
 
 ## Review Log
 
-- 2026-07-18: Deep independent review completed; verdict `changes-requested`, safe documentation corrections applied, and implementation findings returned to `/sdd-apply`.
+- 2026-07-18: Deep independent review completed against `ee54ee1`; verdict `changes-requested`, safe documentation corrections committed as `27ce592` and `2365c1b6`, and implementation findings returned to `/sdd-apply`.
