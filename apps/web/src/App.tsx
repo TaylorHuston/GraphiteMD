@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { MarkdownEditor } from './MarkdownEditor.js'
+import { SettingsPanel } from './SettingsPanel.js'
 import { AutosaveCoordinator, prepareAutosaveTransition, type AutosaveSnapshot } from './autosave.js'
 
 type NoteItem = { kind: 'note'; resourceId: string; displayPath: string }
@@ -157,7 +158,38 @@ function Drawer({ name, onClose, children }: { name: DrawerName; onClose: () => 
   </div>
 }
 
-function SearchPlaceholder() { return <div className="placeholder"><label htmlFor="search">Search notes</label><input id="search" type="search" disabled placeholder="Search arrives in the next slice" /><p>Workspace search is not available yet.</p></div> }
+type SearchResult = { resourceId: string; title: string; displayPath: string; snippet: string | null }
+function SearchPanel({ onSelect, onSessionExpired }: { onSelect: (resourceId: string) => void; onSessionExpired: () => void }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!query.trim()) { setResults([]); setStatus('idle'); return }
+    setStatus('loading')
+    try {
+      const response = await getJson(`/api/v1/search?q=${encodeURIComponent(query)}`)
+      if (response.status === 401) { onSessionExpired(); return }
+      if (!response.ok) { setStatus('error'); return }
+      const body = await response.json() as { results: SearchResult[] }
+      setResults(body.results); setStatus('ready')
+    } catch { setStatus('error') }
+  }
+  const rebuild = async () => {
+    setStatus('loading')
+    try {
+      const response = await getJson('/api/v1/search/rebuild', { method: 'POST', headers: { 'x-xsrf-token': xsrfToken() } })
+      if (response.status === 401) { onSessionExpired(); return }
+      setStatus(response.ok ? 'idle' : 'error')
+    } catch { setStatus('error') }
+  }
+  return <div className="search-panel"><form onSubmit={(event) => void submit(event)}><label htmlFor="search">Search notes</label><div className="search-controls"><input id="search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Title, path, properties, or body" /><button type="submit" disabled={status === 'loading'}>Search</button></div></form>
+    {status === 'loading' && <p aria-live="polite">Searching locally…</p>}
+    {status === 'ready' && results.length === 0 && <p>No notes match “{query}”.</p>}
+    {status === 'error' && <div role="alert"><p>Local search is unavailable. Your note and draft are unchanged.</p><button type="button" onClick={() => void rebuild()}>Rebuild index</button></div>}
+    {results.length > 0 && <ul className="search-results">{results.map((result) => <li key={result.resourceId}><button type="button" onClick={() => onSelect(result.resourceId)}><strong>{result.title}</strong><span>{result.displayPath}</span>{result.snippet && <small>{result.snippet}</small>}</button></li>)}</ul>}
+  </div>
+}
 function displayProperty(value: unknown): string {
   if (Array.isArray(value)) return value.map(displayProperty).join(', ')
   if (value !== null && typeof value === 'object') return JSON.stringify(value)
@@ -171,8 +203,6 @@ function ContextPlaceholder({ note }: { note: Note | null }) {
     {note && !note.yamlParseError && note.yamlProperties.length > 0 && <dl className="properties-list">{note.yamlProperties.map((property) => <div key={property.name}><dt>{property.name}</dt><dd>{displayProperty(property.value)}</dd></div>)}</dl>}
   </div>
 }
-function SettingsPlaceholder() { return <div className="placeholder"><p className="panel-label">Settings</p><h2>Workspace settings</h2><p>Host and plugin controls arrive in a later slice.</p></div> }
-
 function resourceFromLocation(workspace: Workspace): string | null {
   const resourceId = new URLSearchParams(window.location.search).get('resource')
   return resourceId && /^res_[a-z0-9]+$/.test(resourceId) && workspace.notes.some((note) => note.resourceId === resourceId)
@@ -313,7 +343,7 @@ function Workbench({ workspace, onSessionExpired }: { workspace: Workspace; onSe
       <div className="document-body">{workspaceState.inventory.length === 0 ? <EmptyState /> : noteStatus === 'loading' ? <div className="empty-state" aria-live="polite"><h2>Opening note…</h2></div> : selected ? <><form className="rename-note" onSubmit={(event) => void renameSelected(event)}><label htmlFor="note-filename">Filename</label><input id="note-filename" value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} disabled={save.pending} /><button type="submit" disabled={save.pending}>Rename</button>{renameError && <p role="alert">{renameError}</p>}</form><MarkdownEditor source={save.resourceId === selected.resourceId ? save.draft : selected.source} onChange={(source) => autosave.edit(source)} /></> : noteStatus === 'unavailable' ? <div className="empty-state" role="alert"><h2>Note unavailable</h2><p>The requested note could not be opened. Select another note from Files.</p></div> : <div className="empty-state"><div className="empty-mark" aria-hidden="true">◇</div><h2>Select a note</h2><p>Choose a Markdown file from Files to open it here.</p></div>}</div>
     </article>
     <aside className="context-panel" aria-label="Note context"><ContextPlaceholder note={selected} /><div className="context-actions"><button type="button" onClick={() => setDrawer('Settings')}>Settings</button></div></aside>
-    {drawer && <Drawer name={drawer} onClose={() => setDrawer(null)}>{drawer === 'Files' ? navigation : drawer === 'Search' ? <SearchPlaceholder /> : drawer === 'Context' ? <ContextPlaceholder note={selected} /> : <SettingsPlaceholder />}</Drawer>}
+    {drawer && <Drawer name={drawer} onClose={() => setDrawer(null)}>{drawer === 'Files' ? navigation : drawer === 'Search' ? <SearchPanel onSessionExpired={onSessionExpired} onSelect={(resourceId) => { void openNote(resourceId, 'push'); setDrawer(null) }} /> : drawer === 'Context' ? <ContextPlaceholder note={selected} /> : <SettingsPanel onSessionExpired={onSessionExpired} />}</Drawer>}
   </main>
 }
 

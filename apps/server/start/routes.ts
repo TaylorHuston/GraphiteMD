@@ -14,9 +14,13 @@ import {
   resolveSecurityStateDirectory,
 } from '../app/security/owner_setup_service.js'
 import { PluginRuntimeService } from '../app/plugins/plugin_runtime_service.js'
+import { LocalSearchService, LocalSearchUnavailableError } from '../app/search/local_search_service.js'
 
 const ownerSetup = new OwnerSetupService(resolveSecurityStateDirectory())
 const workspace = new ConfiguredWorkspaceAuthority(process.env.GRAPHITEMD_WORKSPACE_ROOT)
+const search = process.env.GRAPHITEMD_WORKSPACE_ROOT
+  ? new LocalSearchService(process.env.GRAPHITEMD_WORKSPACE_ROOT, workspace)
+  : undefined
 const plugins = process.env.GRAPHITEMD_WORKSPACE_ROOT
   ? new PluginRuntimeService(process.env.GRAPHITEMD_WORKSPACE_ROOT, workspace)
   : undefined
@@ -165,6 +169,45 @@ router.patch('/api/v1/notes/:resourceId/rename', async ({ auth, params, request,
     return await workspace.renameNote(params.resourceId, expectedRevision, fileName)
   } catch (error) {
     return mutationErrorResponse(error, response)
+  }
+})
+
+router.get('/api/v1/search', async ({ auth, request, response }) => {
+  try {
+    await auth.use('web').authenticate()
+  } catch {
+    return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+  if (!search) {
+    return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The configured workspace is unavailable.' } })
+  }
+  const query = request.input('q', '')
+  if (typeof query !== 'string') {
+    return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
+  }
+  try {
+    return { results: await search.search(query) }
+  } catch (error) {
+    if (error instanceof LocalSearchUnavailableError) {
+      return response.serviceUnavailable({ error: { code: 'search_unavailable', message: 'Local search is unavailable.' } })
+    }
+    return response.serviceUnavailable({ error: { code: 'search_unavailable', message: 'Local search is unavailable.' } })
+  }
+})
+
+router.post('/api/v1/search/rebuild', async ({ auth, response }) => {
+  try {
+    await auth.use('web').authenticate()
+  } catch {
+    return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+  if (!search) {
+    return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The configured workspace is unavailable.' } })
+  }
+  try {
+    return await search.rebuild()
+  } catch {
+    return response.serviceUnavailable({ error: { code: 'search_unavailable', message: 'Local search is unavailable.' } })
   }
 })
 

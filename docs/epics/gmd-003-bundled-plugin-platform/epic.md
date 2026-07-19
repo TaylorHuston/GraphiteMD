@@ -49,7 +49,7 @@ The workspace owner will be able to inspect and control bundled plugins while Gr
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | partial | partial | Inspect, control, and trust bundled plugins. | 2026-07-18 | Production service host, inspectable persistence, filesystem recovery, and authenticated service control are implemented; browser control and contribution mounting remain. |
+| S1 | partial | partial | Inspect, control, and trust bundled plugins. | 2026-07-18 | Production service host, inspectable persistence, filesystem recovery, authenticated service and browser control, and contribution status visibility are implemented; contribution mounting remains. |
 
 ## Stories
 
@@ -148,12 +148,12 @@ The system SHALL confine durable plugin state to its documented `.graphite/plugi
 | S1/R1, S1/R2, S1/R3 | `apps/server/app/plugins/plugin_runtime_service.ts#PluginRuntimeService` | primary | Loads System Status through the production host, applies persisted enablement before activation, and supplies a current-workspace status capability without raw path exposure. |
 | S1/R2 | `apps/server/app/plugins/plugin_runtime_service.ts#PluginEnablementStore` | primary | Atomically persists inspectable workspace enablement. |
 | S1/R2 | `apps/server/start/routes.ts#pluginRuntime` | support | Exposes authenticated inventory and control endpoints. |
+| S1/R1, S1/R2 | `apps/web/src/SettingsPanel.tsx#SettingsPanel` | presentation | Presents manifest identity, status, declared permissions, active contributions, and accessible enable/disable controls while returning rejected sessions to sign-in. |
 | S1/R4 | `apps/server/app/plugins/plugin_runtime_service.ts#FilesystemPluginStateBackend` | primary | Atomically commits versioned state under the plugin namespace, rejects symlink redirection, and recovers complete interrupted writes without accepting invalid partial JSON. |
 
 #### Implementation Gaps
 
-- `S1/R1-S1`: Browser inventory presentation and web contribution rendering remain unimplemented.
-- `S1/R2`: Authenticated service controls exist, but owner-facing browser controls remain unimplemented.
+- `S1/R1-S1`: Browser inventory presentation exists, but plugin web contribution mounting into the workbench remains unimplemented.
 - `S1/R3`: The production provider implements the System Status plugin's current-workspace status operation. Broader resource-scoped providers, an architectural forbidden-import gate, and current-user propagation beyond the owner-only service remain unimplemented.
 
 #### Verified By
@@ -166,12 +166,13 @@ The system SHALL confine durable plugin state to its documented `.graphite/plugi
 | S1/R4-S1, S1/R4-S2 | `packages/plugin-sdk/src/index.test.ts` — `GMD-003/S1 R4 namespaced state` | Plugin-bound namespaces, versioned transactional backend calls, isolation, and recovery status contract. | passing (backend contract) |
 | S1/R4-S3 | `plugins/system-status/src/index.test.ts` — shared `runPluginConformance` assertion | The real System Status plugin passes production SDK lifecycle, denial, state, recovery, and headless contract checks. | passing |
 | S1/R1-S1, S1/R2-S1 | `apps/server/tests/http/authentication.test.ts` — `GMD-003/S1 production plugin host` | The authenticated production API lists System Status through its real manifest and disables it while removing contributions and writing inspectable configuration. | passing |
+| S1/R1-S1, S1/R2-S1 | `apps/web/src/SettingsPanel.test.tsx` — browser inventory and enablement cases | Browser-component evidence presents plugin identity, status, declared permissions, active contribution status, and enable/disable controls; a disabled response removes contributions and a rejected session returns to sign-in. | passing |
 | S1/R2-S2 | `apps/server/tests/plugins/plugin_runtime_service.test.ts` — `GMD-003/S1 R2 inspectable enablement` | Restarted production hosts apply persisted disablement before bundled activation and malformed configuration fails closed. | passing |
 | S1/R3-S1, S1/R4-S1, S1/R4-S2 | `apps/server/tests/plugins/plugin_runtime_service.test.ts` — production host and atomic state cases | System Status activates through the real workspace-aware provider; state commits in its namespace, rejects traversal/symlinks, recovers complete temporary writes, and reports invalid partial JSON as failed. | passing |
 
 #### Verification Gaps
 
-- `S1/R1-S1`, `S1/R2-S1`: Browser inventory visibility, controls, and contribution mounting are not verified.
+- `S1/R1-S1`: Browser inventory visibility, controls, and contribution status are verified; contribution mounting is neither implemented nor verified.
 - `S1/R3-S1`, `S1/R3-S2`: Real workspace-aware status capability and broker denial are verified, but broader excluded-resource providers and a static forbidden-import boundary are not.
 - `S1/R4-S2`: Recovery is verified with complete and malformed interrupted state files; process-kill durability and filesystem fault injection are not yet verified.
 

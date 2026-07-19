@@ -57,7 +57,7 @@ An authenticated owner will be able to browse, read, edit, rename, and search Ma
 |---|---|---|---|---|---|
 | S1 | implemented | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-18 | Service-owned authority, confined inventory, exact authenticated reads, safe browser history, and responsive composition are implemented; responsive visual confirmation remains. |
 | S2 | partial | partial | Edit and rename a note with source and revision safety. | 2026-07-18 | Editor, guarded autosave, confined atomic save, and no-overwrite rename are implemented; indeterminate-success recovery and search reconciliation remain. |
-| S3 | not implemented | unverified | Search the workspace through a rebuildable local index. |  | Foundation Change. |
+| S3 | implemented | partial | Search the workspace through a rebuildable local index. | 2026-07-18 | Local FTS projection, authenticated API, explicit rebuild, external-source reconciliation, and guarded result navigation are implemented; manual browser and fault-injection confirmation remain. |
 
 ## Stories
 
@@ -331,11 +331,11 @@ The system SHALL confine every direct owner write to an authenticated, authorize
 
 ### Story S3: Search The Workspace Locally
 
-Implementation: not implemented
-Verification: unverified
+Implementation: implemented
+Verification: partial
 Created: 2026-07-18
 Modified: 2026-07-18
-Last verified:
+Last verified: 2026-07-18
 
 As a workspace owner, I want fast local search across my Markdown, so that I can find and open notes without exposing queries or content to an external service.
 
@@ -399,26 +399,34 @@ The system SHALL answer baseline search in the authoritative service without sen
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
-| S3/R1 | Not implemented yet. | primary | Query normalization, result contract, and UI flow. |
-| S3/R2 | Not implemented yet. | persistence | Rebuildable catalog, FTS index, and reconciliation. |
-| S3/R3 | Not implemented yet. | primary | Host-local search authority. |
+| S3/R1 | `apps/server/app/search/local_search_service.ts#LocalSearchService.search` | primary | Unicode-safe prefix query normalization, title/path/frontmatter/body FTS, deterministic ranking, bounded result count, opaque identities, and bounded snippets. |
+| S3/R1 | `apps/server/start/routes.ts#/api/v1/search` | adapter | Authenticated path-free search response and normalized recoverable failure. |
+| S3/R1 | `apps/web/src/App.tsx#SearchPanel` | presentation | Search input, loading/no-result/error/rebuild states, and result selection through the existing guarded note transition without disturbing the selected draft on search failure. |
+| S3/R2 | `apps/server/app/search/local_search_service.ts#LocalSearchService.rebuild` | persistence | Atomic disposable `.graphite/cache/search.sqlite` FTS rebuild from the current confined Markdown inventory, with ordinary-file validation and authoritative external-source reconciliation. |
+| S3/R2 | `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority.refresh` | primary | Re-inventories canonical sources while retaining the active workspace identity and the inventory's exclusion/confinement policy. |
+| S3/R3 | `apps/server/app/search/local_search_service.ts#LocalSearchService` | primary | Host-process-only `better-sqlite3` implementation with no provider or external-search interface. |
 
 #### Implementation Gaps
 
-- `S3/R1`: GraphiteMD search experience does not exist yet.
-- `S3/R2`: GraphiteMD search projection does not exist yet.
-- `S3/R3`: GraphiteMD local-only search boundary does not exist yet.
+None.
 
 #### Verified By
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
+| S3/R1-S1 | `apps/server/app/search/local_search_service.test.ts` — `searches title, path, frontmatter, and body with opaque bounded results`; `apps/server/tests/http/authentication.test.ts` — `protects host-local search and returns opaque results`; `apps/web/src/App.test.tsx` — `searches locally and opens an opaque result through the guarded note transition` | Local FTS covers every baseline field, returns bounded path-safe results only to an authenticated owner, and result selection reuses guarded opaque-resource note navigation. | Passing 2026-07-18. |
+| S3/R1-S2 | `apps/server/app/search/local_search_service.test.ts` — `returns empty results for empty, punctuation-only, and unmatched queries`; `apps/web/src/App.test.tsx` — `show honest no-result and recoverable failure states` | Empty and unsupported queries do not reach FTS, unmatched searches show an honest state, and the active document remains intact. | Passing 2026-07-18. |
+| S3/R1-S3 | `apps/web/src/App.test.tsx` — `show honest no-result and recoverable failure states`; source inspection of `apps/server/start/routes.ts#/api/v1/search` | A failed search becomes a recoverable error with an explicit rebuild action while workbench selection/draft ownership remains outside the search component. | Partial; deterministic filesystem/database fault injection and manual draft confirmation remain. |
+| S3/R2-S1 | `apps/server/app/search/local_search_service.test.ts` — `rebuilds an equivalent disposable index after deletion`; `apps/server/tests/http/authentication.test.ts` — `requires XSRF proof for an explicit rebuild` | Deleting the derived database loses no canonical content and the authenticated, request-protected rebuild restores equivalent results. | Passing 2026-07-18. |
+| S3/R2-S2 | `apps/server/app/search/local_search_service.test.ts` — `reconciles external create, edit, rename, and delete before answering` | Search rebuilds from a refreshed confined inventory before answering, converging external source changes and removing stale rows. | Passing 2026-07-18. |
+| S3/R2-S3 | `apps/server/app/search/local_search_service.test.ts` — `never indexes .graphite Markdown state` | Internal `.graphite/` Markdown never enters the inventory or FTS projection. | Passing 2026-07-18. |
+| S3/R3-S1 | `apps/server/tests/http/authentication.test.ts` — `protects host-local search and returns opaque results`; source inspection of `apps/server/app/search/local_search_service.ts#LocalSearchService` and dependency manifests | The authenticated service invokes an in-process local SQLite implementation; the search slice has no external provider dependency or outbound search adapter. | Partial; automated network egress isolation is not configured. |
 
 #### Verification Gaps
 
-- `S3/R1-S1`, `S3/R1-S2`, `S3/R1-S3`: Not verified yet.
-- `S3/R2-S1`, `S3/R2-S2`, `S3/R2-S3`: Not verified yet.
-- `S3/R3-S1`: Not verified yet.
+- `S3/R1-S3`: Add database/open failure injection and manually confirm an unsaved draft stays intact through failure and rebuild.
+- `S3/R3-S1`: No automated network-egress isolation proof exists; implementation and dependency inspection show the baseline path is strictly in-process SQLite.
+- Search result composition, long snippets/paths, keyboard use, and narrow-browser behavior still need manual browser confirmation.
 
 #### Story Notes
 

@@ -1,0 +1,94 @@
+import '@testing-library/jest-dom/vitest'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { SettingsPanel } from './SettingsPanel.js'
+
+function response(status: number, body?: unknown) {
+  return Promise.resolve(new Response(body === undefined ? null : JSON.stringify(body), {
+    status, headers: { 'content-type': 'application/json' },
+  }))
+}
+
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+describe('owner Settings', () => {
+  it('GMD-001/S2 R1 changes a confirmed password and returns to sign in', async () => {
+    document.cookie = 'XSRF-TOKEN=settings-token'
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => response(200, { plugins: [] }))
+      .mockImplementationOnce(() => response(204))
+    vi.stubGlobal('fetch', fetchMock)
+    const expired = vi.fn()
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={expired} />)
+
+    await user.type(screen.getByLabelText('Current password'), 'old secret')
+    await user.type(screen.getByLabelText('New password'), 'new secret')
+    await user.type(screen.getByLabelText('Confirm new password'), 'new secret')
+    await user.click(screen.getByRole('button', { name: 'Change password' }))
+
+    await waitFor(() => expect(expired).toHaveBeenCalledOnce())
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/v1/auth/password', expect.objectContaining({
+      method: 'PUT', credentials: 'same-origin',
+      headers: expect.objectContaining({ 'x-xsrf-token': 'settings-token' }),
+      body: JSON.stringify({ currentPassword: 'old secret', password: 'new secret' }),
+    }))
+  })
+
+  it('rejects mismatched confirmation locally without transmitting credentials', async () => {
+    const fetchMock = vi.fn().mockImplementationOnce(() => response(200, { plugins: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={vi.fn()} />)
+    await screen.findByText('No bundled plugins are available.')
+
+    await user.type(screen.getByLabelText('Current password'), 'old')
+    await user.type(screen.getByLabelText('New password'), 'first')
+    await user.type(screen.getByLabelText('Confirm new password'), 'different')
+    await user.click(screen.getByRole('button', { name: 'Change password' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('New passwords do not match.')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('GMD-003/S1 presents inventory, status, permissions, and active contributions', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementationOnce(() => response(200, { plugins: [{
+      id: 'system-status', status: 'active',
+      manifest: { name: 'System Status', version: '0.1.0', permissions: ['workspace:read'] },
+      contributions: { views: [{ id: 'status', title: 'System status' }], commands: [{ id: 'refresh', title: 'Refresh status' }] },
+    }] })))
+    render(<SettingsPanel onSessionExpired={vi.fn()} />)
+
+    const plugin = await screen.findByRole('article', { name: 'System Status plugin' })
+    expect(within(plugin).getByText('Active')).toBeVisible()
+    expect(within(plugin).getByText('workspace:read')).toBeVisible()
+    expect(within(plugin).getByText('View: System status')).toBeVisible()
+    expect(within(plugin).getByText('Command: Refresh status')).toBeVisible()
+    expect(within(plugin).getByRole('button', { name: 'Disable System Status' })).toBeEnabled()
+  })
+
+  it('persists enablement, reflects removed contributions, and handles an expired session', async () => {
+    document.cookie = 'XSRF-TOKEN=plugin-token'
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => response(200, { plugins: [{ id: 'system-status', status: 'active', manifest: { name: 'System Status', version: '0.1.0', permissions: [] }, contributions: { views: [{ id: 'status', title: 'System status' }] } }] }))
+      .mockImplementationOnce(() => response(200, { plugin: { id: 'system-status', status: 'disabled', manifest: { name: 'System Status', version: '0.1.0', permissions: [] }, contributions: {} } }))
+      .mockImplementationOnce(() => response(401, { error: { code: 'unauthenticated' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    const expired = vi.fn()
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={expired} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Disable System Status' }))
+    expect(await screen.findByText('Disabled')).toBeVisible()
+    expect(screen.getByText('No active contributions.')).toBeVisible()
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/v1/plugins/system-status', expect.objectContaining({
+      method: 'PUT', body: JSON.stringify({ enabled: false }),
+      headers: expect.objectContaining({ 'x-xsrf-token': 'plugin-token' }),
+    }))
+
+    await user.click(screen.getByRole('button', { name: 'Enable System Status' }))
+    await waitFor(() => expect(expired).toHaveBeenCalledOnce())
+  })
+})

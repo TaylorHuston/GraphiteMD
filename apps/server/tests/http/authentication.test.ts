@@ -283,6 +283,28 @@ describe('GMD-002/S2 authenticated confined note mutations', () => {
   })
 })
 
+describe('GMD-002/S3 authenticated local search', () => {
+  it('R1-S1 and R3-S1 protects host-local search and returns opaque results', async () => {
+    await writeFile(join(workspaceRoot, 'Notes', 'Searchable.md'), '---\nowner: Taylor\n---\n# Searchable\nlocalneedle\n', 'utf8')
+    expect((await fetch(`${origin}/api/v1/search?q=localneedle`)).status).toBe(401)
+    const authenticated = await loginOwner()
+    const found = await fetch(`${origin}/api/v1/search?q=localneedle`, { headers: { cookie: authenticated.cookie } })
+    expect(found.status).toBe(200)
+    const body = await found.json()
+    expect(body).toMatchObject({ results: [{ resourceId: expect.stringMatching(/^res_/), title: 'Searchable', displayPath: 'Notes/Searchable.md', snippet: expect.any(String) }] })
+    expect(JSON.stringify(body)).not.toContain(workspaceRoot)
+    expect(JSON.stringify(body)).not.toContain('http')
+  })
+
+  it('R2-S1 requires XSRF proof for an explicit rebuild', async () => {
+    const authenticated = await loginOwner()
+    expect((await fetch(`${origin}/api/v1/search/rebuild`, { method: 'POST', headers: { cookie: authenticated.cookie } })).status).toBe(403)
+    const rebuilt = await fetch(`${origin}/api/v1/search/rebuild`, { method: 'POST', headers: { cookie: authenticated.cookie, 'x-xsrf-token': authenticated.token } })
+    expect(rebuilt.status).toBe(200)
+    expect(await rebuilt.json()).toMatchObject({ indexed: expect.any(Number) })
+  })
+})
+
 describe('GMD-003/S1 production plugin host', () => {
   it('lists and controls the bundled plugin through authenticated endpoints and persists the setting', async () => {
     expect((await fetch(`${origin}/api/v1/plugins`)).status).toBe(401)

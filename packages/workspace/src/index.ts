@@ -40,6 +40,7 @@ export interface WorkspaceAuthority {
   readNote(resourceId: string): Promise<MarkdownNote>
   saveNote(resourceId: string, expectedRevision: string, source: string): Promise<MarkdownNote>
   renameNote(resourceId: string, expectedRevision: string, fileName: string): Promise<RenameNoteResult>
+  refresh(): Promise<WorkspaceSnapshot>
 }
 
 export type MarkdownNoteYamlValue =
@@ -179,6 +180,22 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
       this.#opened = null
       return { available: false, reason: 'unavailable' }
     }
+  }
+
+  async refresh(): Promise<WorkspaceSnapshot> {
+    const current = await this.current()
+    if (!current.available) return this.openConfigured()
+    const opened = this.#opened
+    if (!opened) throw new WorkspaceUnavailableError('unavailable')
+    const inventory = await inventoryMarkdown(opened.root, current.workspaceId, this.#inventoryOptions)
+    const snapshot: WorkspaceSnapshot = {
+      workspaceId: current.workspaceId,
+      available: true,
+      notes: inventory.filter((item): item is MarkdownNoteInventoryItem => item.kind === 'note'),
+      inventory,
+    }
+    this.#opened = { ...opened, snapshot }
+    return snapshot
   }
 
   async readNote(resourceId: string): Promise<MarkdownNote> {
