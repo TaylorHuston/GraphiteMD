@@ -5,8 +5,8 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: `GMD-001/S1 R2` official browser sessions/authenticated workspace delivery and the package portion of `GMD-002/S1 R3` exact note reads pass focused and build-then-test root gates; a generated-test discovery regression was fixed with an explicit Vitest exclusion.
-- Next action: Commit `GMD-001/S1 R3` request protection, then finish the headless bundled-plugin platform and add note-read HTTP/browser navigation.
+- Last completed action: `GMD-001/S1 R3` request protection was committed in `7e0d5a5`; the headless `GMD-003/S1` SDK/host/conformance slice is green with explicit persistence and service/web gaps.
+- Next action: Commit the plugin core slice, then implement `.graphite/plugins.json` plus atomic plugin-state persistence before mounting authenticated service/browser controls.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
 - Expected dirty files: `packages/workspace/`, `apps/server/`, `packages/contracts/`, `docs/epics/gmd-002-markdown-workbench/epic.md`, and this ledger for the current Requirement slice.
 - Known blockers: None. Spike repositories are read-only reference sources.
@@ -66,10 +66,10 @@ status: in_progress
   - [ ] R2 adapt rebuild/reconciliation to `.graphite/cache/search.sqlite` and `better-sqlite3`.
   - [ ] R3 prove baseline search never invokes an external provider.
 - [ ] 4.7 Implement `GMD-003/S1` Inspect Control And Trust Bundled Plugins through BDD/TDD.
-  - [ ] R1 manifests, compatibility, plugin inventory, and failed activation.
-  - [ ] R2 inspectable enable/disable state and contribution teardown/restart.
-  - [ ] R3 capability broker, opaque identities, normalized denial, and forbidden imports.
-  - [ ] R4 namespaced state, recovery, shared conformance, and the System Status plugin.
+  - [ ] R1 manifests, compatibility, plugin inventory, and failed activation. (headless host complete; service/browser inventory pending.)
+  - [ ] R2 inspectable enable/disable state and contribution teardown/restart. (host lifecycle complete; `.graphite/plugins.json` persistence and controls pending.)
+  - [ ] R3 capability broker, opaque identities, normalized denial, and forbidden imports. (broker complete; real service provider and forbidden-import gate pending.)
+  - [ ] R4 namespaced state, recovery, shared conformance, and the System Status plugin. (adapter/conformance/plugin complete; atomic filesystem backend and service/web mounting pending.)
 - [ ] 4.8 Reconcile all affected Epic `Implemented By` and Implementation Gaps immediately after each Requirement slice.
 
 ### 5. Reuse And Migration Discipline
@@ -116,7 +116,8 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | `GMD-001/S1 R1` host-local owner setup | Delegated TDD; current AdonisJS v7 Ace/hash guidance | Server security service, `owner:setup` command, focused tests, `GMD-001` Epic | Machine-local permission-restricted SQLite owner store, Scrypt hash, secure prompt seam, and overwrite refusal implemented; real TTY masking is a manual evidence gap | `88ea988` |
 | 2026-07-18 | `GMD-001/S1 R2` browser session authentication and `GMD-002/S1 R1` delivery | Delegated TDD; official Adonis Auth/Session/Lucid guidance | Auth/session/database configs, singleton Owner model, login/current/logout/workspace routes, real HTTP fixture, GMD-001/GMD-002 Epics | Regenerated persistent sessions, generic denial, server-side logout invalidation, and authenticated confined workspace projection implemented | `323a053` |
 | 2026-07-18 | `GMD-002/S1 R3` exact note read package slice | Delegated TDD; Dashboard YAML cases plus Coordinator locator/no-follow patterns | `packages/workspace`; GMD-002 Epic | Exact bounded UTF-8 source, revision, YAML state, stale/unknown locator and symlink/root replacement denial implemented; HTTP/browser history remains | `323a053` |
-| 2026-07-18 | `GMD-001/S1 R3` browser request protection | Delegated TDD; official Adonis Shield/CORS guidance | Shield/CORS config and middleware; real HTTP fixture; GMD-001 Epic | Missing/invalid XSRF fails before logout mutation; exact configured origin receives credentialed CORS while near-match untrusted origin receives none | commit pending |
+| 2026-07-18 | `GMD-001/S1 R3` browser request protection | Delegated TDD; official Adonis Shield/CORS guidance | Shield/CORS config and middleware; real HTTP fixture; GMD-001 Epic | Missing/invalid XSRF fails before logout mutation; exact configured origin receives credentialed CORS while near-match untrusted origin receives none | `7e0d5a5` |
+| 2026-07-18 | `GMD-003/S1` headless plugin core | Delegated TDD; Dashboard enablement semantics plus Coordinator capability-host patterns | Plugin SDK/testkit, System Status plugin, GMD-003 Epic | Versioned manifest/host lifecycle, capability broker, namespaced state contract, and shared conformance implemented; inspectable filesystem persistence and service/web integration remain | commit pending |
 
 ## Verification Ledger
 
@@ -133,6 +134,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Workspace 13-test suite | focused automated evidence | `GMD-002/S1/R3-S1..R3-S2`: exact reads, revisions, YAML states, external edits, stale/unknown identities, root replacement, and symlink substitution. | Passing: 13 tests |
 | 2026-07-18 | `pnpm build && pnpm test` | broad supporting regression gate | Generated output does not get rediscovered as duplicate tests; every workspace package remains green after a full build. | Passing after adding `apps/server/vitest.config.ts` |
 | 2026-07-18 | Server 9-test suite plus lint/typecheck/build and scoped SDD validation | deterministic integration evidence plus supporting gates | `GMD-001/S1/R3-S1..R3-S2`: missing/invalid/valid XSRF behavior and exact trusted versus near-match untrusted credentialed origins. | Passing |
+| 2026-07-18 | Plugin SDK 7 focused tests plus System Status conformance; plugin package lint/typecheck/build | focused automated evidence plus supporting gates | Headless portions of `GMD-003/S1/R1..R4`: manifest and dependency denial, lifecycle teardown, capability denial, state isolation contract, and production-SDK conformance. | Passing; filesystem/service/browser gaps remain explicit |
 
 ## Manual Feedback
 

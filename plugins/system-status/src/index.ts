@@ -1,6 +1,22 @@
-import type { GraphitePlugin } from '@graphitemd/plugin-sdk'
+import { resourceId, type GraphitePlugin } from '@graphitemd/plugin-sdk'
 
 export const systemStatusPlugin: GraphitePlugin = {
-  manifest: { id: 'system-status', name: 'System Status', version: '0.0.0', capabilities: [] },
-  async activate() {},
+  manifest: {
+    schemaVersion: 1,
+    id: 'system-status',
+    name: 'System Status',
+    version: '1.0.0',
+    compatibility: { host: '^1.0.0' },
+    permissions: ['status:read'],
+    dependencies: [],
+    state: { schemaVersion: 1 },
+    contributions: {
+      commands: [{ id: 'show-system-status', title: 'Show system status' }],
+      views: [{ id: 'system-status', title: 'System Status' }],
+    },
+  },
+  async activate(context) {
+    const snapshot = await context.capabilities.perform({ permission: 'status:read', resource: resourceId('system') })
+    await context.state.write({ lastKnownStatus: snapshot })
+  },
 }
