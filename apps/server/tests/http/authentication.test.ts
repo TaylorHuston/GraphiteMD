@@ -158,6 +158,57 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
   })
 })
 
+describe('GMD-002/S1 R3 exact note reading', () => {
+  it('R3-S1 returns exact source metadata only for an authenticated issued resource', async () => {
+    await writeFile(
+      join(workspaceRoot, 'Notes', 'Welcome.md'),
+      '---\r\ntitle: Welcome\r\ntags:\r\n  - start\r\n---\r\n# Welcome\r\n',
+      'utf8',
+    )
+    const authenticated = await loginOwner()
+    const inventoryResponse = await fetch(`${origin}/api/v1/workspace`, {
+      headers: { cookie: authenticated.cookie },
+    })
+    const inventory = await inventoryResponse.json() as {
+      notes: Array<{ resourceId: string; displayPath: string }>
+    }
+    const welcome = inventory.notes.find((note) => note.displayPath === 'Notes/Welcome.md')
+    expect(welcome).toBeDefined()
+
+    const noteResponse = await fetch(
+      `${origin}/api/v1/notes/${encodeURIComponent(welcome!.resourceId)}`,
+      { headers: { cookie: authenticated.cookie } },
+    )
+    expect(noteResponse.status).toBe(200)
+    const note = await noteResponse.json()
+    expect(note).toEqual({
+      resourceId: welcome!.resourceId,
+      displayPath: 'Notes/Welcome.md',
+      source: '---\r\ntitle: Welcome\r\ntags:\r\n  - start\r\n---\r\n# Welcome\r\n',
+      revision: expect.stringMatching(/^rev_[a-f0-9]{64}$/),
+      yamlProperties: [
+        { name: 'title', value: 'Welcome' },
+        { name: 'tags', value: ['start'] },
+      ],
+      yamlParseError: null,
+    })
+    expect(JSON.stringify(note)).not.toContain(workspaceRoot)
+
+    expect((await fetch(`${origin}/api/v1/notes/${welcome!.resourceId}`)).status).toBe(401)
+  })
+
+  it('R3-S2 rejects an unknown resource without exposing or guessing a path', async () => {
+    const authenticated = await loginOwner()
+    const response = await fetch(`${origin}/api/v1/notes/res_unknown`, {
+      headers: { cookie: authenticated.cookie },
+    })
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({
+      error: { code: 'resource_unavailable', message: 'The requested note is unavailable.' },
+    })
+  })
+})
+
 describe('GMD-001/S1 R3 browser request protection', () => {
   it('R3-S1 rejects a state-changing authenticated request without XSRF proof and accepts valid proof', async () => {
     const authenticated = await loginOwner()

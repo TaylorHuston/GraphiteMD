@@ -5,10 +5,10 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: `GMD-002/S1 R4` responsive browse composition passes its web gates and scoped SDD validation; `GMD-001/S2` service/HTTP/command tests are green pending Epic reconciliation.
-- Next action: Commit access maintenance, then add the Settings password-change form and authenticated note-read/browser history before beginning the editor path.
+- Last completed action: `GMD-002/S1 R3` authenticated exact-note delivery and opaque-resource browser history pass server, web, root, and scoped SDD gates.
+- Next action: Commit the completed read/navigation slice, then begin `GMD-002/S2` with the source-preserving editor and guarded autosave path borrowed from the spikes.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: `packages/workspace/`, `apps/server/`, `packages/contracts/`, `docs/epics/gmd-002-markdown-workbench/epic.md`, and this ledger for the current Requirement slice.
+- Expected dirty files: Server note route/tests, web workbench/tests/styles, `docs/epics/gmd-002-markdown-workbench/epic.md`, and this ledger for the current Requirement slice.
 - Known blockers: None. Spike repositories are read-only reference sources.
 
 ## Task Checklist
@@ -54,7 +54,7 @@ status: in_progress
 - [ ] 4.4 Implement `GMD-002/S1` Browse And Read Workspace Notes through BDD/TDD.
   - [x] R1 one host-configured service-owned workspace and safe reconnect.
   - [x] R2 nested Markdown inventory, `.graphite`/ignore/unsafe exclusions, and empty state.
-  - [ ] R3 exact source/revision reads with guarded opaque-resource history. (confined package read/revision/YAML behavior complete; authenticated HTTP and browser history remain.)
+  - [x] R3 exact source/revision reads with guarded opaque-resource history.
   - [x] R4 desktop and mobile-browser workbench composition. (automated structure/interaction proof complete; manual viewport confirmation pending.)
 - [ ] 4.5 Implement `GMD-002/S2` Edit And Rename A Note Safely through BDD/TDD.
   - [ ] R1 transplant the newer source-preserving editor and Dashboard-only general-note regressions.
@@ -120,6 +120,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | `GMD-003/S1` headless plugin core | Delegated TDD; Dashboard enablement semantics plus Coordinator capability-host patterns | Plugin SDK/testkit, System Status plugin, GMD-003 Epic | Versioned manifest/host lifecycle, capability broker, namespaced state contract, and shared conformance implemented; inspectable filesystem persistence and service/web integration remain | `ba074f7` |
 | 2026-07-18 | `GMD-002/S1 R4` responsive browse shell and R2 presentation | Delegated TDD; component accessibility/composition guidance; Coordinator primitives and Dashboard PKM composition adapted | Web App/tree/drawers/state shell, responsive tokens/styles, GMD-002 Epic | Authenticated bootstrap, deterministic accessible tree, empty/session/error states, desktop regions, and narrow drawers implemented; editor/search/settings remain scoped placeholders | `b53fc90` |
 | 2026-07-18 | `GMD-001/S2` access maintenance and recovery | Delegated TDD; official session/Shield patterns | Owner security service, password API, reset command, service/command/HTTP tests, GMD-001 Epic | Atomic password compare-and-swap/reset, revocation generation, global session deletion, rollback, and invalidated-session recovery implemented; Settings UI and isolated expiry proof remain | `4c23898` |
+| 2026-07-18 | `GMD-002/S1 R3` authenticated note navigation | Delegated TDD; Coordinator confinement patterns and Dashboard note presentation behavior adapted | Authenticated note route, real HTTP fixture, web history/selection/source/properties presentation, GMD-002 Epic | Opaque selection, exact source delivery, Back/Forward/reload restoration, stale-route denial, and expired-session recovery implemented without exposing host paths | pending commit |
 
 ## Verification Ledger
 
@@ -139,6 +140,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Plugin SDK 7 focused tests plus System Status conformance; plugin package lint/typecheck/build | focused automated evidence plus supporting gates | Headless portions of `GMD-003/S1/R1..R4`: manifest and dependency denial, lifecycle teardown, capability denial, state isolation contract, and production-SDK conformance. | Passing; filesystem/service/browser gaps remain explicit |
 | 2026-07-18 | Web 4-test suite plus lint/typecheck/build and scoped SDD validation | focused component evidence plus supporting gates | `GMD-002/S1/R2-S1`, `R2-S3`, `R4-S1`, `R4-S2`: accessible tree, empty reachability, responsive drawer semantics, focus/Escape, and expired-session state. | Passing; real viewport/touch/overflow confirmation pending user |
 | 2026-07-18 | Server 18-test suite plus lint/typecheck/build | focused service/command/HTTP evidence plus supporting gates | `GMD-001/S2/R1..R3`: correct/wrong password behavior, multi-session revocation, reset/cancel/mismatch/rollback, and invalidated-session recovery. | Passing; Settings UI, terminal masking, and isolated expiry proof remain explicit gaps |
+| 2026-07-18 | Server 20-test and web 7-test suites; root test/typecheck/lint; scoped SDD validation | deterministic integration and component evidence plus supporting gates | `GMD-002/S1/R3-S1..R3-S2`: authenticated exact-note reads, path-free denial, opaque-resource selection/history restoration, invalid-route recovery, and note-read session expiry. | Passing; responsive manual confirmation remains explicit |
 
 ## Manual Feedback
 

@@ -40,6 +40,11 @@ h1, h2, p { margin-top: 0; }
 .status-chip { flex: none; padding: .28rem .55rem; border: 1px solid #33433b; border-radius: 999px; color: #9dd5b4; font-size: .72rem; }
 .document-body { width: min(100%, 52rem); min-height: 0; flex: 1; align-self: center; padding: clamp(2rem, 6vw, 5rem) clamp(1.25rem, 5vw, 4rem); }
 .empty-state, .note-placeholder { max-width: 28rem; margin: min(14vh, 8rem) auto 0; text-align: center; }
+.note-source { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; color: var(--text); font: 400 .95rem/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.properties-list { display: grid; gap: .65rem; margin: 1rem 0 0; }
+.properties-list > div { min-width: 0; }
+.properties-list dt { color: var(--subtle); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; }
+.properties-list dd { margin: .15rem 0 0; overflow-wrap: anywhere; color: var(--text); font-size: .86rem; }
 .empty-state h2, .note-placeholder h2 { margin-bottom: .55rem; font-size: 1.35rem; }
 .empty-state p, .note-placeholder p, .placeholder p { color: var(--muted); line-height: 1.55; }
 .empty-mark { width: 3.5rem; height: 3.5rem; display: grid; place-items: center; margin: 0 auto 1.25rem; border: 1px solid var(--line); border-radius: .8rem; color: var(--accent); font-size: 1.5rem; background: var(--surface); }

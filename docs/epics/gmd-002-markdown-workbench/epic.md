@@ -55,7 +55,7 @@ An authenticated owner will be able to browse, read, edit, rename, and search Ma
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | partial | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-18 | Service-owned authority, confined inventory, and exact resource reads are implemented; HTTP/auth adapter and UI navigation remain. |
+| S1 | implemented | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-18 | Service-owned authority, confined inventory, exact authenticated reads, safe browser history, and responsive composition are implemented; responsive visual confirmation remains. |
 | S2 | not implemented | unverified | Edit and rename a note with source and revision safety. |  | Foundation Change. |
 | S3 | not implemented | unverified | Search the workspace through a rebuildable local index. |  | Foundation Change. |
 
@@ -63,7 +63,7 @@ An authenticated owner will be able to browse, read, edit, rename, and search Ma
 
 ### Story S1: Browse And Read Workspace Notes
 
-Implementation: partial
+Implementation: implemented
 Verification: partial
 Created: 2026-07-18
 Modified: 2026-07-18
@@ -156,14 +156,15 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 | S1/R1-S1 | `apps/server/start/routes.ts` — `GET /api/v1/workspace` | adapter | Requires an official authenticated owner session before delivering the confined workspace projection configured by `GRAPHITEMD_WORKSPACE_ROOT`. |
 | S1/R2 | `packages/workspace/src/index.ts` — `ConfiguredWorkspaceAuthority`, `inventoryMarkdown` | primary | Recursive tree-ready Markdown inventory, deterministic ordering, opaque resource identities, relative display paths, configured/internal exclusions, no-follow bounded reads, strict UTF-8 eligibility, and honest empty results. |
 | S1/R3 | `packages/workspace/src/index.ts` — `ConfiguredWorkspaceAuthority.readNote`, `parseMarkdownYamlProperties` | primary | Currently issued opaque-resource resolution, root-identity revalidation, no-follow bounded exact UTF-8 reads, content revisions, and generic YAML property/parse state. |
+| S1/R3-S1 | `apps/server/start/routes.ts` — `GET /api/v1/notes/:resourceId` | adapter | Authenticated exact-note delivery with normalized path-free unavailable responses over the singleton workspace authority. |
+| S1/R3 | `apps/web/src/App.tsx` — `Workbench`, `openNote`, `resourceFromLocation` | presentation | Tree selection, exact source and generic property presentation, opaque-resource history updates, and authorization-preserving reload/Back/Forward restoration. |
 | S1/R2-S1, S1/R2-S3 | `apps/web/src/App.tsx#FileTree` | presentation | Deterministic nested file presentation, semantic expansion and selection, and an honest empty workspace that retains Files, Search, Context, and Settings access. |
 | S1/R4 | `apps/web/src/App.tsx#Workbench` | primary | Desktop navigation/document/context composition and narrow document-primary composition with touch-sized, focus-visible, Escape-dismissable tool drawers. |
 | S1/R4 | `apps/web/src/styles.css#.workbench` | presentation | Bounded desktop grid, document measure, narrow-browser breakpoint, mobile toolbar, and page-level overflow containment. |
 
 #### Implementation Gaps
 
-- `S1/R3-S1`: The authenticated HTTP contract and browser selection route remain pending; exact package-level note reads are implemented.
-- `S1/R3-S2`: Browser-owned Back, Forward, and reload restoration remain pending; the workspace authority accepts only currently issued opaque resource identities and rejects stale or unknown entries.
+None.
 
 #### Verified By
 
@@ -175,15 +176,13 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 | S1/R2-S1 | `packages/workspace/src/index.test.ts` — `inventories nested Markdown in deterministic tree order`; `apps/web/src/App.test.tsx` — `R2-S1 presents a deterministic accessible tree with selection and collapse` | The service supplies deterministic folders-before-files inventory and the browser exposes semantic tree items with stable nesting, expansion, collapse, and selected state through native controls. | Passing 2026-07-18. |
 | S1/R2-S2 | `packages/workspace/src/index.test.ts` — `excludes internal, configured, symlinked, unsupported, and oversized sources` | `.graphite/`, configured exclusions, symlinks, non-Markdown entries, invalid UTF-8, and over-limit sources issue no resource locator; bounded reads use no-follow file opens. | Passing 2026-07-18. |
 | S1/R2-S3 | `packages/workspace/src/index.test.ts` — `returns an honest empty inventory for a workspace without eligible Markdown`; `apps/web/src/App.test.tsx` — `R2-S3 keeps files, search, context, and settings reachable in an empty workspace` | An empty inventory produces an honest browser empty state while every surrounding workbench surface remains reachable. | Passing 2026-07-18. |
-| S1/R3-S1 | `packages/workspace/src/index.test.ts` — `reads exact source, generic YAML properties, and a content revision`; `reports malformed YAML while preserving exact source`; `changes the revision after an external edit` | A currently issued opaque resource returns its relative display path, byte-preserved mixed-line-ending UTF-8 source, content-derived revision, and valid or malformed generic YAML state; external edits produce a new revision without changing the resource identity. | Partial; authenticated HTTP delivery and browser selection remain pending. |
-| S1/R3-S2 | `packages/workspace/src/index.test.ts` — `rejects unknown and stale resource identities without guessing a path`; `fails closed when the opened root is replaced`; `rejects an issued note replaced by a symlink` | Unknown and prior-inventory resource IDs fail without path guessing, root replacement clears authority, and an issued path replaced by a symlink cannot redirect a read. | Partial; browser Back, Forward, and reload restoration remain pending. |
+| S1/R3-S1 | `packages/workspace/src/index.test.ts` — `reads exact source, generic YAML properties, and a content revision`; `reports malformed YAML while preserving exact source`; `changes the revision after an external edit`; `apps/server/tests/http/authentication.test.ts` — `R3-S1 returns exact source metadata only for an authenticated issued resource`; `apps/web/src/App.test.tsx` — `R2-S1 presents a deterministic accessible tree with selection and collapse` | Package, real HTTP, and browser-component evidence prove selection returns byte-preserved source, generic YAML state, display path, and content revision only through an authenticated opaque resource; the browser presents source and properties and pushes no host path into history. | Passing 2026-07-18. |
+| S1/R3-S2 | `packages/workspace/src/index.test.ts` — `rejects unknown and stale resource identities without guessing a path`; `fails closed when the opened root is replaced`; `rejects an issued note replaced by a symlink`; `apps/server/tests/http/authentication.test.ts` — `R3-S2 rejects an unknown resource without exposing or guessing a path`; `apps/web/src/App.test.tsx` — `R3-S2 restores valid reload and Back navigation through the note API`, `R3-S2 fails closed for an invalid history resource and retains the shell`, `returns a note-read 401 to the expired-session login state` | Unknown and stale resources fail without path guessing; reload and history restoration repeat the authenticated API read; invalid route state is removed while the shell remains; an expired read returns to login. | Passing 2026-07-18. |
 | S1/R4-S1 | `apps/web/src/App.test.tsx` — `R2-S1 presents a deterministic accessible tree with selection and collapse`; source inspection of `apps/web/src/App.tsx` `Workbench` and `apps/web/src/styles.css` `.workbench` | The workbench renders persistent semantic navigation, document, and context regions with a bounded centered document measure at desktop widths. | Partial; manual viewport confirmation remains pending. |
 | S1/R4-S2 | `apps/web/src/App.test.tsx` — `R4-S2 opens keyboard-accessible narrow-layout drawers and closes them with Escape`; source inspection of `apps/web/src/styles.css` narrow breakpoint | Files, Search, Context, and Settings use native buttons and modal drawer semantics; Files receives focus on open and Escape dismisses it, while narrow CSS makes the document primary and prevents page-level horizontal overflow. | Partial; manual touch and narrow-viewport confirmation remains pending. |
 
 #### Verification Gaps
 
-- `S1/R3-S1`: Authenticated HTTP and browser selection proof remain pending.
-- `S1/R3-S2`: Browser Back, Forward, and reload restoration are not implemented or verified yet.
 - `S1/R4-S1`, `S1/R4-S2`: Automated semantic and interaction coverage passes, but desktop and narrow visual composition, touch comfort, and page overflow still need manual browser confirmation.
 
 #### Story Notes

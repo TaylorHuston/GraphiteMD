@@ -1,6 +1,10 @@
 import router from '@adonisjs/core/services/router'
 import { serviceDescriptor } from '@graphitemd/contracts'
-import { ConfiguredWorkspaceAuthority, WorkspaceUnavailableError } from '@graphitemd/workspace'
+import {
+  ConfiguredWorkspaceAuthority,
+  WorkspaceResourceUnavailableError,
+  WorkspaceUnavailableError,
+} from '@graphitemd/workspace'
 
 import Owner from '#models/owner'
 import {
@@ -85,6 +89,30 @@ router.get('/api/v1/workspace', async ({ auth, response }) => {
   } catch (error) {
     if (error instanceof WorkspaceUnavailableError) {
       return response.serviceUnavailable({ available: false, reason: error.reason })
+    }
+    throw error
+  }
+})
+
+router.get('/api/v1/notes/:resourceId', async ({ auth, params, response }) => {
+  try {
+    await auth.use('web').authenticate()
+  } catch {
+    return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+
+  try {
+    return await workspace.readNote(params.resourceId)
+  } catch (error) {
+    if (error instanceof WorkspaceResourceUnavailableError) {
+      return response.notFound({
+        error: { code: 'resource_unavailable', message: 'The requested note is unavailable.' },
+      })
+    }
+    if (error instanceof WorkspaceUnavailableError) {
+      return response.serviceUnavailable({
+        error: { code: 'workspace_unavailable', message: 'The configured workspace is unavailable.' },
+      })
     }
     throw error
   }

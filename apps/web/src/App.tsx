@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 type NoteItem = { kind: 'note'; resourceId: string; displayPath: string }
 type FolderItem = { kind: 'folder'; displayPath: string }
 type InventoryItem = NoteItem | FolderItem
 type Workspace = { available: true; workspaceId: string; notes: NoteItem[]; inventory: InventoryItem[] }
+type Note = {
+  resourceId: string
+  displayPath: string
+  source: string
+  revision: string
+  yamlProperties: Array<{ name: string; value: unknown }>
+  yamlParseError: string | null
+}
 type AppState =
   | { kind: 'loading' }
   | { kind: 'login'; expired: boolean; error?: string }
@@ -143,14 +151,83 @@ function Drawer({ name, onClose, children }: { name: DrawerName; onClose: () => 
 }
 
 function SearchPlaceholder() { return <div className="placeholder"><label htmlFor="search">Search notes</label><input id="search" type="search" disabled placeholder="Search arrives in the next slice" /><p>Workspace search is not available yet.</p></div> }
-function ContextPlaceholder({ note }: { note: NoteItem | null }) { return <div className="placeholder"><p className="panel-label">Context</p><h2>{note ? note.displayPath.split('/').at(-1)?.replace(/\.md$/i, '') : 'No note selected'}</h2><p>{note ? note.displayPath : 'Select a note to inspect its properties.'}</p></div> }
+function displayProperty(value: unknown): string {
+  if (Array.isArray(value)) return value.map(displayProperty).join(', ')
+  if (value !== null && typeof value === 'object') return JSON.stringify(value)
+  return String(value ?? 'null')
+}
+
+function ContextPlaceholder({ note }: { note: Note | null }) {
+  return <div className="placeholder"><p className="panel-label">Context</p><h2>{note ? note.displayPath.split('/').at(-1)?.replace(/\.md$/i, '') : 'No note selected'}</h2>
+    <p>{note ? note.displayPath : 'Select a note to inspect its properties.'}</p>
+    {note?.yamlParseError && <p className="form-error" role="alert">Properties could not be parsed.</p>}
+    {note && !note.yamlParseError && note.yamlProperties.length > 0 && <dl className="properties-list">{note.yamlProperties.map((property) => <div key={property.name}><dt>{property.name}</dt><dd>{displayProperty(property.value)}</dd></div>)}</dl>}
+  </div>
+}
 function SettingsPlaceholder() { return <div className="placeholder"><p className="panel-label">Settings</p><h2>Workspace settings</h2><p>Host and plugin controls arrive in a later slice.</p></div> }
 
-function Workbench({ workspace }: { workspace: Workspace }) {
-  const [selected, setSelected] = useState<NoteItem | null>(null)
+function resourceFromLocation(workspace: Workspace): string | null {
+  const resourceId = new URLSearchParams(window.location.search).get('resource')
+  return resourceId && /^res_[a-z0-9]+$/.test(resourceId) && workspace.notes.some((note) => note.resourceId === resourceId)
+    ? resourceId
+    : null
+}
+
+function Workbench({ workspace, onSessionExpired }: { workspace: Workspace; onSessionExpired: () => void }) {
+  const [selected, setSelected] = useState<Note | null>(null)
+  const [noteStatus, setNoteStatus] = useState<'idle' | 'loading' | 'unavailable'>('idle')
   const [drawer, setDrawer] = useState<DrawerName | null>(null)
+  const requestSequence = useRef(0)
+  const openNote = useCallback(async (resourceId: string, history: 'push' | 'restore') => {
+    const issued = workspace.notes.some((note) => note.resourceId === resourceId)
+    if (!issued) {
+      setSelected(null); setNoteStatus('unavailable')
+      window.history.replaceState(null, '', window.location.pathname)
+      return
+    }
+    const sequence = ++requestSequence.current
+    setNoteStatus('loading')
+    try {
+      const response = await getJson(`/api/v1/notes/${encodeURIComponent(resourceId)}`)
+      if (sequence !== requestSequence.current) return
+      if (response.status === 401) { onSessionExpired(); return }
+      if (!response.ok) {
+        setSelected(null); setNoteStatus('unavailable')
+        window.history.replaceState(null, '', window.location.pathname)
+        return
+      }
+      const note = await response.json() as Note
+      if (note.resourceId !== resourceId) throw new Error('Resource response mismatch')
+      setSelected(note); setNoteStatus('idle')
+      if (history === 'push') {
+        const url = new URL(window.location.href)
+        url.search = ''
+        url.searchParams.set('resource', resourceId)
+        window.history.pushState(null, '', `${url.pathname}${url.search}`)
+      }
+    } catch {
+      if (sequence !== requestSequence.current) return
+      setSelected(null); setNoteStatus('unavailable')
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [onSessionExpired, workspace])
+
+  useEffect(() => {
+    const restore = () => {
+      const resourceId = resourceFromLocation(workspace)
+      if (resourceId) void openNote(resourceId, 'restore')
+      else {
+        requestSequence.current += 1
+        setSelected(null); setNoteStatus('idle')
+        if (window.location.search) window.history.replaceState(null, '', window.location.pathname)
+      }
+    }
+    restore()
+    window.addEventListener('popstate', restore)
+    return () => window.removeEventListener('popstate', restore)
+  }, [openNote, workspace])
   const navigation = <><div className="panel-switcher"><button type="button" aria-pressed="true">Files</button><button type="button" onClick={() => setDrawer('Search')}>Search</button></div>
-    {workspace.inventory.length ? <FileTree inventory={workspace.inventory} selected={selected?.resourceId ?? null} onSelect={(note) => { setSelected(note); setDrawer(null) }} /> : <p className="panel-empty">No Markdown notes</p>}</>
+    {workspace.inventory.length ? <FileTree inventory={workspace.inventory} selected={selected?.resourceId ?? null} onSelect={(note) => { void openNote(note.resourceId, 'push'); setDrawer(null) }} /> : <p className="panel-empty">No Markdown notes</p>}</>
 
   return <main className="workbench">
     <header className="mobile-bar"><span className="wordmark">GraphiteMD</span><nav aria-label="Workspace tools">
@@ -162,7 +239,7 @@ function Workbench({ workspace }: { workspace: Workspace }) {
     <aside className="navigation-panel" aria-label="Workspace navigation"><div className="panel-brand"><span className="brand-mark small" aria-hidden="true">G</span><span>GraphiteMD</span></div>{navigation}</aside>
     <article className="document-region">
       <header className="document-header"><div><p className="document-path">{selected?.displayPath ?? 'Workspace'}</p><h1>{selected ? selected.displayPath.split('/').at(-1)?.replace(/\.md$/i, '') : 'Your workspace'}</h1></div><span className="status-chip">Connected</span></header>
-      <div className="document-body">{workspace.inventory.length === 0 ? <EmptyState /> : selected ? <div className="note-placeholder"><p className="eyebrow">Markdown note</p><h2>Ready to read</h2><p>The note reader and editor arrive in the next implementation slice.</p></div> : <div className="empty-state"><div className="empty-mark" aria-hidden="true">◇</div><h2>Select a note</h2><p>Choose a Markdown file from Files to open it here.</p></div>}</div>
+      <div className="document-body">{workspace.inventory.length === 0 ? <EmptyState /> : noteStatus === 'loading' ? <div className="empty-state" aria-live="polite"><h2>Opening note…</h2></div> : selected ? <pre className="note-source" aria-label="Markdown source">{selected.source}</pre> : noteStatus === 'unavailable' ? <div className="empty-state" role="alert"><h2>Note unavailable</h2><p>The requested note could not be opened. Select another note from Files.</p></div> : <div className="empty-state"><div className="empty-mark" aria-hidden="true">◇</div><h2>Select a note</h2><p>Choose a Markdown file from Files to open it here.</p></div>}</div>
     </article>
     <aside className="context-panel" aria-label="Note context"><ContextPlaceholder note={selected} /><div className="context-actions"><button type="button" onClick={() => setDrawer('Settings')}>Settings</button></div></aside>
     {drawer && <Drawer name={drawer} onClose={() => setDrawer(null)}>{drawer === 'Files' ? navigation : drawer === 'Search' ? <SearchPlaceholder /> : drawer === 'Context' ? <ContextPlaceholder note={selected} /> : <SettingsPlaceholder />}</Drawer>}
@@ -188,5 +265,5 @@ export function App() {
   if (state.kind === 'loading') return <main className="centered-state" aria-busy="true"><p className="eyebrow">GraphiteMD</p><h1>Opening your workspace…</h1></main>
   if (state.kind === 'login') return <Login expired={state.expired} {...(state.error ? { initialError: state.error } : {})} onAuthenticated={() => void load()} />
   if (state.kind === 'unavailable') return <main className="centered-state"><div className="service-error"><p className="eyebrow">Service unavailable</p><h1>Workspace unavailable</h1><p>{state.message}</p><button className="primary-button" type="button" onClick={() => void load()}>Try again</button></div></main>
-  return <Workbench workspace={state.workspace} />
+  return <Workbench workspace={state.workspace} onSessionExpired={() => setState({ kind: 'login', expired: true })} />
 }
