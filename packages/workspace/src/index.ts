@@ -83,6 +83,15 @@ interface OpenWorkspace {
   readonly snapshot: WorkspaceSnapshot
 }
 
+function sameRootIdentity(
+  left: Pick<OpenWorkspace, 'root' | 'identity'>,
+  right: Pick<OpenWorkspace, 'root' | 'identity'>,
+): boolean {
+  return left.root === right.root
+    && left.identity.device === right.identity.device
+    && left.identity.inode === right.identity.inode
+}
+
 interface PendingRename {
   readonly sourcePath: string
   readonly targetPath: string
@@ -148,6 +157,7 @@ const mutationQueues = new Map<string, Promise<void>>()
  */
 export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
   #opened: OpenWorkspace | null = null
+  #accepted: Pick<OpenWorkspace, 'root' | 'identity'> | null = null
   readonly #pendingRenames = new Map<string, PendingRename>()
 
   readonly #inventoryOptions: NormalizedWorkspaceInventoryOptions
@@ -173,6 +183,9 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
   async openConfigured(): Promise<WorkspaceSnapshot> {
     try {
       const opened = await inspectRoot(this.configuredRoot)
+      if (this.#accepted && !sameRootIdentity(opened, this.#accepted)) {
+        throw new WorkspaceUnavailableError('identity_changed')
+      }
       const workspaceId = await provisionWorkspaceState(opened.root)
       const inventory = await inventoryMarkdown(opened.root, workspaceId, this.#inventoryOptions)
       const snapshot: WorkspaceSnapshot = {
@@ -182,6 +195,7 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
         inventory,
       }
       this.#opened = { ...opened, snapshot }
+      this.#accepted ??= { root: opened.root, identity: opened.identity }
       return snapshot
     } catch (error) {
       this.#opened = null
@@ -192,16 +206,22 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
 
   async current(): Promise<CurrentWorkspaceSnapshot> {
     if (!this.#opened) {
+      if (this.#accepted) {
+        try {
+          const current = await inspectRoot(this.configuredRoot)
+          if (!sameRootIdentity(current, this.#accepted)) {
+            return { available: false, reason: 'identity_changed' }
+          }
+        } catch {
+          return { available: false, reason: 'unavailable' }
+        }
+      }
       return { available: false, reason: this.configuredRoot ? 'unavailable' : 'not_configured' }
     }
 
     try {
       const current = await inspectRoot(this.configuredRoot)
-      if (
-        current.root !== this.#opened.root ||
-        current.identity.device !== this.#opened.identity.device ||
-        current.identity.inode !== this.#opened.identity.inode
-      ) {
+      if (!sameRootIdentity(current, this.#opened)) {
         this.#opened = null
         return { available: false, reason: 'identity_changed' }
       }

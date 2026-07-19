@@ -5,11 +5,11 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: Fresh independent review against `514e15f` reproduced replacement-root reauthorization, recorded a `changes-requested` verdict, applied safe documentation fixes, and returned the Change to `in_progress`.
-- Next action: Return to `/sdd-apply` and make accepted workspace identity fail closed after replacement across refresh, authenticated workspace retrieval, search rebuild, and first plugin startup; then rerun independent review before manual acceptance.
+- Last completed action: The `--until-ready` review cycle retained the accepted workspace identity for the service lifetime, moved search authority checks before cache provisioning, and added direct, HTTP, search, and plugin replacement-root regressions; all automated gates pass.
+- Next action: Complete regression-focused rereview and transition the technically ready Change to `in_review`; user manual terminal, visual/device, and screen-reader confirmation remains intentionally pending.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: Review reconciliation only until committed.
-- Known blockers: Accepted workspace identity can be silently replaced in-process after `identity_changed`; manual terminal, visual/device, and screen-reader confirmation also remains pending user and is not claimed by automated evidence.
+- Expected dirty files: Workspace authority/search implementation, focused regression tests, GMD-002 evidence, and review/task reconciliation until the review-fix commit.
+- Known blockers: None for technical rereview. Manual terminal, visual/device, and screen-reader confirmation remains pending user and is not claimed by automated evidence.
 
 ## Task Checklist
 
@@ -95,7 +95,7 @@ status: in_progress
 
 - [x] 7.1 Update README, architecture, testing, security/deployment guidance, and `CHANGELOG.md` with current implemented behavior only.
 - [x] 7.2 Run `/sdd-review` as the independent local integration gate for Story truth, source reuse, tests, security, docs, ADRs, and branch readiness.
-- [x] 7.3 Record the review outcome in `review.md` and remediate its code/artifact findings; the historical changes-requested record remains intact and manual acceptance remains explicitly pending.
+- [x] 7.3 Record each review outcome in `review.md` and remediate its code/artifact findings; historical findings remain in the review log and manual acceptance remains explicitly pending.
 - [ ] 7.4 Walk the user through the required disposable-workspace desktop/mobile confirmation and record `user confirmed` or `accepted gap`.
 - [x] 7.5 Ensure proposal/design/tasks and all Epics no longer claim completed remediation behavior is unimplemented, unverified, or pending after the fresh finding set is resolved.
 - [x] 7.6 Confirm current Change status, branch/ref, review record, manual confirmation, release communication, and PR/merge state agree.
@@ -176,6 +176,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | `sdd-orphan-audit --changed-from develop --epic` for GMD-001, GMD-002, and GMD-003 | changed-surface reverse-traceability inventory | 108 candidates classify across the three affected Epics or shared framework/test/documentation support; all implementation and verification references resolve, with no stranded replacement surface identified. | Passing; zero missing implementation or verification references |
 | 2026-07-19 | Root lint/typecheck/test/build; Storybook 30/30; Playwright 2/2; production dependency audit; diff check | broad, component/accessibility, production E2E, dependency, and hygiene gates | Final combined review remediation plus self-check regressions compile and pass across contracts 6, domain 4, plugin SDK 7, workspace 30, web 44, System Status 1, and server 60 tests. | Passing; existing 812 KB chunk and Node deprecation warnings remain non-blocking follow-up |
 | 2026-07-19 | Per-Epic `sdd-orphan-audit --changed-from develop` | changed-surface reverse-traceability inventory | 113 candidates classify across GMD-001/GMD-002/GMD-003 or shared support; every referenced implementation and verification path resolves. | Passing; zero missing implementation or verification references |
+| 2026-07-19 | Workspace 31 and server 63 focused tests; root lint/typecheck/test/build; Storybook 30/30; Playwright 2/2; production dependency audit | focused authority/security evidence plus broad, component/accessibility, and production E2E gates | Process-lifetime accepted workspace identity remains fail-closed after replacement across direct reopen/refresh, authenticated workspace retrieval, search rebuild, and first plugin startup; replacement roots receive no `.graphite` state. | Passing; manual terminal, visual/device, and screen-reader confirmation remains pending |
 
 ## Manual Feedback
 
@@ -211,7 +212,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 
 ## Closeout
 
-- Change status: in_progress; one blocking workspace-identity remediation remains before fresh independent `/sdd-review`.
+- Change status: in_progress while regression-focused rereview completes; technical remediation and automated verification pass.
 - Epic files updated: GMD-001, GMD-002, and GMD-003 describe the remediated implementation and evidence truth.
 - Story labels/references and Requirement/Scenario IDs current: Yes for planned scope.
 - Implemented By maps current: Yes; new auth, workspace, plugin persistence, and browser owners have stable code anchors.
@@ -221,7 +222,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 - Release communication current: README and public-safe `CHANGELOG.md` describe the implemented foundation and operator boundary.
 - `sdd-review` verdict: `changes-requested` against source commit `514e15fbcee18824d902db4344b93f218499bbff` and target `develop@15901773ce4565c4facfc7c50d1835463ef808c8`.
 - Review record: `docs/changes/2026-07-18-foundation-workspace-slice/review.md`.
-- `review.md` findings resolved: No; accepted workspace identity can be silently replaced through later initialization paths.
+- `review.md` findings resolved: Yes in the current review tree; accepted workspace identity remains fail-closed through every formerly reopening path.
 - Planning updates resolved: Yes for the accepted Change scope; manual confirmation and deferred product scope remain explicit.
 - Manual UI confirmation status: pending user; deterministic desktop/narrow browser evidence passes, but user acceptance remains intentionally unclaimed.
 - PR / merge state: Local implementation branch created; no remote, PR, or merge.

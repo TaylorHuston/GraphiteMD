@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -12,6 +12,7 @@ const port = 34_000 + Math.floor(Math.random() * 1_000)
 const origin = `http://127.0.0.1:${port}`
 let stateDirectory: string
 let workspaceRoot: string
+let retainedWorkspaceRoot: string | undefined
 let server: ChildProcess
 let serverError = ''
 
@@ -95,7 +96,11 @@ beforeAll(async () => {
 
 afterAll(async () => {
   server?.kill('SIGTERM')
-  await Promise.all([rm(stateDirectory, { recursive: true, force: true }), rm(workspaceRoot, { recursive: true, force: true })])
+  await Promise.all([
+    rm(stateDirectory, { recursive: true, force: true }),
+    rm(workspaceRoot, { recursive: true, force: true }),
+    ...(retainedWorkspaceRoot ? [rm(retainedWorkspaceRoot, { recursive: true, force: true })] : []),
+  ])
 })
 
 describe('GMD-001/S1 R2 browser session authentication', () => {
@@ -464,5 +469,21 @@ describe('GMD-001/S1 R3 browser request protection', () => {
     expect(untrusted.status).toBe(200)
     expect(untrusted.headers.get('access-control-allow-origin')).toBeNull()
     expect(untrusted.headers.get('access-control-allow-origin')).not.toBe('*')
+  })
+})
+
+describe('GMD-002/S1 R1 workspace identity authority', () => {
+  it('returns unavailable without provisioning a replacement workspace root', async () => {
+    const authenticated = await loginOwner()
+    expect((await fetch(`${origin}/api/v1/workspace`, { headers: { cookie: authenticated.cookie } })).status).toBe(200)
+    retainedWorkspaceRoot = `${workspaceRoot}-retained`
+    await rename(workspaceRoot, retainedWorkspaceRoot)
+    await mkdir(workspaceRoot)
+    await writeFile(join(workspaceRoot, 'Replacement.md'), '# Replacement\n')
+
+    const response = await fetch(`${origin}/api/v1/workspace`, { headers: { cookie: authenticated.cookie } })
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ available: false, reason: 'identity_changed' })
+    await expect(stat(join(workspaceRoot, '.graphite'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

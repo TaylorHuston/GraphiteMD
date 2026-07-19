@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rename, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -45,5 +45,25 @@ describe('GMD-002/S3 R2 confined local search rebuild', () => {
     await expect(service.rebuild()).rejects.toMatchObject({ name: 'LocalSearchUnavailableError' })
     await expect(readFile(join(cache, 'search.sqlite'))).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(readFile(join(outside, 'search.sqlite'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('does not provision search state after the accepted workspace root is replaced', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'graphitemd-search-replaced-'))
+    const retained = `${root}-retained`
+    roots.push(root, retained)
+    await writeFile(join(root, 'Original.md'), '# Original\n')
+    const authority = new ConfiguredWorkspaceAuthority(root)
+    await authority.openConfigured()
+    await rename(root, retained)
+    await mkdir(root)
+    await writeFile(join(root, 'Replacement.md'), '# Replacement\n')
+    const service = new LocalSearchService(root, authority)
+
+    await expect(service.rebuild()).rejects.toMatchObject({
+      name: 'WorkspaceUnavailableError',
+      reason: 'identity_changed',
+    })
+    await expect(stat(join(root, '.graphite'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(root, '.graphite', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

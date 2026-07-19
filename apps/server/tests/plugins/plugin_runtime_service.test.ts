@@ -45,6 +45,23 @@ describe('GMD-003/S1 R2 inspectable enablement', () => {
     expect(service.list()[0]?.status).toBe('active')
   })
 
+  it('rejects first plugin startup after an accepted workspace root is replaced', async () => {
+    const root = await workspaceRoot()
+    const retained = `${root}-retained-before-start`
+    roots.push(retained)
+    const authority = new ConfiguredWorkspaceAuthority(root)
+    await authority.openConfigured()
+    await rename(root, retained)
+    await mkdir(root)
+    const service = new PluginRuntimeService(root, authority)
+
+    await expect(service.start()).rejects.toMatchObject({
+      name: 'WorkspaceUnavailableError',
+      reason: 'identity_changed',
+    })
+    await expect(readFile(join(root, '.graphite', 'plugins.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('persists disablement before a restarted production host loads bundled code', async () => {
     const root = await workspaceRoot()
     const authority = new ConfiguredWorkspaceAuthority(root)

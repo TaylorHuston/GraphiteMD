@@ -30,11 +30,11 @@ export class LocalSearchService {
   }
 
   async rebuild(): Promise<{ indexed: number }> {
+    const snapshot = await this.workspace.refresh()
     const cacheDirectory = join(this.workspaceRoot, '.graphite', 'cache')
     const retainedCache = await ensureConfinedDirectory(this.workspaceRoot, ['.graphite', 'cache'])
     await assertOrdinaryDatabase(this.databasePath)
     const temporaryPath = join(cacheDirectory, `.search.${randomUUID()}.sqlite`)
-    const snapshot = await this.workspace.refresh()
     const database = new Database(temporaryPath)
     let temporaryOwnedByPath = true
     try {

@@ -54,8 +54,32 @@ describe('ConfiguredWorkspaceAuthority', () => {
       available: false,
       reason: 'identity_changed',
     })
-    await expect(authority.current()).resolves.toEqual({ available: false, reason: 'unavailable' })
+    await expect(authority.current()).resolves.toEqual({ available: false, reason: 'identity_changed' })
     expect(JSON.stringify(await authority.current())).not.toContain(opened.workspaceId)
+  })
+
+  it('GMD-002/S1/R1-S2 never reauthorizes a replacement root in the same service lifetime', async () => {
+    const workspaceRoot = await createWorkspace()
+    await writeFile(join(workspaceRoot, 'Original.md'), '# Original\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    await authority.openConfigured()
+    const retainedRoot = `${workspaceRoot}-retained`
+    temporaryDirectories.push(retainedRoot)
+
+    await rename(workspaceRoot, retainedRoot)
+    await mkdir(workspaceRoot)
+    await writeFile(join(workspaceRoot, 'Replacement.md'), '# Replacement\n', 'utf8')
+
+    await expect(authority.current()).resolves.toEqual({ available: false, reason: 'identity_changed' })
+    await expect(authority.refresh()).rejects.toMatchObject({
+      name: 'WorkspaceUnavailableError',
+      reason: 'identity_changed',
+    })
+    await expect(authority.openConfigured()).rejects.toMatchObject({
+      name: 'WorkspaceUnavailableError',
+      reason: 'identity_changed',
+    })
+    await expect(readFile(join(workspaceRoot, '.graphite', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('GMD-002/S1/R1-S2 fails closed for missing, non-directory, and unreadable roots', async () => {
