@@ -25,6 +25,8 @@
     "@adonisjs/shield": "^9.0.0",
     "@graphitemd/contracts": "workspace:*",
     "@graphitemd/domain": "workspace:*",
+    "@graphitemd/plugin-sdk": "workspace:*",
+    "@graphitemd/plugin-system-status": "workspace:*",
     "@graphitemd/workspace": "workspace:*",
     "better-sqlite3": "^12.11.1",
     "luxon": "^3.7.2",

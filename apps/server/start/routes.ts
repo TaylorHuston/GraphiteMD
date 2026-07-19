@@ -2,7 +2,9 @@ import router from '@adonisjs/core/services/router'
 import { serviceDescriptor } from '@graphitemd/contracts'
 import {
   ConfiguredWorkspaceAuthority,
+  WorkspaceInvalidMutationError,
   WorkspaceResourceUnavailableError,
+  WorkspaceRevisionConflictError,
   WorkspaceUnavailableError,
 } from '@graphitemd/workspace'
 
@@ -11,9 +13,21 @@ import {
   OwnerSetupService,
   resolveSecurityStateDirectory,
 } from '../app/security/owner_setup_service.js'
+import { PluginRuntimeService } from '../app/plugins/plugin_runtime_service.js'
 
 const ownerSetup = new OwnerSetupService(resolveSecurityStateDirectory())
 const workspace = new ConfiguredWorkspaceAuthority(process.env.GRAPHITEMD_WORKSPACE_ROOT)
+const plugins = process.env.GRAPHITEMD_WORKSPACE_ROOT
+  ? new PluginRuntimeService(process.env.GRAPHITEMD_WORKSPACE_ROOT, workspace)
+  : undefined
+let pluginsStarted: Promise<void> | undefined
+
+async function pluginRuntime(): Promise<PluginRuntimeService | undefined> {
+  if (!plugins) return undefined
+  pluginsStarted ??= plugins.start()
+  await pluginsStarted
+  return plugins
+}
 
 router.get('/api/v1/health', () => serviceDescriptor)
 
@@ -115,5 +129,105 @@ router.get('/api/v1/notes/:resourceId', async ({ auth, params, response }) => {
       })
     }
     throw error
+  }
+})
+
+router.put('/api/v1/notes/:resourceId', async ({ auth, params, request, response }) => {
+  try {
+    await auth.use('web').authenticate()
+  } catch {
+    return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+  const expectedRevision = request.input('expectedRevision')
+  const source = request.input('source')
+  if (typeof expectedRevision !== 'string' || typeof source !== 'string') {
+    return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
+  }
+  try {
+    return await workspace.saveNote(params.resourceId, expectedRevision, source)
+  } catch (error) {
+    return mutationErrorResponse(error, response)
+  }
+})
+
+router.patch('/api/v1/notes/:resourceId/rename', async ({ auth, params, request, response }) => {
+  try {
+    await auth.use('web').authenticate()
+  } catch {
+    return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+  const expectedRevision = request.input('expectedRevision')
+  const fileName = request.input('fileName')
+  if (typeof expectedRevision !== 'string' || typeof fileName !== 'string') {
+    return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
+  }
+  try {
+    return await workspace.renameNote(params.resourceId, expectedRevision, fileName)
+  } catch (error) {
+    return mutationErrorResponse(error, response)
+  }
+})
+
+function mutationErrorResponse(error: unknown, response: {
+  conflict(body: unknown): unknown
+  badRequest(body: unknown): unknown
+  notFound(body: unknown): unknown
+  serviceUnavailable(body: unknown): unknown
+}) {
+  if (error instanceof WorkspaceRevisionConflictError) {
+    return response.conflict({
+      error: { code: 'revision_conflict', message: 'The note changed after it was opened.' },
+      currentRevision: error.currentRevision,
+    })
+  }
+  if (error instanceof WorkspaceInvalidMutationError) {
+    const status = error.code === 'indeterminate' ? 'conflict' : 'badRequest'
+    return response[status]({
+      error: { code: error.code, message: 'The note could not be changed safely.' },
+    })
+  }
+  if (error instanceof WorkspaceResourceUnavailableError) {
+    return response.notFound({ error: { code: 'resource_unavailable', message: 'The requested note is unavailable.' } })
+  }
+  if (error instanceof WorkspaceUnavailableError) {
+    return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The configured workspace is unavailable.' } })
+  }
+  throw error
+}
+
+router.get('/api/v1/plugins', async ({ auth, response }) => {
+  try {
+    await auth.use('web').authenticate()
+  } catch {
+    return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+  try {
+    const runtime = await pluginRuntime()
+    if (!runtime) return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The configured workspace is unavailable.' } })
+    return { plugins: runtime.list() }
+  } catch {
+    return response.serviceUnavailable({ error: { code: 'plugin_runtime_unavailable', message: 'The plugin runtime is unavailable.' } })
+  }
+})
+
+router.put('/api/v1/plugins/:pluginId', async ({ auth, params, request, response }) => {
+  try {
+    await auth.use('web').authenticate()
+  } catch {
+    return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+  const enabled = request.input('enabled')
+  if (typeof enabled !== 'boolean') {
+    return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
+  }
+  try {
+    const runtime = await pluginRuntime()
+    if (!runtime) return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The configured workspace is unavailable.' } })
+    if (!runtime.list().some((plugin) => plugin.id === params.pluginId)) {
+      return response.notFound({ error: { code: 'plugin_not_found', message: 'Plugin not found.' } })
+    }
+    return { plugin: await runtime.setEnabled(params.pluginId, enabled) }
+  } catch {
+    return response.serviceUnavailable({ error: { code: 'plugin_runtime_unavailable', message: 'The plugin runtime is unavailable.' } })
   }
 })

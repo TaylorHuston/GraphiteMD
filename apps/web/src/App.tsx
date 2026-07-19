@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { MarkdownEditor } from './MarkdownEditor.js'
+import { AutosaveCoordinator, prepareAutosaveTransition, type AutosaveSnapshot } from './autosave.js'
 
 type NoteItem = { kind: 'note'; resourceId: string; displayPath: string }
 type FolderItem = { kind: 'folder'; displayPath: string }
@@ -25,6 +27,11 @@ type TreeNode = { name: string; path: string; kind: 'folder'; children: TreeNode
 
 async function getJson(path: string, init?: RequestInit) {
   return fetch(path, { credentials: 'same-origin', ...init })
+}
+
+function xsrfToken(): string {
+  const value = document.cookie.split('; ').find((cookie) => cookie.startsWith('XSRF-TOKEN='))?.slice('XSRF-TOKEN='.length)
+  return value ? decodeURIComponent(value) : ''
 }
 
 function buildTree(inventory: InventoryItem[]): TreeNode[] {
@@ -174,12 +181,36 @@ function resourceFromLocation(workspace: Workspace): string | null {
 }
 
 function Workbench({ workspace, onSessionExpired }: { workspace: Workspace; onSessionExpired: () => void }) {
+  const [workspaceState, setWorkspaceState] = useState(workspace)
   const [selected, setSelected] = useState<Note | null>(null)
+  const selectedRef = useRef<Note | null>(null)
   const [noteStatus, setNoteStatus] = useState<'idle' | 'loading' | 'unavailable'>('idle')
   const [drawer, setDrawer] = useState<DrawerName | null>(null)
   const requestSequence = useRef(0)
+  const autosave = useMemo(() => new AutosaveCoordinator(750), [])
+  const [save, setSave] = useState<AutosaveSnapshot>(() => autosave.snapshot())
+  const [renameDraft, setRenameDraft] = useState('')
+  const [renameError, setRenameError] = useState<string | null>(null)
+
+  useEffect(() => autosave.subscribe(setSave), [autosave])
+  useEffect(() => { selectedRef.current = selected }, [selected])
+  useEffect(() => {
+    const protectDraft = (event: BeforeUnloadEvent) => {
+      if (!autosave.snapshot().dirty && !autosave.snapshot().pending) return
+      event.preventDefault(); event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', protectDraft)
+    return () => window.removeEventListener('beforeunload', protectDraft)
+  }, [autosave])
+
+  const guardTransition = useCallback(async () => prepareAutosaveTransition(
+    autosave,
+    () => window.confirm('This note has unsaved work. Discard the local draft?'),
+  ), [autosave])
+
   const openNote = useCallback(async (resourceId: string, history: 'push' | 'restore') => {
-    const issued = workspace.notes.some((note) => note.resourceId === resourceId)
+    if (selectedRef.current?.resourceId !== resourceId && !(await guardTransition())) return
+    const issued = workspaceState.notes.some((note) => note.resourceId === resourceId)
     if (!issued) {
       setSelected(null); setNoteStatus('unavailable')
       window.history.replaceState(null, '', window.location.pathname)
@@ -199,6 +230,27 @@ function Workbench({ workspace, onSessionExpired }: { workspace: Workspace; onSe
       const note = await response.json() as Note
       if (note.resourceId !== resourceId) throw new Error('Resource response mismatch')
       setSelected(note); setNoteStatus('idle')
+      setRenameDraft(note.displayPath.split('/').at(-1) ?? '')
+      setRenameError(null)
+      autosave.open({
+        resourceId: note.resourceId,
+        source: note.source,
+        revision: note.revision,
+        eligible: true,
+        save: async ({ resourceId: savingResource, source, expectedRevision }) => {
+          const response = await getJson(`/api/v1/notes/${encodeURIComponent(savingResource)}`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() },
+            body: JSON.stringify({ source, expectedRevision }),
+          })
+          if (response.status === 401) { onSessionExpired(); throw new Error('Authentication required.') }
+          if (response.status === 409) return { status: 'conflict' as const }
+          if (!response.ok) throw new Error('Unable to save Markdown.')
+          const saved = await response.json() as Note
+          setSelected((current) => current?.resourceId === saved.resourceId ? saved : current)
+          return { status: 'saved' as const, revision: saved.revision }
+        },
+      })
       if (history === 'push') {
         const url = new URL(window.location.href)
         url.search = ''
@@ -210,11 +262,11 @@ function Workbench({ workspace, onSessionExpired }: { workspace: Workspace; onSe
       setSelected(null); setNoteStatus('unavailable')
       window.history.replaceState(null, '', window.location.pathname)
     }
-  }, [onSessionExpired, workspace])
+  }, [autosave, guardTransition, onSessionExpired, workspaceState.notes])
 
   useEffect(() => {
     const restore = () => {
-      const resourceId = resourceFromLocation(workspace)
+      const resourceId = resourceFromLocation(workspaceState)
       if (resourceId) void openNote(resourceId, 'restore')
       else {
         requestSequence.current += 1
@@ -225,9 +277,28 @@ function Workbench({ workspace, onSessionExpired }: { workspace: Workspace; onSe
     restore()
     window.addEventListener('popstate', restore)
     return () => window.removeEventListener('popstate', restore)
-  }, [openNote, workspace])
+  }, [openNote, workspaceState])
+  const renameSelected = async (event: FormEvent) => {
+    event.preventDefault(); setRenameError(null)
+    if (!selected || !(await guardTransition())) return
+    const snapshot = autosave.snapshot()
+    if (!snapshot.revision) return
+    const response = await getJson(`/api/v1/notes/${encodeURIComponent(selected.resourceId)}/rename`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() },
+      body: JSON.stringify({ expectedRevision: snapshot.revision, fileName: renameDraft }),
+    })
+    if (response.status === 401) { onSessionExpired(); return }
+    if (!response.ok) { setRenameError(response.status === 409 ? 'The note changed or the rename outcome needs reconciliation.' : 'Choose a valid unused Markdown filename.'); return }
+    const result = await response.json() as { note: Note; workspace: Workspace }
+    setWorkspaceState(result.workspace); setSelected(result.note); setRenameDraft(result.note.displayPath.split('/').at(-1) ?? '')
+    autosave.open({ resourceId: result.note.resourceId, source: result.note.source, revision: result.note.revision, eligible: true,
+      save: async () => { throw new Error('Reopen the renamed note before editing.') } })
+    const url = new URL(window.location.href); url.search = ''; url.searchParams.set('resource', result.note.resourceId)
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+  }
   const navigation = <><div className="panel-switcher"><button type="button" aria-pressed="true">Files</button><button type="button" onClick={() => setDrawer('Search')}>Search</button></div>
-    {workspace.inventory.length ? <FileTree inventory={workspace.inventory} selected={selected?.resourceId ?? null} onSelect={(note) => { void openNote(note.resourceId, 'push'); setDrawer(null) }} /> : <p className="panel-empty">No Markdown notes</p>}</>
+    {workspaceState.inventory.length ? <FileTree inventory={workspaceState.inventory} selected={selected?.resourceId ?? null} onSelect={(note) => { void openNote(note.resourceId, 'push'); setDrawer(null) }} /> : <p className="panel-empty">No Markdown notes</p>}</>
 
   return <main className="workbench">
     <header className="mobile-bar"><span className="wordmark">GraphiteMD</span><nav aria-label="Workspace tools">
@@ -238,8 +309,8 @@ function Workbench({ workspace, onSessionExpired }: { workspace: Workspace; onSe
     </nav></header>
     <aside className="navigation-panel" aria-label="Workspace navigation"><div className="panel-brand"><span className="brand-mark small" aria-hidden="true">G</span><span>GraphiteMD</span></div>{navigation}</aside>
     <article className="document-region">
-      <header className="document-header"><div><p className="document-path">{selected?.displayPath ?? 'Workspace'}</p><h1>{selected ? selected.displayPath.split('/').at(-1)?.replace(/\.md$/i, '') : 'Your workspace'}</h1></div><span className="status-chip">Connected</span></header>
-      <div className="document-body">{workspace.inventory.length === 0 ? <EmptyState /> : noteStatus === 'loading' ? <div className="empty-state" aria-live="polite"><h2>Opening note…</h2></div> : selected ? <pre className="note-source" aria-label="Markdown source">{selected.source}</pre> : noteStatus === 'unavailable' ? <div className="empty-state" role="alert"><h2>Note unavailable</h2><p>The requested note could not be opened. Select another note from Files.</p></div> : <div className="empty-state"><div className="empty-mark" aria-hidden="true">◇</div><h2>Select a note</h2><p>Choose a Markdown file from Files to open it here.</p></div>}</div>
+      <header className="document-header"><div><p className="document-path">{selected?.displayPath ?? 'Workspace'}</p><h1>{selected ? selected.displayPath.split('/').at(-1)?.replace(/\.md$/i, '') : 'Your workspace'}</h1></div><span className="status-chip">{save.phase === 'saving' || save.phase === 'scheduled' ? 'Saving…' : save.phase === 'conflict' ? 'Conflict' : save.phase === 'error' ? 'Save failed' : save.dirty ? 'Unsaved' : 'Saved'}</span></header>
+      <div className="document-body">{workspaceState.inventory.length === 0 ? <EmptyState /> : noteStatus === 'loading' ? <div className="empty-state" aria-live="polite"><h2>Opening note…</h2></div> : selected ? <><form className="rename-note" onSubmit={(event) => void renameSelected(event)}><label htmlFor="note-filename">Filename</label><input id="note-filename" value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} disabled={save.pending} /><button type="submit" disabled={save.pending}>Rename</button>{renameError && <p role="alert">{renameError}</p>}</form><MarkdownEditor source={save.resourceId === selected.resourceId ? save.draft : selected.source} onChange={(source) => autosave.edit(source)} /></> : noteStatus === 'unavailable' ? <div className="empty-state" role="alert"><h2>Note unavailable</h2><p>The requested note could not be opened. Select another note from Files.</p></div> : <div className="empty-state"><div className="empty-mark" aria-hidden="true">◇</div><h2>Select a note</h2><p>Choose a Markdown file from Files to open it here.</p></div>}</div>
     </article>
     <aside className="context-panel" aria-label="Note context"><ContextPlaceholder note={selected} /><div className="context-actions"><button type="button" onClick={() => setDrawer('Settings')}>Settings</button></div></aside>
     {drawer && <Drawer name={drawer} onClose={() => setDrawer(null)}>{drawer === 'Files' ? navigation : drawer === 'Search' ? <SearchPlaceholder /> : drawer === 'Context' ? <ContextPlaceholder note={selected} /> : <SettingsPlaceholder />}</Drawer>}

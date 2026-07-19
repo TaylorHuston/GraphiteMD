@@ -5,10 +5,10 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: `GMD-002/S1 R3` authenticated exact-note delivery and opaque-resource browser history pass server, web, root, and scoped SDD gates.
-- Next action: Commit the completed read/navigation slice, then begin `GMD-002/S2` with the source-preserving editor and guarded autosave path borrowed from the spikes.
+- Last completed action: Partial verified `GMD-002/S2` editor/save/rename and `GMD-003/S1` plugin persistence/service slices pass all root gates and scoped Epic validation.
+- Next action: Commit the integrated slices, then add owner Settings UI and search before closing the remaining editor/plugin gaps.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: Server note route/tests, web workbench/tests/styles, `docs/epics/gmd-002-markdown-workbench/epic.md`, and this ledger for the current Requirement slice.
+- Expected dirty files: Editor/workspace/server/plugin/web files, GMD-002/GMD-003 Epics, dependency manifests, and this ledger for the current integrated slices.
 - Known blockers: None. Spike repositories are read-only reference sources.
 
 ## Task Checklist
@@ -58,18 +58,18 @@ status: in_progress
   - [x] R4 desktop and mobile-browser workbench composition. (automated structure/interaction proof complete; manual viewport confirmation pending.)
 - [ ] 4.5 Implement `GMD-002/S2` Edit And Rename A Note Safely through BDD/TDD.
   - [ ] R1 transplant the newer source-preserving editor and Dashboard-only general-note regressions.
-  - [ ] R2 transplant single-flight autosave, version conflicts, late-response isolation, and draft guards.
-  - [ ] R3 transplant no-overwrite rename and authoritative post-commit reconciliation.
-  - [ ] R4 confine authenticated owner writes and preserve exact source/file mode.
+  - [x] R2 transplant single-flight autosave, version conflicts, late-response isolation, and draft guards.
+  - [ ] R3 transplant no-overwrite rename and authoritative post-commit reconciliation. (collision-safe rename and normal reconciliation complete; indeterminate post-commit recovery/search reconciliation remain.)
+  - [x] R4 confine authenticated owner writes and preserve exact source/file mode.
 - [ ] 4.6 Implement `GMD-002/S3` Search The Workspace Locally through BDD/TDD.
   - [ ] R1 adapt Dashboard title/path/frontmatter/body FTS and result-selection behavior.
   - [ ] R2 adapt rebuild/reconciliation to `.graphite/cache/search.sqlite` and `better-sqlite3`.
   - [ ] R3 prove baseline search never invokes an external provider.
 - [ ] 4.7 Implement `GMD-003/S1` Inspect Control And Trust Bundled Plugins through BDD/TDD.
   - [ ] R1 manifests, compatibility, plugin inventory, and failed activation. (headless host complete; service/browser inventory pending.)
-  - [ ] R2 inspectable enable/disable state and contribution teardown/restart. (host lifecycle complete; `.graphite/plugins.json` persistence and controls pending.)
-  - [ ] R3 capability broker, opaque identities, normalized denial, and forbidden imports. (broker complete; real service provider and forbidden-import gate pending.)
-  - [ ] R4 namespaced state, recovery, shared conformance, and the System Status plugin. (adapter/conformance/plugin complete; atomic filesystem backend and service/web mounting pending.)
+  - [ ] R2 inspectable enable/disable state and contribution teardown/restart. (atomic `.graphite/plugins.json`, service lifecycle, and authenticated control complete; browser controls pending.)
+  - [ ] R3 capability broker, opaque identities, normalized denial, and forbidden imports. (workspace status provider complete; broader providers and forbidden-import gate pending.)
+  - [ ] R4 namespaced state, recovery, shared conformance, and the System Status plugin. (atomic filesystem backend, recovery, service mounting, and conformance complete; browser contribution mounting and process-kill fault proof pending.)
 - [ ] 4.8 Reconcile all affected Epic `Implemented By` and Implementation Gaps immediately after each Requirement slice.
 
 ### 5. Reuse And Migration Discipline
@@ -121,6 +121,8 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | `GMD-002/S1 R4` responsive browse shell and R2 presentation | Delegated TDD; component accessibility/composition guidance; Coordinator primitives and Dashboard PKM composition adapted | Web App/tree/drawers/state shell, responsive tokens/styles, GMD-002 Epic | Authenticated bootstrap, deterministic accessible tree, empty/session/error states, desktop regions, and narrow drawers implemented; editor/search/settings remain scoped placeholders | `b53fc90` |
 | 2026-07-18 | `GMD-001/S2` access maintenance and recovery | Delegated TDD; official session/Shield patterns | Owner security service, password API, reset command, service/command/HTTP tests, GMD-001 Epic | Atomic password compare-and-swap/reset, revocation generation, global session deletion, rollback, and invalidated-session recovery implemented; Settings UI and isolated expiry proof remain | `4c23898` |
 | 2026-07-18 | `GMD-002/S1 R3` authenticated note navigation | Delegated TDD; Coordinator confinement patterns and Dashboard note presentation behavior adapted | Authenticated note route, real HTTP fixture, web history/selection/source/properties presentation, GMD-002 Epic | Opaque selection, exact source delivery, Back/Forward/reload restoration, stale-route denial, and expired-session recovery implemented without exposing host paths | `da26f5a` |
+| 2026-07-18 | `GMD-002/S2` source-safe editor/save/rename slice | Delegated TDD; Coordinator editor/autosave/artifact authority plus Dashboard exactness/conflict/collision regressions adapted | Workspace mutations, authenticated routes, CodeMirror editor, autosave coordinator, workbench controls, GMD-002 Epic | Exact-source editing, mixed-ending preservation, single-flight revision saves, draft/conflict guards, file-mode-safe writes, and collision-safe rename implemented; richer rendered presentation and indeterminate rename recovery remain | pending commit |
+| 2026-07-18 | `GMD-003/S1` plugin persistence and production service slice | Delegated TDD; Dashboard config-backed lifecycle and Coordinator broker/confinement concepts adapted | Atomic plugin config/state service, System Status production host/provider, authenticated inventory/control routes, GMD-003 Epic | Inspectable enablement, namespaced atomic state/recovery, symlink denial, restart-safe activation, and authenticated inventory/control implemented; browser mounting and broader static/runtime boundaries remain | pending commit |
 
 ## Verification Ledger
 
@@ -141,6 +143,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Web 4-test suite plus lint/typecheck/build and scoped SDD validation | focused component evidence plus supporting gates | `GMD-002/S1/R2-S1`, `R2-S3`, `R4-S1`, `R4-S2`: accessible tree, empty reachability, responsive drawer semantics, focus/Escape, and expired-session state. | Passing; real viewport/touch/overflow confirmation pending user |
 | 2026-07-18 | Server 18-test suite plus lint/typecheck/build | focused service/command/HTTP evidence plus supporting gates | `GMD-001/S2/R1..R3`: correct/wrong password behavior, multi-session revocation, reset/cancel/mismatch/rollback, and invalidated-session recovery. | Passing; Settings UI, terminal masking, and isolated expiry proof remain explicit gaps |
 | 2026-07-18 | Server 20-test and web 7-test suites; root test/typecheck/lint; scoped SDD validation | deterministic integration and component evidence plus supporting gates | `GMD-002/S1/R3-S1..R3-S2`: authenticated exact-note reads, path-free denial, opaque-resource selection/history restoration, invalid-route recovery, and note-read session expiry. | Passing; responsive manual confirmation remains explicit |
+| 2026-07-18 | Workspace 18, web 14, and server 29 tests; root build/test/lint/typecheck; scoped GMD-002/GMD-003 validation; diff check | focused, integration, component, and broad supporting evidence | Partial `GMD-002/S2` exact editor/autosave/save/rename behavior and `GMD-003/S1` atomic plugin persistence, production host/provider, restart/recovery, confinement, and authenticated control. | Passing; documented editor/plugin browser and fault-injection gaps remain; Vite reports a roughly 700 KB chunk warning |
 
 ## Manual Feedback
 

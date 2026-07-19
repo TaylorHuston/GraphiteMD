@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -206,6 +206,112 @@ describe('GMD-002/S1 R3 exact note reading', () => {
     expect(await response.json()).toEqual({
       error: { code: 'resource_unavailable', message: 'The requested note is unavailable.' },
     })
+  })
+})
+
+describe('GMD-002/S2 authenticated confined note mutations', () => {
+  it('R2-S1 and R4-S2 saves an exact revision-bound owner draft over the authenticated route', async () => {
+    await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# Before\r\nline\n', 'utf8')
+    const authenticated = await loginOwner()
+    const workspace = await (await fetch(`${origin}/api/v1/workspace`, {
+      headers: { cookie: authenticated.cookie },
+    })).json() as { notes: Array<{ resourceId: string; displayPath: string }> }
+    const item = workspace.notes.find(({ displayPath }) => displayPath === 'Notes/Welcome.md')!
+    const opened = await (await fetch(`${origin}/api/v1/notes/${item.resourceId}`, {
+      headers: { cookie: authenticated.cookie },
+    })).json() as { revision: string }
+
+    const saved = await fetch(`${origin}/api/v1/notes/${item.resourceId}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie: authenticated.cookie, 'x-xsrf-token': authenticated.token },
+      body: JSON.stringify({ expectedRevision: opened.revision, source: '# After\r\nline\n' }),
+    })
+
+    expect(saved.status).toBe(200)
+    expect(await saved.json()).toMatchObject({ resourceId: item.resourceId, source: '# After\r\nline\n' })
+    expect(await readFile(join(workspaceRoot, 'Notes', 'Welcome.md'), 'utf8')).toBe('# After\r\nline\n')
+    expect((await fetch(`${origin}/api/v1/notes/${item.resourceId}`, {
+      method: 'PUT', headers: { 'content-type': 'application/json' }, body: '{}',
+    })).status).toBe(403)
+  })
+
+  it('R2-S3 returns a recoverable conflict without canonical overwrite', async () => {
+    await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# Opened\n', 'utf8')
+    const authenticated = await loginOwner()
+    const workspace = await (await fetch(`${origin}/api/v1/workspace`, {
+      headers: { cookie: authenticated.cookie },
+    })).json() as { notes: Array<{ resourceId: string; displayPath: string }> }
+    const item = workspace.notes.find(({ displayPath }) => displayPath === 'Notes/Welcome.md')!
+    const opened = await (await fetch(`${origin}/api/v1/notes/${item.resourceId}`, {
+      headers: { cookie: authenticated.cookie },
+    })).json() as { revision: string }
+    await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# External\n', 'utf8')
+
+    const response = await fetch(`${origin}/api/v1/notes/${item.resourceId}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie: authenticated.cookie, 'x-xsrf-token': authenticated.token },
+      body: JSON.stringify({ expectedRevision: opened.revision, source: '# Draft\n' }),
+    })
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ error: { code: 'revision_conflict' } })
+    expect(await readFile(join(workspaceRoot, 'Notes', 'Welcome.md'), 'utf8')).toBe('# External\n')
+  })
+
+  it('R3-S1 renames in place and returns the reconciled workspace identity', async () => {
+    await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# Rename\n', 'utf8')
+    const authenticated = await loginOwner()
+    const workspace = await (await fetch(`${origin}/api/v1/workspace`, {
+      headers: { cookie: authenticated.cookie },
+    })).json() as { notes: Array<{ resourceId: string; displayPath: string }> }
+    const item = workspace.notes.find(({ displayPath }) => displayPath === 'Notes/Welcome.md')!
+    const opened = await (await fetch(`${origin}/api/v1/notes/${item.resourceId}`, {
+      headers: { cookie: authenticated.cookie },
+    })).json() as { revision: string }
+
+    const response = await fetch(`${origin}/api/v1/notes/${item.resourceId}/rename`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie: authenticated.cookie, 'x-xsrf-token': authenticated.token },
+      body: JSON.stringify({ expectedRevision: opened.revision, fileName: 'Renamed' }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      note: { displayPath: 'Notes/Renamed.md', source: '# Rename\n' },
+      workspace: { notes: [expect.objectContaining({ displayPath: 'Notes/Renamed.md' })] },
+    })
+  })
+})
+
+describe('GMD-003/S1 production plugin host', () => {
+  it('lists and controls the bundled plugin through authenticated endpoints and persists the setting', async () => {
+    expect((await fetch(`${origin}/api/v1/plugins`)).status).toBe(401)
+    const authenticated = await loginOwner()
+    const inventory = await fetch(`${origin}/api/v1/plugins`, { headers: { cookie: authenticated.cookie } })
+    expect(inventory.status).toBe(200)
+    expect(await inventory.json()).toEqual({
+      plugins: [expect.objectContaining({
+        id: 'system-status',
+        status: 'active',
+        manifest: expect.objectContaining({ permissions: ['status:read'] }),
+      })],
+    })
+
+    const disabled = await fetch(`${origin}/api/v1/plugins/system-status`, {
+      method: 'PUT',
+      headers: {
+        'content-type': 'application/json',
+        cookie: authenticated.cookie,
+        'x-xsrf-token': authenticated.token,
+      },
+      body: JSON.stringify({ enabled: false }),
+    })
+    expect(disabled.status).toBe(200)
+    expect(await disabled.json()).toEqual({
+      plugin: expect.objectContaining({ id: 'system-status', status: 'disabled', contributions: {} }),
+    })
+    expect(JSON.parse(await readFile(join(workspaceRoot, '.graphite', 'plugins.json'), 'utf8')))
+      .toEqual({ schemaVersion: 1, enabled: { 'system-status': false } })
   })
 })
 

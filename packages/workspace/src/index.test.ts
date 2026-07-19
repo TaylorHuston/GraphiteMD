@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, rename, rm, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, rename, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -288,5 +288,91 @@ describe('ConfiguredWorkspaceAuthority', () => {
     await expect(authority.readNote(opened.notes[0]!.resourceId)).rejects.toMatchObject({
       name: 'WorkspaceResourceUnavailableError',
     })
+  })
+
+  it('GMD-002/S2/R2-S1 saves exact mixed-line-ending source and preserves file mode', async () => {
+    const workspaceRoot = await createWorkspace()
+    const notePath = join(workspaceRoot, 'Exact.md')
+    await writeFile(notePath, '# Before\r\nline\n', { encoding: 'utf8', mode: 0o640 })
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+    const note = await authority.readNote(opened.notes[0]!.resourceId)
+
+    const saved = await authority.saveNote(note.resourceId, note.revision, '# After\r\nline\n')
+
+    expect(saved.source).toBe('# After\r\nline\n')
+    expect(saved.revision).not.toBe(note.revision)
+    expect(await readFile(notePath, 'utf8')).toBe('# After\r\nline\n')
+    expect((await stat(notePath)).mode & 0o777).toBe(0o640)
+  })
+
+  it('GMD-002/S2/R2-S3 rejects a stale save without changing canonical source', async () => {
+    const workspaceRoot = await createWorkspace()
+    const notePath = join(workspaceRoot, 'Conflict.md')
+    await writeFile(notePath, '# Opened\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+    const note = await authority.readNote(opened.notes[0]!.resourceId)
+    await writeFile(notePath, '# External\n', 'utf8')
+
+    await expect(authority.saveNote(note.resourceId, note.revision, '# Draft\n')).rejects.toMatchObject({
+      name: 'WorkspaceRevisionConflictError',
+    })
+    expect(await readFile(notePath, 'utf8')).toBe('# External\n')
+  })
+
+  it('GMD-002/S2/R3-S1 renames without overwrite and issues one reconciled identity', async () => {
+    const workspaceRoot = await createWorkspace()
+    await mkdir(join(workspaceRoot, 'Notes'))
+    await writeFile(join(workspaceRoot, 'Notes', 'Before.md'), '# Exact\r\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+    const note = await authority.readNote(opened.notes[0]!.resourceId)
+
+    const renamed = await authority.renameNote(note.resourceId, note.revision, 'After')
+
+    expect(renamed.note).toMatchObject({ displayPath: 'Notes/After.md', source: '# Exact\r\n' })
+    expect(renamed.note.resourceId).not.toBe(note.resourceId)
+    expect(renamed.workspace.notes).toEqual([
+      expect.objectContaining({ displayPath: 'Notes/After.md', resourceId: renamed.note.resourceId }),
+    ])
+    await expect(readFile(join(workspaceRoot, 'Notes', 'Before.md'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('GMD-002/S2/R3-S2 rejects invalid, colliding, and stale renames without mutation', async () => {
+    const workspaceRoot = await createWorkspace()
+    await writeFile(join(workspaceRoot, 'Before.md'), '# Before\n', 'utf8')
+    await writeFile(join(workspaceRoot, 'Existing.md'), '# Existing\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+    const item = opened.notes.find(({ displayPath }) => displayPath === 'Before.md')!
+    const note = await authority.readNote(item.resourceId)
+
+    for (const name of ['', '../Escape.md', '.graphite.md', 'Existing.md']) {
+      await expect(authority.renameNote(note.resourceId, note.revision, name)).rejects.toBeInstanceOf(Error)
+    }
+    await writeFile(join(workspaceRoot, 'Before.md'), '# External\n', 'utf8')
+    await expect(authority.renameNote(note.resourceId, note.revision, 'After.md')).rejects.toMatchObject({
+      name: 'WorkspaceRevisionConflictError',
+    })
+    expect(await readFile(join(workspaceRoot, 'Existing.md'), 'utf8')).toBe('# Existing\n')
+    expect(await readFile(join(workspaceRoot, 'Before.md'), 'utf8')).toBe('# External\n')
+  })
+
+  it('GMD-002/S2/R4-S1 rejects writes after root or resource symlink replacement', async () => {
+    const workspaceRoot = await createWorkspace()
+    const outsideRoot = await createWorkspace()
+    const notePath = join(workspaceRoot, 'Safe.md')
+    const outsidePath = join(outsideRoot, 'Outside.md')
+    await writeFile(notePath, '# Safe\n', 'utf8')
+    await writeFile(outsidePath, '# Outside\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+    const note = await authority.readNote(opened.notes[0]!.resourceId)
+    await rm(notePath)
+    await symlink(outsidePath, notePath)
+
+    await expect(authority.saveNote(note.resourceId, note.revision, '# Escaped\n')).rejects.toBeInstanceOf(Error)
+    expect(await readFile(outsidePath, 'utf8')).toBe('# Outside\n')
   })
 })

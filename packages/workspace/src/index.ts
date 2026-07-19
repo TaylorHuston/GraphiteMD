@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { access, open, readdir, realpath, stat } from 'node:fs/promises'
+import { access, link, open, readdir, realpath, rename, stat, unlink } from 'node:fs/promises'
 import { constants } from 'node:fs'
-import { join, posix } from 'node:path'
+import { basename, dirname, join, posix } from 'node:path'
 import { isMap, isScalar, parseDocument } from 'yaml'
 
 export type WorkspaceId = `wrk_${string}`
@@ -38,6 +38,8 @@ export interface WorkspaceAuthority {
   openConfigured(): Promise<WorkspaceSnapshot>
   current(): Promise<CurrentWorkspaceSnapshot>
   readNote(resourceId: string): Promise<MarkdownNote>
+  saveNote(resourceId: string, expectedRevision: string, source: string): Promise<MarkdownNote>
+  renameNote(resourceId: string, expectedRevision: string, fileName: string): Promise<RenameNoteResult>
 }
 
 export type MarkdownNoteYamlValue =
@@ -62,6 +64,11 @@ export interface MarkdownNote {
   readonly revision: NoteRevision
   readonly yamlProperties: readonly MarkdownNoteYamlProperty[]
   readonly yamlParseError: string | null
+}
+
+export interface RenameNoteResult {
+  readonly note: MarkdownNote
+  readonly workspace: WorkspaceSnapshot
 }
 
 interface FileIdentity {
@@ -95,6 +102,22 @@ export class WorkspaceResourceUnavailableError extends Error {
     this.name = 'WorkspaceResourceUnavailableError'
   }
 }
+
+export class WorkspaceRevisionConflictError extends Error {
+  constructor(readonly currentRevision: NoteRevision) {
+    super('The note changed after it was opened.')
+    this.name = 'WorkspaceRevisionConflictError'
+  }
+}
+
+export class WorkspaceInvalidMutationError extends Error {
+  constructor(readonly code: 'invalid_source' | 'invalid_name' | 'collision' | 'indeterminate') {
+    super('The requested note mutation could not be applied.')
+    this.name = 'WorkspaceInvalidMutationError'
+  }
+}
+
+const mutationQueues = new Map<string, Promise<void>>()
 
 /**
  * Owns host filesystem authority while exposing only an opaque browser-safe
@@ -201,6 +224,171 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
       await handle?.close()
     }
   }
+
+  async saveNote(resourceId: string, expectedRevision: string, source: string): Promise<MarkdownNote> {
+    if (!isWellFormedUnicode(source) || Buffer.byteLength(source, 'utf8') > this.#inventoryOptions.maxSourceBytes) {
+      throw new WorkspaceInvalidMutationError('invalid_source')
+    }
+    return this.#withIssuedResource(resourceId, async (opened, note, expectedPath) => {
+      return withMutationLock(expectedPath, async () => {
+        const current = await this.readNote(resourceId)
+        if (current.revision !== expectedRevision) {
+          throw new WorkspaceRevisionConflictError(current.revision)
+        }
+        const targetHandle = await open(expectedPath, constants.O_RDONLY | constants.O_NOFOLLOW)
+        let mode: number
+        try {
+          const metadata = await targetHandle.stat()
+          if (!metadata.isFile()) throw new WorkspaceResourceUnavailableError()
+          mode = metadata.mode & 0o777
+        } finally {
+          await targetHandle.close()
+        }
+        const temporaryPath = join(dirname(expectedPath), `.${basename(expectedPath)}.${randomUUID()}.tmp`)
+        let temporaryCreated = false
+        try {
+          const temporary = await open(
+            temporaryPath,
+            constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
+            mode,
+          )
+          temporaryCreated = true
+          try {
+            await temporary.writeFile(source, 'utf8')
+            await temporary.chmod(mode)
+            await temporary.sync()
+          } finally {
+            await temporary.close()
+          }
+          const beforeCommit = await this.readNote(resourceId)
+          if (beforeCommit.revision !== expectedRevision) {
+            throw new WorkspaceRevisionConflictError(beforeCommit.revision)
+          }
+          await rename(temporaryPath, expectedPath)
+          temporaryCreated = false
+          return await this.readNote(resourceId)
+        } finally {
+          if (temporaryCreated) await unlink(temporaryPath).catch(() => undefined)
+        }
+      })
+    })
+  }
+
+  async renameNote(
+    resourceId: string,
+    expectedRevision: string,
+    requestedFileName: string,
+  ): Promise<RenameNoteResult> {
+    const fileName = normalizeMarkdownFileName(requestedFileName)
+    return this.#withIssuedResource(resourceId, async (opened, note, sourcePath) => {
+      const targetDisplayPath = posix.join(posix.dirname(note.displayPath), fileName)
+      if (isExcluded(targetDisplayPath, this.#inventoryOptions.excludedPaths)) {
+        throw new WorkspaceInvalidMutationError('invalid_name')
+      }
+      const targetPath = join(opened.root, ...targetDisplayPath.split('/'))
+      return withMutationLocks([sourcePath, targetPath], async () => {
+        const current = await this.readNote(resourceId)
+        if (current.revision !== expectedRevision) {
+          throw new WorkspaceRevisionConflictError(current.revision)
+        }
+        if (sourcePath === targetPath) return { note: current, workspace: opened.snapshot }
+        try {
+          await link(sourcePath, targetPath)
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+            throw new WorkspaceInvalidMutationError('collision')
+          }
+          throw error
+        }
+        try {
+          await unlink(sourcePath)
+        } catch {
+          await unlink(targetPath).catch(() => undefined)
+          throw new WorkspaceInvalidMutationError('indeterminate')
+        }
+        const inventory = await inventoryMarkdown(opened.root, opened.snapshot.workspaceId, this.#inventoryOptions)
+        const snapshot: WorkspaceSnapshot = {
+          available: true,
+          workspaceId: opened.snapshot.workspaceId,
+          notes: inventory.filter((item): item is MarkdownNoteInventoryItem => item.kind === 'note'),
+          inventory,
+        }
+        this.#opened = { root: opened.root, identity: opened.identity, snapshot }
+        const renamedItem = snapshot.notes.find((candidate) => candidate.displayPath === targetDisplayPath)
+        if (!renamedItem) throw new WorkspaceInvalidMutationError('indeterminate')
+        return { workspace: snapshot, note: await this.readNote(renamedItem.resourceId) }
+      })
+    })
+  }
+
+  async #withIssuedResource<T>(
+    resourceId: string,
+    operation: (opened: OpenWorkspace, note: MarkdownNoteInventoryItem, expectedPath: string) => Promise<T>,
+  ): Promise<T> {
+    const current = await this.current()
+    if (!current.available) throw new WorkspaceUnavailableError(current.reason)
+    const opened = this.#opened
+    const note = current.notes.find((candidate) => candidate.resourceId === resourceId)
+    if (!opened || !note) throw new WorkspaceResourceUnavailableError()
+    const expectedPath = join(opened.root, ...note.displayPath.split('/'))
+    let canonicalPath: string
+    try {
+      canonicalPath = await realpath(expectedPath)
+    } catch {
+      throw new WorkspaceResourceUnavailableError()
+    }
+    if (canonicalPath !== expectedPath) throw new WorkspaceResourceUnavailableError()
+    return operation(opened, note, expectedPath)
+  }
+}
+
+function normalizeMarkdownFileName(input: string): string {
+  const trimmed = input.trim()
+  if (!trimmed || trimmed === '.' || trimmed === '..' || /[\\/]/.test(trimmed)
+    || [...trimmed].some((character) => character.charCodeAt(0) < 32)) {
+    throw new WorkspaceInvalidMutationError('invalid_name')
+  }
+  const withExtension = trimmed.toLowerCase().endsWith('.md') ? trimmed : `${trimmed}.md`
+  const stem = withExtension.slice(0, -3)
+  if (!stem || stem.startsWith('.') || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(stem)) {
+    throw new WorkspaceInvalidMutationError('invalid_name')
+  }
+  return withExtension
+}
+
+function isWellFormedUnicode(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(index + 1)
+      if (next < 0xdc00 || next > 0xdfff) return false
+      index += 1
+    } else if (code >= 0xdc00 && code <= 0xdfff) return false
+  }
+  return true
+}
+
+async function withMutationLock<T>(path: string, operation: () => Promise<T>): Promise<T> {
+  const previous = mutationQueues.get(path) ?? Promise.resolve()
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => { release = resolve })
+  const current = previous.then(() => gate)
+  mutationQueues.set(path, current)
+  await previous
+  try {
+    return await operation()
+  } finally {
+    release()
+    if (mutationQueues.get(path) === current) mutationQueues.delete(path)
+  }
+}
+
+async function withMutationLocks<T>(paths: string[], operation: () => Promise<T>): Promise<T> {
+  const ordered = [...new Set(paths)].sort()
+  const run = async (index: number): Promise<T> => index === ordered.length
+    ? operation()
+    : withMutationLock(ordered[index]!, () => run(index + 1))
+  return run(0)
 }
 
 function normalizeYamlValue(value: unknown): MarkdownNoteYamlValue {

@@ -71,6 +71,17 @@ h1, h2, p { margin-top: 0; }
 .drawer-header { display: flex; align-items: center; justify-content: space-between; min-height: 3.25rem; margin-bottom: .4rem; }
 .drawer-header h2 { margin: 0; font-size: 1rem; }
 .icon-button { min-width: 2.75rem; min-height: 2.75rem; font-size: 1.4rem; }
+.rename-note { display: flex; align-items: end; gap: .5rem; padding: .75rem 1rem; border-bottom: 1px solid var(--line); }
+.rename-note label { font-size: .75rem; color: var(--muted); }
+.rename-note input { min-width: 0; max-width: 22rem; }
+.rename-note p { margin: 0; color: var(--danger); }
+.markdown-editor { min-height: 0; height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.editor-mode-switch { display: flex; justify-content: flex-end; gap: .25rem; padding: .5rem 1rem; }
+.editor-mode-switch button[aria-pressed="true"] { color: var(--text); background: var(--raised); }
+.editor-codemirror { min-height: 0; overflow: hidden; }
+.editor-budget-note { margin: 0; padding: 0 1rem .5rem; color: var(--muted); font-size: .8rem; }
+.markdown-editor.rendered-enabled:not(.syntax-visible) .cm-header { font-family: system-ui, sans-serif; font-weight: 650; }
+.markdown-editor.rendered-enabled:not(.syntax-visible) .cm-strong { font-weight: 700; }
 @media (max-width: 60rem) {
   .workbench { display: block; padding-top: 3.75rem; }
   .navigation-panel, .context-panel { display: none; }
