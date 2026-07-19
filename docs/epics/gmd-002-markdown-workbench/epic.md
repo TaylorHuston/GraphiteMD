@@ -55,7 +55,7 @@ An authenticated owner will be able to browse, read, edit, rename, and search Ma
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | not implemented | unverified | Browse and read a server-hosted Markdown workspace. |  | Foundation Change. |
+| S1 | partial | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-18 | Service-owned workspace authority package implemented; inventory, HTTP/auth adapter, reads, and UI remain. |
 | S2 | not implemented | unverified | Edit and rename a note with source and revision safety. |  | Foundation Change. |
 | S3 | not implemented | unverified | Search the workspace through a rebuildable local index. |  | Foundation Change. |
 
@@ -63,11 +63,11 @@ An authenticated owner will be able to browse, read, edit, rename, and search Ma
 
 ### Story S1: Browse And Read Workspace Notes
 
-Implementation: not implemented
-Verification: unverified
+Implementation: partial
+Verification: partial
 Created: 2026-07-18
 Modified: 2026-07-18
-Last verified:
+Last verified: 2026-07-18
 
 As a workspace owner, I want to browse and open Markdown from any authenticated browser, so that I can reach my notes without synchronizing the underlying files to that device.
 
@@ -152,14 +152,14 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
-| S1/R1 | Not implemented yet. | primary | Workspace identity, opening, and reconnect behavior. |
+| S1/R1 | `packages/workspace/src/index.ts` — `ConfiguredWorkspaceAuthority` | primary | Host-configured root validation, opaque service-owned identity, root-identity revalidation, authority clearing, and reconnect snapshots. |
 | S1/R2 | Not implemented yet. | primary | Safe inventory and tree contract. |
 | S1/R3 | Not implemented yet. | primary | Resource read and navigation contract. |
 | S1/R4 | Not implemented yet. | presentation | Responsive and accessible workbench composition. |
 
 #### Implementation Gaps
 
-- `S1/R1`: Service-owned workspace opening does not exist yet.
+- `S1/R1-S1`: The authenticated Adonis adapter and confined Markdown inventory remain pending on `GMD-001` authentication and `S1/R2`; the package currently returns an honest empty inventory projection.
 - `S1/R2`: GraphiteMD note inventory and tree do not exist yet.
 - `S1/R3`: GraphiteMD note reads and resource history do not exist yet.
 - `S1/R4`: GraphiteMD responsive workbench does not exist yet.
@@ -168,10 +168,13 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
+| S1/R1-S1 | `packages/workspace/src/index.test.ts` — `opens the configured directory without exposing its host path` | The public service authority opens a readable configured directory, returns an opaque identity and inventory projection, and serializes no absolute host path. | Partial; authenticated HTTP delivery awaits `GMD-001`. |
+| S1/R1-S2 | `packages/workspace/src/index.test.ts` — `clears authority when the configured root changes identity`; `fails closed for missing, non-directory, and unreadable roots` | Missing, unreadable, non-directory, and replaced roots fail closed without retaining the opened identity. | Passing 2026-07-18. |
+| S1/R1-S3 | `packages/workspace/src/index.test.ts` — `reconnects to the service-owned workspace identity` | Repeated client-facing current-state reads return the same service-owned snapshot without client filesystem state. | Passing 2026-07-18. |
 
 #### Verification Gaps
 
-- `S1/R1-S1`, `S1/R1-S2`, `S1/R1-S3`: Not verified yet.
+- `S1/R1-S1`: Authenticated Adonis route proof remains pending on `GMD-001`; real inventory behavior is owned by `S1/R2`.
 - `S1/R2-S1`, `S1/R2-S2`, `S1/R2-S3`: Not verified yet.
 - `S1/R3-S1`, `S1/R3-S2`: Not verified yet.
 - `S1/R4-S1`, `S1/R4-S2`: Not verified yet.

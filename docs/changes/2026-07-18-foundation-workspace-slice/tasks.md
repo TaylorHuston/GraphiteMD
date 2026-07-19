@@ -5,10 +5,10 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: The planned Change was validated, promoted, and transitioned from `planned` to `in_progress`; initial repository history and branch topology were established with user authorization.
-- Next action: Establish the monorepo foundation as an enabling slice tied to `GMD-002/S1 R1`, then implement the first service-owned workspace tracer test.
+- Last completed action: `GMD-002/S1 R1` package authority is implemented and focused tests prove opaque identity, fail-closed root validation/replacement, and reconnect stability; authenticated HTTP delivery remains intentionally pending on `GMD-001`.
+- Next action: Implement `GMD-001/S1 R1` host-local owner setup and the machine-local security store, then add authenticated delivery for workspace state after `GMD-001/S1 R2`.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: `docs/changes/2026-07-18-foundation-workspace-slice/` plus the new root workspace, `apps/`, `packages/`, `plugins/`, and test scaffolding introduced by the foundation slice.
+- Expected dirty files: `packages/workspace/`, `apps/server/`, `packages/contracts/`, `docs/epics/gmd-002-markdown-workbench/epic.md`, and this ledger for the current Requirement slice.
 - Known blockers: None. Spike repositories are read-only reference sources.
 
 ## Task Checklist
@@ -52,7 +52,7 @@ status: in_progress
   - [ ] R2 host-local atomic reset and cancellation safety.
   - [ ] R3 current-session reconnect and invalidated-session recovery.
 - [ ] 4.4 Implement `GMD-002/S1` Browse And Read Workspace Notes through BDD/TDD.
-  - [ ] R1 one host-configured service-owned workspace and safe reconnect.
+  - [ ] R1 one host-configured service-owned workspace and safe reconnect. (package authority and focused proof complete; authenticated Adonis delivery pending `GMD-001/S1 R2`.)
   - [ ] R2 nested Markdown inventory, `.graphite`/ignore/unsafe exclusions, and empty state.
   - [ ] R3 exact source/revision reads with guarded opaque-resource history.
   - [ ] R4 desktop and mobile-browser workbench composition.
@@ -111,6 +111,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Planning provenance inventory | `/sdd-change --plan`; accepted ADRs; Dashboard and Coordinator live code/tests | Reference monorepos, Epics, architecture/testing docs, manifests, contracts, editor, file, index, capability, and harness surfaces | Reuse map recorded; no application code copied yet | uncommitted |
 | 2026-07-18 | Apply Discovery and promotion | `/sdd-apply`; TDD; component accessibility/composition guidance; Context7 AdonisJS v7 docs | Active Change, branch policy, PRD, ADRs, Epics, both spike surfaces | Change promoted and transitioned to `in_progress`; exact transplant map confirmed; official session regeneration and credentialed SPA guidance reconfirmed | `d8c827a` |
 | 2026-07-18 | Monorepo enabling slice for `GMD-002/S1 R1` | Delegated implementation; curated Coordinator scaffold | Root workspace; `apps/server`; `apps/web`; contracts/domain/workspace/plugin packages; System Status plugin | Compileable service-first skeleton established without Coordinator product behavior; package boundary tests pass; generated artifacts removed and ignored in `f3e4269` | `d8c827a`, `f3e4269` |
+| 2026-07-18 | `GMD-002/S1 R1` service-owned workspace authority | Delegated TDD; Coordinator confinement/reconnect patterns adapted | `packages/workspace`; `GMD-002` Epic | Real configured-root validation, opaque identity, root replacement invalidation, and stable reconnect snapshot implemented; authenticated HTTP proof remains an explicit gap | commit pending |
 
 ## Verification Ledger
 
@@ -120,6 +121,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Current AdonisJS v7 documentation lookup | documentation evidence | Official session guard, session regeneration, Shield XSRF cookie, exact credentialed CORS, and SPA cookie patterns exist for the planned auth boundary. | Passing |
 | 2026-07-18 | Planned Change plus `GMD-001`, `GMD-002`, and `GMD-003` scoped `sdd validate` runs | broad supporting gate | Planned Change and every affected Epic are structurally valid with zero errors or warnings. | Passing |
 | 2026-07-18 | `pnpm lint && pnpm typecheck && pnpm test && pnpm build` | broad supporting gate | The new nine-project workspace installs, compiles, tests, and produces server/web builds. | Passing; Adonis emits a Node deprecation warning during build |
+| 2026-07-18 | `pnpm --filter @graphitemd/workspace test`; workspace lint/typecheck/build | focused automated evidence plus supporting gates | `GMD-002/S1/R1-S1..R1-S3`: opaque authority, invalid/replaced-root denial, and reconnect snapshot behavior over disposable real directories. | Passing: 4 tests |
 
 ## Manual Feedback
 

@@ -154,6 +154,9 @@ importers:
         specifier: workspace:*
         version: link:../contracts
     devDependencies:
+      '@types/node':
+        specifier: ^24.13.2
+        version: 24.13.3
       oxlint:
         specifier: ^1.71.0
         version: 1.74.0
