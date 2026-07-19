@@ -11,7 +11,7 @@ import {
   type PluginStateBackend,
 } from '@graphitemd/plugin-sdk'
 import { systemStatusPlugin } from '@graphitemd/plugin-system-status'
-import type { ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
+import { WorkspaceUnavailableError, type ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
 
 type EnablementDocument = Readonly<{
   schemaVersion: 1
@@ -26,6 +26,8 @@ export interface AtomicPluginWriteOptions {
   readonly beforeCreate?: () => Promise<void>
   /** Test seam at the last point where an attacker can swap a validated ancestor before commit. */
   readonly beforeCommit?: () => Promise<void>
+  /** Authority check that binds every read and mutation to the accepted workspace identity. */
+  readonly assertAuthority?: () => Promise<void>
 }
 
 type DirectoryIdentity = Readonly<{ canonicalPath: string; device: bigint; inode: bigint }>
@@ -49,9 +51,11 @@ async function atomicJsonWrite(
   value: unknown,
   options: AtomicPluginWriteOptions = {},
 ): Promise<void> {
+  await options.assertAuthority?.()
   await mkdir(dirname(path), { recursive: true })
   const parent = await directoryIdentity(dirname(path), workspaceRoot)
   await options.beforeCreate?.()
+  await options.assertAuthority?.()
   const parentBeforeCreate = await directoryIdentity(dirname(path), workspaceRoot)
   if (!sameDirectory(parent, parentBeforeCreate)) {
     throw new Error('Plugin storage parent changed before creation.')
@@ -72,6 +76,7 @@ async function atomicJsonWrite(
       await handle.close()
     }
     await options.beforeCommit?.()
+    await options.assertAuthority?.()
     const currentParent = await directoryIdentity(dirname(path), workspaceRoot)
     if (!sameDirectory(parent, currentParent)) {
       // The temporary belongs to the retained directory identity. Avoid resolving
@@ -123,6 +128,7 @@ export class PluginEnablementStore {
   }
 
   async read(): Promise<EnablementDocument> {
+    await this.options.assertAuthority?.()
     await assertNoSymlink(dirname(dirname(this.#path)), ['.graphite', 'plugins.json'])
     const value = await readJson(this.#path)
     if (value === undefined) return DEFAULT_ENABLEMENT
@@ -164,12 +170,14 @@ export class FilesystemPluginStateBackend implements PluginStateBackend {
   }
 
   async read(pluginId: string): Promise<unknown | undefined> {
+    await this.options.assertAuthority?.()
     await this.#assertSafe(pluginId)
     await this.recovery(pluginId)
     return readJson(this.#statePath(pluginId))
   }
 
   async transaction(pluginId: string, value: unknown): Promise<void> {
+    await this.options.assertAuthority?.()
     await this.#assertSafe(pluginId)
     const previous = this.#pending.get(pluginId) ?? Promise.resolve()
     const operation = previous.then(() => atomicJsonWrite(this.workspaceRoot, this.#statePath(pluginId), value, this.options))
@@ -178,9 +186,15 @@ export class FilesystemPluginStateBackend implements PluginStateBackend {
   }
 
   async recovery(pluginId: string): Promise<'clean' | 'recovered' | 'failed'> {
+    await this.options.assertAuthority?.()
     await this.#assertSafe(pluginId)
     const path = this.#statePath(pluginId)
     const directory = dirname(path)
+    const retainedDirectory = await directoryIdentity(directory, this.workspaceRoot).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return undefined
+      throw error
+    })
+    if (!retainedDirectory) return 'clean'
     const base = path.slice(directory.length + 1)
     const candidates = await readdir(directory).catch((error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT') return []
@@ -200,6 +214,10 @@ export class FilesystemPluginStateBackend implements PluginStateBackend {
     }
     try {
       await readJson(temporary)
+      await this.options.beforeCommit?.()
+      await this.options.assertAuthority?.()
+      const currentDirectory = await directoryIdentity(directory, this.workspaceRoot)
+      if (!sameDirectory(retainedDirectory, currentDirectory)) return 'failed'
       try {
         await stat(path)
         await rm(temporary)
@@ -222,17 +240,34 @@ export class FilesystemPluginStateBackend implements PluginStateBackend {
 export class PluginRuntimeService {
   readonly #enablement: PluginEnablementStore
   readonly #state: FilesystemPluginStateBackend
+  #authorityAccepted = false
   #host?: PluginHost
 
   constructor(
     workspaceRoot: string,
     private readonly workspace: ConfiguredWorkspaceAuthority,
   ) {
-    this.#enablement = new PluginEnablementStore(workspaceRoot)
-    this.#state = new FilesystemPluginStateBackend(workspaceRoot)
+    const assertAuthority = async () => {
+      const current = await this.workspace.current()
+      if (!current.available) {
+        throw new WorkspaceUnavailableError(current.reason)
+      }
+      this.#authorityAccepted = true
+    }
+    this.#enablement = new PluginEnablementStore(workspaceRoot, { assertAuthority })
+    this.#state = new FilesystemPluginStateBackend(workspaceRoot, { assertAuthority })
   }
 
   async start(): Promise<void> {
+    if (!this.#authorityAccepted) {
+      const current = await this.workspace.current()
+      if (current.available) {
+        this.#authorityAccepted = true
+      } else {
+        await this.workspace.openConfigured()
+        this.#authorityAccepted = true
+      }
+    }
     const configuration = await this.#enablement.read()
     const provider: CapabilityProvider = {
       perform: async (operation) => {

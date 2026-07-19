@@ -448,6 +448,21 @@ describe('ConfiguredWorkspaceAuthority', () => {
     ))).toMatchObject({ schemaVersion: 1, resourceId: note.resourceId, status: 'committed' })
   })
 
+  it('GMD-002/S2/R3-S3 returns the authoritative edited target when the original rename is retried', async () => {
+    const workspaceRoot = await createWorkspace()
+    await writeFile(join(workspaceRoot, 'Before.md'), '# Before\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+    const original = await authority.readNote(opened.notes[0]!.resourceId)
+    const renamed = await authority.renameNote(original.resourceId, original.revision, 'After.md')
+    await authority.saveNote(renamed.note.resourceId, renamed.note.revision, '# Edited\n')
+
+    const retried = await authority.renameNote(original.resourceId, original.revision, 'After.md')
+
+    expect(retried.note).toMatchObject({ displayPath: 'After.md', source: '# Edited\n' })
+    expect(retried.note.revision).not.toBe(renamed.note.revision)
+  })
+
   it('GMD-002/S2/R3-S3 finishes a prepared native rename after restart', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Exact\n', 'utf8')

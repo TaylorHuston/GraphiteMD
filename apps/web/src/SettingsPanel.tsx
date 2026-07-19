@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import {
+  PluginResponse,
+  PluginsResponse,
+  type PluginInventoryItem as Plugin,
+} from '@graphitemd/contracts'
+import { readApiError, request, requestJson } from './api.js'
 
-type Contribution = { id: string; title: string }
-export type Plugin = {
-  id: string
-  status: 'active' | 'disabled' | 'invalid' | 'incompatible' | 'duplicate' | 'dependency_missing' | 'activation_failed'
-  message?: string
-  manifest?: { name: string; version: string; permissions: string[] }
-  contributions: Partial<Record<'commands' | 'views' | 'tools' | 'routes' | 'events' | 'background', Contribution[]>>
-}
+export type { Plugin }
 
 function xsrfToken(): string {
   const value = document.cookie.split('; ').find((cookie) => cookie.startsWith('XSRF-TOKEN='))?.slice('XSRF-TOKEN='.length)
@@ -35,12 +34,11 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
 
   useEffect(() => {
     let active = true
-    void fetch('/api/v1/plugins', { credentials: 'same-origin' }).then(async (response) => {
+    void requestJson('/api/v1/plugins', PluginsResponse).then((response) => {
       if (!active) return
       if (response.status === 401) { onSessionExpired(); return }
       if (!response.ok) { setPluginError('Plugin status is unavailable.'); return }
-      const result = await response.json() as { plugins: Plugin[] }
-      if (active) setPlugins(result.plugins)
+      setPlugins(response.data.plugins)
     }).catch(() => { if (active) setPluginError('Plugin status is unavailable.') })
     return () => { active = false }
   }, [onPluginsChanged, onSessionExpired])
@@ -50,8 +48,8 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
     if (password !== confirmation) { setPasswordError('New passwords do not match.'); return }
     setChangingPassword(true)
     try {
-      const response = await fetch('/api/v1/auth/password', {
-        method: 'PUT', credentials: 'same-origin',
+      const response = await request('/api/v1/auth/password', {
+        method: 'PUT',
         headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() },
         body: JSON.stringify({ currentPassword, password }),
       })
@@ -59,7 +57,7 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
         if (response.status === 204) {
           setCurrentPassword(''); setPassword(''); setConfirmation(''); onSessionExpired()
         } else {
-          const result = await response.json().catch(() => undefined) as { error?: { code?: string } } | undefined
+          const result = await readApiError(response)
           if (result?.error?.code === 'unauthenticated') onSessionExpired()
           else setPasswordError('The current password was not accepted.')
         }
@@ -73,15 +71,14 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
   async function setEnabled(plugin: Plugin, enabled: boolean) {
     setChangingPlugin(plugin.id); setPluginError(null)
     try {
-      const response = await fetch(`/api/v1/plugins/${encodeURIComponent(plugin.id)}`, {
-        method: 'PUT', credentials: 'same-origin',
+      const response = await requestJson(`/api/v1/plugins/${encodeURIComponent(plugin.id)}`, PluginResponse, {
+        method: 'PUT',
         headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() },
         body: JSON.stringify({ enabled }),
       })
       if (response.status === 401) { onSessionExpired(); return }
       if (!response.ok) { setPluginError(`GraphiteMD could not ${enabled ? 'enable' : 'disable'} ${plugin.manifest?.name ?? plugin.id}.`); return }
-      const result = await response.json() as { plugin: Plugin }
-      setPlugins((current) => current?.map((item) => item.id === result.plugin.id ? result.plugin : item) ?? null)
+      setPlugins((current) => current?.map((item) => item.id === response.data.plugin.id ? response.data.plugin : item) ?? null)
       onPluginsChanged?.()
     } catch { setPluginError(`GraphiteMD could not ${enabled ? 'enable' : 'disable'} ${plugin.manifest?.name ?? plugin.id}.`) }
     finally { setChangingPlugin(null) }

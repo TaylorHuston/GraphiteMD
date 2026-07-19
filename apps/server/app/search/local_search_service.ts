@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { lstat, mkdir, rename, rm } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { lstat, mkdir, realpath, rename, rm, stat } from 'node:fs/promises'
+import { basename, join, relative } from 'node:path'
 import Database from 'better-sqlite3'
 import type { ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
 
@@ -24,17 +24,19 @@ export class LocalSearchService {
   constructor(
     private readonly workspaceRoot: string,
     private readonly workspace: ConfiguredWorkspaceAuthority,
+    private readonly options: Readonly<{ beforeCommit?: () => Promise<void> }> = {},
   ) {
     this.databasePath = join(workspaceRoot, '.graphite', 'cache', 'search.sqlite')
   }
 
   async rebuild(): Promise<{ indexed: number }> {
     const cacheDirectory = join(this.workspaceRoot, '.graphite', 'cache')
-    await ensureConfinedDirectory(this.workspaceRoot, ['.graphite', 'cache'])
+    const retainedCache = await ensureConfinedDirectory(this.workspaceRoot, ['.graphite', 'cache'])
     await assertOrdinaryDatabase(this.databasePath)
     const temporaryPath = join(cacheDirectory, `.search.${randomUUID()}.sqlite`)
     const snapshot = await this.workspace.refresh()
     const database = new Database(temporaryPath)
+    let temporaryOwnedByPath = true
     try {
       database.exec(`
         PRAGMA journal_mode = DELETE;
@@ -66,11 +68,18 @@ export class LocalSearchService {
       }
       transaction(rows)
       database.close()
+      await this.options.beforeCommit?.()
+      const currentCache = await directoryIdentity(cacheDirectory, this.workspaceRoot)
+      if (!sameDirectory(retainedCache, currentCache)) {
+        temporaryOwnedByPath = false
+        throw new LocalSearchUnavailableError()
+      }
       await rename(temporaryPath, this.databasePath)
+      temporaryOwnedByPath = false
       return { indexed: rows.length }
     } catch (error) {
       if (database.open) database.close()
-      await rm(temporaryPath, { force: true })
+      if (temporaryOwnedByPath) await rm(temporaryPath, { force: true })
       throw error
     }
   }
@@ -99,7 +108,23 @@ export class LocalSearchService {
   }
 }
 
-async function ensureConfinedDirectory(root: string, segments: readonly string[]): Promise<void> {
+type DirectoryIdentity = Readonly<{ canonicalPath: string; device: bigint; inode: bigint }>
+
+async function directoryIdentity(path: string, root: string): Promise<DirectoryIdentity> {
+  const metadata = await stat(path, { bigint: true })
+  const canonicalPath = await realpath(path)
+  const expectedCanonicalPath = join(await realpath(root), relative(root, path))
+  if (!metadata.isDirectory() || canonicalPath !== expectedCanonicalPath) {
+    throw new LocalSearchUnavailableError()
+  }
+  return { canonicalPath, device: metadata.dev, inode: metadata.ino }
+}
+
+function sameDirectory(left: DirectoryIdentity, right: DirectoryIdentity): boolean {
+  return left.canonicalPath === right.canonicalPath && left.device === right.device && left.inode === right.inode
+}
+
+async function ensureConfinedDirectory(root: string, segments: readonly string[]): Promise<DirectoryIdentity> {
   let current = root
   for (const segment of segments) {
     current = join(current, segment)
@@ -117,6 +142,7 @@ async function ensureConfinedDirectory(root: string, segments: readonly string[]
       if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new LocalSearchUnavailableError()
     }
   }
+  return directoryIdentity(current, root)
 }
 
 function normalizeQuery(query: string): string | null {

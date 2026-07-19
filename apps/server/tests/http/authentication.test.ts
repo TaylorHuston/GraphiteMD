@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -155,6 +156,63 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
     expect(logout.status).toBe(204)
     expect((await fetch(`${origin}/api/v1/auth/current`, { headers: { cookie } })).status).toBe(401)
     expect((await fetch(`${origin}/api/v1/workspace`, { headers: { cookie } })).status).toBe(401)
+  })
+
+  it('R2-S1 rejects a session persisted after its credential generation was revoked', async () => {
+    const anonymous = await csrfSession()
+    const database = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+    database.exec(`
+      CREATE TRIGGER revoke_generation_during_authenticated_session_commit
+      BEFORE INSERT ON sessions
+      BEGIN
+        UPDATE owners
+        SET revocation_generation = revocation_generation + 1
+        WHERE id = 1;
+      END
+    `)
+    database.close()
+
+    try {
+      const login = await fetch(`${origin}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          cookie: anonymous.cookie,
+          'x-xsrf-token': anonymous.token,
+        },
+        body: JSON.stringify({ account: 'owner', password: 'correct horse battery staple' }),
+      })
+      expect(login.status).not.toBe(200)
+
+      const persisted = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+      const ownerGeneration = persisted.prepare('SELECT revocation_generation FROM owners WHERE id = 1').get() as { revocation_generation: number }
+      persisted.close()
+      expect(ownerGeneration.revocation_generation).toBe(0)
+
+      const replay = await fetch(`${origin}/api/v1/auth/current`, {
+        headers: { cookie: sessionCookie(login) },
+      })
+      expect(replay.status).toBe(401)
+    } finally {
+      const cleanup = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+      cleanup.exec('DROP TRIGGER IF EXISTS revoke_generation_during_authenticated_session_commit')
+      cleanup.close()
+    }
+  })
+
+  it('R2-S1 rejects a persisted session whose bound credential generation is no longer current', async () => {
+    const authenticated = await loginOwner()
+    const database = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+    database.exec('UPDATE owners SET revocation_generation = revocation_generation + 1 WHERE id = 1')
+    database.close()
+
+    const replay = await fetch(`${origin}/api/v1/auth/current`, {
+      headers: { cookie: authenticated.cookie },
+    })
+    expect(replay.status).toBe(401)
+    expect(await replay.json()).toEqual({
+      error: { code: 'unauthenticated', message: 'Authentication required.' },
+    })
   })
 })
 

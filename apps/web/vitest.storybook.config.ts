@@ -8,7 +8,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   plugins: [storybookTest({ configDir: path.join(dirname, '.storybook') })],
-  optimizeDeps: { include: ['msw', 'msw-storybook-addon'] },
+  optimizeDeps: { include: ['msw', 'msw-storybook-addon'], exclude: ['typebox', 'typebox/value'] },
   test: {
     name: 'storybook',
     browser: { enabled: true, headless: true, provider: playwright({}), instances: [{ browser: 'chromium' }] },

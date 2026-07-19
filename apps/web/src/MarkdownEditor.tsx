@@ -60,25 +60,42 @@ class SourceBackedWidget extends WidgetType {
   ignoreEvent() { return true }
 }
 
-class TableRowWidget extends WidgetType {
-  constructor(readonly source: string) { super() }
-  eq(other: TableRowWidget) { return other.source === this.source }
+function tableCells(source: string) {
+  return source.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map((value) => value.trim())
+}
+
+function isTableDelimiter(source: string) {
+  return /^\s*\|?\s*:?-{3,}:?/.test(source)
+}
+
+class TableWidget extends WidgetType {
+  constructor(readonly rows: readonly string[]) { super() }
+  eq(other: TableWidget) { return other.rows.length === this.rows.length && other.rows.every((row, index) => row === this.rows[index]) }
   toDOM() {
-    const row = document.createElement('span')
-    const delimiter = /^\s*\|?\s*:?-{3,}:?/.test(this.source)
-    row.className = `cm-readable-table-row${delimiter ? ' cm-readable-table-delimiter' : ''}`
-    row.setAttribute('role', 'img')
-    row.setAttribute('aria-roledescription', 'Markdown table row')
-    row.setAttribute('aria-label', this.source)
-    if (delimiter) return row
-    for (const value of this.source.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|')) {
-      const cell = document.createElement('span')
-      cell.className = 'cm-readable-table-cell'
-      cell.setAttribute('aria-hidden', 'true')
-      cell.textContent = value.trim()
-      row.append(cell)
+    const table = document.createElement('table')
+    table.className = 'cm-readable-table'
+    table.setAttribute('aria-label', 'Markdown table')
+
+    const delimiterIndex = this.rows.findIndex(isTableDelimiter)
+    const headerIndex = delimiterIndex > 0 ? delimiterIndex - 1 : -1
+    if (headerIndex >= 0) {
+      const head = table.createTHead()
+      const row = head.insertRow()
+      for (const value of tableCells(this.rows[headerIndex]!)) {
+        const cell = document.createElement('th')
+        cell.scope = 'col'
+        cell.textContent = value
+        row.append(cell)
+      }
     }
-    return row
+
+    const body = table.createTBody()
+    this.rows.forEach((source, index) => {
+      if (index === headerIndex || index === delimiterIndex) return
+      const row = body.insertRow()
+      for (const value of tableCells(source)) row.insertCell().textContent = value
+    })
+    return table
   }
   ignoreEvent() { return true }
 }
@@ -96,7 +113,31 @@ function activeLines(view: EditorView) {
 function renderedDecorations(view: EditorView): DecorationSet {
   const decorations: Range<Decoration>[] = []
   const tableLines = new Set<number>()
-  for (const range of markdownPresentationRanges(view.state, activeLines(view))) {
+  const ranges = markdownPresentationRanges(view.state, activeLines(view))
+
+  for (let index = 0; index < ranges.length; index += 1) {
+    const range = ranges[index]!
+    if (range.kind !== 'table-row') continue
+    const group = [range]
+    let lastLine = view.state.doc.lineAt(range.from).number
+    while (index + 1 < ranges.length) {
+      const next = ranges[index + 1]!
+      if (next.kind !== 'table-row') break
+      const nextLine = view.state.doc.lineAt(next.from).number
+      if (nextLine !== lastLine + 1) break
+      group.push(next)
+      lastLine = nextLine
+      index += 1
+    }
+    const firstLine = view.state.doc.lineAt(group[0]!.from)
+    const last = view.state.doc.lineAt(group[group.length - 1]!.to)
+    for (let line = firstLine.number; line <= last.number; line += 1) tableLines.add(line)
+    decorations.push(Decoration.widget({ widget: new TableWidget(group.map((item) => item!.source)), side: -1 }).range(firstLine.from))
+    for (const item of group) decorations.push(Decoration.replace({ inclusive: false }).range(item!.from, item!.to))
+  }
+
+  for (const range of ranges) {
+    if (tableLines.has(view.state.doc.lineAt(range.from).number)) continue
     if (range.kind === 'heading') {
       decorations.push(Decoration.replace({ inclusive: false }).range(range.from, range.to))
       decorations.push(Decoration.line({ class: `cm-readable-heading cm-readable-h${range.level}` }).range(view.state.doc.lineAt(range.from).from))
@@ -105,13 +146,7 @@ function renderedDecorations(view: EditorView): DecorationSet {
       decorations.push(Decoration.replace({ inclusive: false }).range(range.from, range.from + width))
       decorations.push(Decoration.mark({ class: `cm-readable-${range.kind}` }).range(range.from + width, range.to - width))
       decorations.push(Decoration.replace({ inclusive: false }).range(range.to - width, range.to))
-    } else if (range.kind === 'table-row') {
-      const line = view.state.doc.lineAt(range.from).number
-      if (!tableLines.has(line)) {
-        decorations.push(Decoration.replace({ widget: new TableRowWidget(range.source), block: false }).range(range.from, range.to))
-        tableLines.add(line)
-      }
-    } else if (!tableLines.has(view.state.doc.lineAt(range.from).number)) {
+    } else if (range.kind !== 'table-row') {
       decorations.push(Decoration.replace({ widget: new SourceBackedWidget(range) }).range(range.from, range.to))
     }
   }
@@ -189,6 +224,7 @@ export function MarkdownEditor({ source, onChange, readOnly = false, ariaLabel =
         ],
       }),
     })
+    editor.scrollDOM.tabIndex = 0
     view.current = editor
     return () => { editor.destroy(); view.current = null }
   }, [ariaLabel, readOnly])

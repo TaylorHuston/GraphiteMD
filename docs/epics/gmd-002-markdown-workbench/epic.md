@@ -3,8 +3,8 @@ schema: sdd-epic-v2
 id: GMD-002
 status: draft
 created: 2026-07-18
-modified: 2026-07-18
-last_verified: 2026-07-18
+modified: 2026-07-19
+last_verified: 2026-07-19
 stories:
   - S1
   - S2
@@ -55,9 +55,9 @@ An authenticated owner will be able to browse, read, edit, rename, and search Ma
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | implemented | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-18 | Service-owned authority, confined inventory, exact authenticated reads, safe browser history, and responsive composition are implemented; responsive visual confirmation remains. |
-| S2 | implemented | partial | Edit and rename a note with source and revision safety. | 2026-07-18 | Source-preserving Source/Rendered editing, guarded autosave, confined atomic save, and reconciled no-overwrite rename are implemented; browser-level confirmation remains. |
-| S3 | implemented | partial | Search the workspace through a rebuildable local index. | 2026-07-18 | Local FTS projection, authenticated API, explicit rebuild, external-source reconciliation, and guarded result navigation are implemented; manual browser and fault-injection confirmation remain. |
+| S1 | implemented | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-19 | Service-owned authority, validated browser contracts, confined inventory, exact reads, safe history, and responsive composition are implemented; visual confirmation remains. |
+| S2 | implemented | partial | Edit and rename a note with source and revision safety. | 2026-07-19 | Source-preserving Source/Rendered editing, response-bound autosave, confined atomic save, and authoritative no-overwrite rename retry are implemented; browser confirmation remains. |
+| S3 | implemented | partial | Search the workspace through a rebuildable local index. | 2026-07-19 | Local FTS, validated APIs, persistent desktop/mobile search states, rebuild, external reconciliation, and guarded result navigation are implemented; manual and egress confirmation remain. |
 
 ## Stories
 
@@ -66,8 +66,8 @@ An authenticated owner will be able to browse, read, edit, rename, and search Ma
 Implementation: implemented
 Verification: partial
 Created: 2026-07-18
-Modified: 2026-07-18
-Last verified: 2026-07-18
+Modified: 2026-07-19
+Last verified: 2026-07-19
 
 As a workspace owner, I want to browse and open Markdown from any authenticated browser, so that I can reach my notes without synchronizing the underlying files to that device.
 
@@ -179,10 +179,11 @@ None.
 | S1/R2-S2 | `packages/workspace/src/index.test.ts` — `excludes internal, configured, symlinked, unsupported, and oversized sources` | `.graphite/`, configured exclusions, symlinks, non-Markdown entries, invalid UTF-8, and over-limit sources issue no resource locator; bounded reads use no-follow file opens. | Passing 2026-07-18. |
 | S1/R2-S3 | `packages/workspace/src/index.test.ts` — `returns an honest empty inventory for a workspace without eligible Markdown`; `apps/web/src/App.test.tsx` — `R2-S3 keeps files, search, context, and settings reachable in an empty workspace` | An empty inventory produces an honest browser empty state while every surrounding workbench surface remains reachable. | Passing 2026-07-18. |
 | S1/R3-S1 | `packages/workspace/src/index.test.ts` — `reads exact source, generic YAML properties, and a content revision`; `reports malformed YAML while preserving exact source`; `changes the revision after an external edit`; `apps/server/tests/http/authentication.test.ts` — `R3-S1 returns exact source metadata only for an authenticated issued resource`; `apps/web/src/App.test.tsx` — `R2-S1 presents a deterministic accessible tree with selection and collapse` | Package, real HTTP, and browser-component evidence prove selection returns byte-preserved source, generic YAML state, display path, and content revision only through an authenticated opaque resource; the browser presents source and properties and pushes no host path into history. | Passing 2026-07-18. |
+| S1/R1-S1, S1/R3-S1 | `packages/contracts/src/index.test.ts`; `apps/web/src/api.test.ts`; `apps/web/src/App.test.tsx` — malformed workspace and note response cases | Runtime-contract and browser evidence proves malformed successful workspace/note payloads cannot become browser authority and recover within the owning surface. | Passing 2026-07-19. |
 | S1/R3-S2 | `packages/workspace/src/index.test.ts` — `rejects unknown and stale resource identities without guessing a path`; `fails closed when the opened root is replaced`; `rejects an issued note replaced by a symlink`; `apps/server/tests/http/authentication.test.ts` — `R3-S2 rejects an unknown resource without exposing or guessing a path`; `apps/web/src/App.test.tsx` — `R3-S2 restores valid reload and Back navigation through the note API`, `R3-S2 fails closed for an invalid history resource and retains the shell`, `returns a note-read 401 to the expired-session login state` | Unknown and stale resources fail without path guessing; reload and history restoration repeat the authenticated API read; invalid route state is removed while the shell remains; an expired read returns to login. | Passing 2026-07-18. |
 | S1/R4-S1 | `apps/web/src/App.test.tsx` — `R2-S1 presents a deterministic accessible tree with selection and collapse`; source inspection of `apps/web/src/App.tsx` `Workbench` and `apps/web/src/styles.css` `.workbench` | The workbench renders persistent semantic navigation, document, and context regions with a bounded centered document measure at desktop widths. | Partial; manual viewport confirmation remains pending. |
 | S1/R4-S2 | `apps/web/src/App.test.tsx` — `R4-S2 opens keyboard-accessible narrow-layout drawers and closes them with Escape`; source inspection of `apps/web/src/styles.css` narrow breakpoint | Files, Search, Context, and Settings use native buttons and modal drawer semantics; Files receives focus on open and Escape dismisses it, while narrow CSS makes the document primary and prevents page-level horizontal overflow. | Partial; manual touch and narrow-viewport confirmation remains pending. |
-| S1/R2-S1, S1/R4-S1, S1/R4-S2 | `apps/web/src/App.test.tsx` — roving tree keys, focus-contained/restoring drawer, and pane controls; `apps/web/src/App.stories.tsx` — 18 implemented state previews | Component and Storybook browser evidence proves Arrow/Home/End tree navigation, modal focus containment/restoration, desktop collapse/resize controls, narrow touch/safe-area composition, and configured accessibility checks across the accepted implemented state matrix. | Passing 2026-07-18; manual visual confirmation remains pending. |
+| S1/R2-S1, S1/R4-S1, S1/R4-S2 | `apps/web/src/App.test.tsx` — roving tree keys, focus-contained/restoring drawer, pane controls, and desktop Files/Search navigation; `apps/web/src/App.stories.tsx` — accepted tree, workbench, search, and recovery previews | Component and Storybook browser evidence proves Arrow/Home/End tree navigation, modal focus containment/restoration, persistent desktop Files/Search, intermediate-width containment, narrow touch/safe-area composition, and configured accessibility checks across the accepted state matrix. | Passing 2026-07-19; manual visual confirmation remains pending. |
 | S1/R1, S1/R2, S1/R3, S1/R4 | `tests/e2e/foundation.spec.ts` — desktop and 390x844 workspace path | Deterministic real-browser evidence proves authenticated browse/read, reload reconnect, opaque selection, nested Files access, narrow navigation, and page overflow containment over a disposable workspace. | Passing 2026-07-18. |
 | S1/R1, S1/R3, S1/R4 | `playwright.config.ts` production web server plus `tests/e2e/foundation.spec.ts` | `pnpm build && pnpm start` serves the browser and API from one origin; direct client-side history reload remains in the SPA while unknown `/api/**` paths are not converted to HTML. | Passing 2026-07-18. |
 | S1/R2, S1/R4 | `apps/web/src/App.stories.tsx` — loading, login, empty, unavailable, desktop, and narrow workbench states | Storybook browser evidence renders the required workbench states and runs configured accessibility checks. | Passing 2026-07-18. |
@@ -200,8 +201,8 @@ None.
 Implementation: implemented
 Verification: partial
 Created: 2026-07-18
-Modified: 2026-07-18
-Last verified: 2026-07-18
+Modified: 2026-07-19
+Last verified: 2026-07-19
 
 As a workspace owner, I want a first-class Markdown editor with safe autosave and rename, so that I can change canonical notes without silent source loss or stale overwrites.
 
@@ -301,6 +302,7 @@ The system SHALL confine every direct owner write to an authenticated, authorize
 |---|---|---|---|
 | S2/R1 | `apps/web/src/MarkdownEditor.tsx#MarkdownEditor` | primary | One CodeMirror document, Source/Rendered controls, source-backed in-place presentation, active-line syntax reveal, bounded literal fallback, and preservation of untouched mixed line endings. |
 | S2/R1-S2, S2/R1-S3 | `apps/web/src/markdownPresentation.ts#markdownPresentationRanges` | presentation | Exact-source projection ranges for supported headings, emphasis, lists, tasks, validated table rows, and complete wikilinks while malformed, embedded, plugin-owned, fenced, or active-line syntax stays literal. |
+| S2/R1, S2/R2, S2/R3 | `packages/contracts/src/index.ts`; `apps/web/src/api.ts#requestJson` | support | TypeBox response schemas and one validating browser adapter reject malformed successful note, workspace, rename, search, plugin, and owner payloads before they become browser authority. |
 | S2/R2 | `apps/web/src/autosave.ts#AutosaveCoordinator` | primary | Version-bound debounce, single-flight queuing, conflict/error pause, retained drafts, transition guards, and late-response epochs. |
 | S2/R2, S2/R4 | `packages/workspace/src/index.ts#saveNote` | primary | Confined revision comparison and atomic same-directory exact-source replacement while preserving file mode. |
 | S2/R3 | `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority.renameNote` | primary | Current-folder filename validation, collision-safe link/unlink rename, revision protection, durable pre-commit operation receipts, write blocking under stale identity, and restart-safe revision-matched reconciliation on retry. |
@@ -318,20 +320,21 @@ None.
 | S2/R1-S1, S2/R1-S3 | `apps/web/src/MarkdownEditor.test.tsx` — mode round trip and literal over-budget/unsupported cases; `apps/web/src/markdownPresentation.test.ts` — malformed/plugin/embedded literal fallback | Mode changes do not emit edits; exact source remains parent-owned, untouched mixed line endings survive an edited region, and unsupported, malformed, embedded, plugin-owned, or large input remains literal with Source mode reachable. | Passing 2026-07-18. |
 | S2/R1-S2 | `apps/web/src/MarkdownEditor.test.tsx` — rendered DOM presentation and accessible exact-source labels; `apps/web/src/markdownPresentation.test.ts` — supported source slices and active-line exclusion | Supported headings, emphasis, lists, tasks, tables, and complete wikilinks project readably from exact source; hidden widgets expose source to assistive technology and active/selected lines retain literal editable syntax. | Passing 2026-07-18. |
 | S2/R2-S1, S2/R2-S2, S2/R2-S3, S2/R2-S4 | `apps/web/src/autosave.test.ts` — debounce, single-flight queue, conflict retention, and late-response/transition cases | The newest eligible draft is revision-bound, only one request is active, conflicts retain and pause drafts, and old responses cannot bind to a new resource. | Passing 2026-07-18. |
+| S2/R2-S1, S2/R2-S3 | `apps/web/src/App.test.tsx` — wrong-resource/wrong-source save response and retry cases | Browser integration evidence proves a structurally valid save response must still match the submitted resource and exact source before its revision can acknowledge the draft; mismatches remain recoverable save failures. | Passing 2026-07-19. |
 | S2/R2-S1, S2/R2-S3, S2/R4-S1 | `packages/workspace/src/index.test.ts` — exact save/mode, stale save, and symlink replacement cases | Exact mixed-line-ending saves preserve mode; stale revisions and unsafe resource replacement fail without canonical or outside overwrite. | Passing 2026-07-18. |
 | S2/R3-S1, S2/R3-S2, S2/R4-S1 | `packages/workspace/src/index.test.ts` — reconciled rename, invalid/collision/stale, root-replacement, and symlink-escape cases; `apps/server/tests/http/authentication.test.ts` — authenticated rename route | A valid unused current-folder name yields one new opaque identity and inventory; invalid, colliding, stale, replaced-root, and symlink-redirected requests preserve canonical and outside entries and return recoverable errors. | Passing 2026-07-18. |
-| S2/R3-S3 | `packages/workspace/src/index.test.ts` — committed-rename interruption and retry; `apps/server/tests/http/authentication.test.ts` — authenticated committed-rename retry | After the source identity disappears, writes through that identity fail; retry reconciles only when the requested target is a confined regular file with the expected exact-source revision, issues one new opaque identity, and permits writes only through that identity. | Passing 2026-07-18. |
+| S2/R3-S3 | `packages/workspace/src/index.test.ts` — committed-rename interruption, retry, and post-rename-edit retry; `apps/server/tests/http/authentication.test.ts` — authenticated committed-rename retry | After the source identity disappears, writes through it fail; retry recognizes only the durable committed intent, rereads the confined target, returns its current authoritative source/revision after later edits, and permits writes only through the new identity. | Passing 2026-07-19. |
 | S2/R3-S3 | `packages/workspace/src/index.test.ts` — committed and prepared rename recovery after service restart | Focused process-boundary evidence proves durable receipts reconcile both link-before-unlink and committed-unlink interruption states through a new authority instance. | Passing 2026-07-18. |
 | S2/R4-S1 | `packages/workspace/src/index.test.ts` — parent swapped immediately before save commit; `apps/server/tests/plugins/plugin_runtime_service.test.ts` — namespace parent swapped immediately before atomic commit | Deterministic confinement evidence proves retained ancestor device/inode identity is revalidated at the precommit boundary and redirected writes fail closed. | Passing with documented platform limit 2026-07-18. |
 | S2/R4-S2 | `apps/server/tests/http/authentication.test.ts` — authenticated exact owner save route | The ordinary owner session and XSRF proof directly authorize revision-protected writes without any agent grant. | Passing 2026-07-18. |
 | S2/R1, S2/R2, S2/R3, S2/R4 | `tests/e2e/foundation.spec.ts` — edit/conflict/recovery/rename path | Deterministic real-browser evidence proves rendered/source editing, autosave, external-edit conflict recovery, rename, post-rename reload, and continued service-owned access. | Passing 2026-07-18. |
-| S2/R1 | `apps/web/src/App.stories.tsx` — populated editor preview | Storybook browser evidence renders the source-backed editor inside the complete workbench and runs configured accessibility checks. | Passing 2026-07-18. |
+| S2/R1 | `apps/web/src/App.stories.tsx` — populated editor preview; `apps/web/src/MarkdownEditor.stories.tsx` — active syntax, wide table overflow, and read-only note states | Storybook browser evidence renders the source-backed editor in the complete workbench plus accepted editor edge states with interaction and accessibility checks. | Passing 2026-07-19. |
 | S2/R2-S3, S2/R2-S4, S2/R3-S1 | `apps/web/src/App.test.tsx` — save recovery, guarded popstate, and post-rename edit cases | Retry and explicit conflict discard/reload are reachable, cancelled history restores the displayed resource URL, and renamed resources remain saveable while inventory and history reconcile. | Passing 2026-07-18. |
 
 #### Verification Gaps
 
 - `S2/R2-S4`: Navigation and late-response state-machine evidence passes; a browser-level dirty-navigation confirmation remains pending.
-- `S2/R3-S1`: Focused component and E2E rename/reload coverage now passes; manual browser confirmation remains pending, and retry-after-post-rename-edit authority needs focused remediation evidence.
+- `S2/R3-S1`: Focused package, component, and E2E rename/reload/retry coverage passes; manual browser confirmation remains pending.
 - `S2/R4-S1`: Save and rename now cover resource symlink replacement and replaced-root denial; explicit `.graphite/` mutation remains structurally unreachable through issued opaque resources rather than separately exercised through an HTTP mutation case.
 
 #### Story Notes
@@ -343,8 +346,8 @@ None.
 Implementation: implemented
 Verification: partial
 Created: 2026-07-18
-Modified: 2026-07-18
-Last verified: 2026-07-18
+Modified: 2026-07-19
+Last verified: 2026-07-19
 
 As a workspace owner, I want fast local search across my Markdown, so that I can find and open notes without exposing queries or content to an external service.
 
@@ -411,7 +414,7 @@ The system SHALL answer baseline search in the authoritative service without sen
 | S3/R1 | `apps/server/app/search/local_search_service.ts#LocalSearchService.search` | primary | Unicode-safe prefix query normalization, title/path/frontmatter/body FTS, deterministic ranking, bounded result count, opaque identities, and bounded snippets. |
 | S3/R1 | `apps/server/start/routes.ts#search` | adapter | Authenticated path-free search and rebuild responses with normalized recoverable failure. |
 | S3/R1 | `apps/web/src/App.tsx#SearchPanel` | presentation | Search input, loading/no-result/error/rebuild states, and result selection through the existing guarded note transition without disturbing the selected draft on search failure. |
-| S3/R2 | `apps/server/app/search/local_search_service.ts#LocalSearchService.rebuild` | persistence | Atomic disposable `.graphite/cache/search.sqlite` FTS rebuild from the current confined Markdown inventory, with component-by-component no-symlink directory validation, ordinary-file validation, and authoritative external-source reconciliation. |
+| S3/R2 | `apps/server/app/search/local_search_service.ts#LocalSearchService.rebuild` | persistence | Atomic disposable `.graphite/cache/search.sqlite` FTS rebuild from current confined Markdown, retaining and revalidating canonical cache-directory device/inode identity immediately before commit while preserving canonical configured-root aliases. |
 | S3/R2 | `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority.refresh` | primary | Re-inventories canonical sources while retaining the active workspace identity and the inventory's exclusion/confinement policy. |
 | S3/R3 | `apps/server/app/search/local_search_service.ts#LocalSearchService` | primary | Host-process-only `better-sqlite3` implementation with no provider or external-search interface. |
 
@@ -424,14 +427,16 @@ None.
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
 | S3/R1-S1 | `apps/server/app/search/local_search_service.test.ts` — `searches title, path, frontmatter, and body with opaque bounded results`; `apps/server/tests/http/authentication.test.ts` — `protects host-local search and returns opaque results`; `apps/web/src/App.test.tsx` — `searches locally and opens an opaque result through the guarded note transition` | Local FTS covers every baseline field, returns bounded path-safe results only to an authenticated owner, and result selection reuses guarded opaque-resource note navigation. | Passing 2026-07-18. |
-| S3/R1-S2 | `apps/server/app/search/local_search_service.test.ts` — `returns empty results for empty, punctuation-only, and unmatched queries`; `apps/web/src/App.test.tsx` — `show honest no-result and recoverable failure states` | Empty and unsupported queries do not reach FTS, unmatched searches show an honest state, and the active document remains intact. | Passing 2026-07-18. |
+| S3/R1-S2 | `apps/server/app/search/local_search_service.test.ts` — `returns empty results for empty, punctuation-only, and unmatched queries`; `apps/web/src/App.test.tsx` — honest no-result, stale-result clearing, rebuild progress/success, and recoverable failure cases | Empty and unsupported queries do not reach FTS; each submitted query owns its visible state, stale results clear during loading/failure, rebuild progress/completion is announced, and the active document remains intact. | Passing 2026-07-19. |
 | S3/R1-S3 | `apps/web/src/App.test.tsx` — `show honest no-result and recoverable failure states`; source inspection of `apps/server/start/routes.ts` — `GET /api/v1/search` | A failed search becomes a recoverable error with an explicit rebuild action while workbench selection/draft ownership remains outside the search component. | Partial; deterministic filesystem/database fault injection and manual draft confirmation remain. |
 | S3/R2-S1 | `apps/server/app/search/local_search_service.test.ts` — `rebuilds an equivalent disposable index after deletion`; `apps/server/tests/http/authentication.test.ts` — `requires XSRF proof for an explicit rebuild` | Deleting the derived database loses no canonical content and the authenticated, request-protected rebuild restores equivalent results. | Passing 2026-07-18. |
 | S3/R2-S2 | `apps/server/app/search/local_search_service.test.ts` — `reconciles external create, edit, rename, and delete before answering`; `apps/web/src/App.test.tsx` — `opens a server-authorized external search result and safely adds it to inventory` | Search rebuilds from refreshed confined sources; the browser opens the returned opaque identity through note authority and reconciles its tree only after a valid note response. | Passing 2026-07-18. |
 | S3/R2-S3 | `apps/server/app/search/local_search_service.test.ts` — `.graphite` exclusion and `refuses a cache path redirected through a symbolic link` | Internal `.graphite/` Markdown never enters the inventory or FTS projection, and a symlinked internal/cache component fails closed without creating an index outside the workspace. | Passing 2026-07-18. |
+| S3/R2-S2, S3/R2-S3 | `apps/server/tests/search/local_search_service.test.ts` — precommit replacement and canonical-root-alias cases | Focused persistence evidence proves a cache directory replaced after indexing cannot receive the final database, while an authority-accepted canonical symlink alias remains usable. | Passing 2026-07-19. |
 | S3/R3-S1 | `apps/server/tests/http/authentication.test.ts` — `protects host-local search and returns opaque results`; source inspection of `apps/server/app/search/local_search_service.ts#LocalSearchService` and dependency manifests | The authenticated service invokes an in-process local SQLite implementation; the search slice has no external provider dependency or outbound search adapter. | Partial; automated network egress isolation is not configured. |
 | S3/R1, S3/R2 | `tests/e2e/foundation.spec.ts` — local search and external reconciliation path | Deterministic real-browser evidence proves local search selects an opaque result, rebuild/reconciliation reflects host changes, and the active workbench remains usable on desktop and narrow layouts. | Passing 2026-07-18. |
-| S3/R1 | `apps/web/src/App.stories.tsx` — search results and failure previews | Storybook browser evidence renders bounded result and recovery states with configured accessibility checks. | Partial 2026-07-19; accepted no-result, loading, long-path, and mobile search previews remain missing. |
+| S3/R1 | `apps/web/src/App.stories.tsx` — idle, loading, results, no-results, failure, long-path, and mobile search previews | Storybook browser evidence renders the complete accepted search state matrix with configured interaction and accessibility checks. | Passing 2026-07-19. |
+| S3/R1 | `packages/contracts/src/index.test.ts`; `apps/web/src/api.test.ts`; `apps/web/src/App.test.tsx` — malformed search response cases | Runtime-contract and browser-component evidence proves malformed successful search responses cannot enter application state and recover within the owning workbench surface. | Passing 2026-07-19. |
 
 #### Verification Gaps
 

@@ -37,9 +37,9 @@ test('foundation owner path works on desktop and a narrow mobile browser', async
   await expect(page).toHaveURL(/resource=res_[a-z0-9]+/)
 
   await page.getByRole('button', { name: 'Search' }).first().click()
-  const search = page.getByRole('dialog', { name: 'Search' })
+  const search = page.getByRole('complementary', { name: 'Workspace navigation' })
   await search.getByRole('searchbox').fill('silver graphite')
-  await search.getByRole('button', { name: 'Search', exact: true }).click()
+  await search.getByRole('button', { name: 'Run search' }).click()
   await search.getByRole('button', { name: /Plan/ }).click()
   await expect(page.getByRole('heading', { name: 'Plan', level: 1 })).toBeVisible()
 
@@ -59,11 +59,10 @@ test('foundation owner path works on desktop and a narrow mobile browser', async
   await expect(page.getByText('Saved', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Search' }).first().click()
-  const refreshedSearch = page.getByRole('dialog', { name: 'Search' })
+  const refreshedSearch = page.getByRole('complementary', { name: 'Workspace navigation' })
   await refreshedSearch.getByRole('searchbox').fill('External host edit')
-  await refreshedSearch.getByRole('button', { name: 'Search', exact: true }).click()
+  await refreshedSearch.getByRole('button', { name: 'Run search' }).click()
   await expect(refreshedSearch.getByRole('button', { name: /Plan/ })).toBeVisible()
-  await page.keyboard.press('Escape')
 
   await page.getByLabel('Filename').fill('Roadmap.md')
   await page.getByRole('button', { name: 'Rename' }).click()

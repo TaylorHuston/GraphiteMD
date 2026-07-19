@@ -69,6 +69,17 @@ describe('owner Settings', () => {
     expect(within(plugin).getByRole('button', { name: 'Disable System Status' })).toBeEnabled()
   })
 
+  it('recovers when the plugin inventory success payload has an unsupported status', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementationOnce(() => response(200, {
+      plugins: [{ id: 'system-status', status: 'future-state', contributions: {} }],
+    })))
+
+    render(<SettingsPanel onSessionExpired={vi.fn()} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Plugin status is unavailable.')
+    expect(screen.getByRole('heading', { name: 'Change password' })).toBeVisible()
+  })
+
   it('persists enablement, reflects removed contributions, and handles an expired session', async () => {
     document.cookie = 'XSRF-TOKEN=plugin-token'
     const fetchMock = vi.fn()

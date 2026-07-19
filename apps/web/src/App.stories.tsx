@@ -20,7 +20,7 @@ const workspace = {
 const note = {
   resourceId: 'res_welcome', displayPath: 'Welcome.md',
   source: '---\nstatus: active\n---\n# Welcome\n\nGraphiteMD keeps Markdown authoritative.\n',
-  revision: 'rev-storybook', yamlProperties: [{ name: 'status', value: 'active' }], yamlParseError: null,
+  revision: 'rev_storybook', yamlProperties: [{ name: 'status', value: 'active' }], yamlParseError: null,
 }
 
 const activePlugin = {
@@ -29,15 +29,28 @@ const activePlugin = {
   contributions: { views: [{ id: 'system-status', title: 'System Status' }] },
 }
 
-function handlers(options: { workspace?: typeof workspace; plugins?: unknown[]; searchError?: boolean; note?: typeof note } = {}) {
+function handlers(options: {
+  workspace?: typeof workspace
+  plugins?: unknown[]
+  searchError?: boolean
+  searchPending?: boolean
+  searchResults?: unknown[]
+  note?: typeof note
+  noteUnavailable?: boolean
+} = {}) {
   return [
     http.get('/api/v1/auth/current', () => HttpResponse.json({ owner: { id: 'owner' } })),
     http.get('/api/v1/workspace', () => HttpResponse.json(options.workspace ?? workspace)),
     http.get('/api/v1/plugins', () => HttpResponse.json({ plugins: options.plugins ?? [activePlugin] })),
-    http.get('/api/v1/notes/:resourceId', ({ params }) => HttpResponse.json({ ...(options.note ?? note), resourceId: String(params.resourceId) })),
-    http.get('/api/v1/search', () => options.searchError
-      ? HttpResponse.json({ error: { code: 'search_unavailable' } }, { status: 503 })
-      : HttpResponse.json({ results: [{ resourceId: 'res_plan', title: 'Plan', displayPath: 'Projects/Plan.md', snippet: 'Foundation plan' }] })),
+    http.get('/api/v1/notes/:resourceId', ({ params }) => options.noteUnavailable
+      ? HttpResponse.json({ error: { code: 'resource_unavailable' } }, { status: 404 })
+      : HttpResponse.json({ ...(options.note ?? note), resourceId: String(params.resourceId) })),
+    http.get('/api/v1/search', async () => {
+      if (options.searchPending) await delay('infinite')
+      return options.searchError
+        ? HttpResponse.json({ error: { code: 'search_unavailable' } }, { status: 503 })
+        : HttpResponse.json({ results: options.searchResults ?? [{ resourceId: 'res_plan', title: 'Plan', displayPath: 'Projects/Plan.md', snippet: 'Foundation plan' }] })
+    }),
     http.put('/api/v1/plugins/:pluginId', () => HttpResponse.json({ plugin: { ...activePlugin, status: 'disabled', contributions: {} } })),
   ]
 }
@@ -106,6 +119,18 @@ export const ServiceError: Story = {
   play: async ({ canvasElement }) => expect(await within(canvasElement).findByRole('heading', { name: 'Workspace unavailable' })).toBeVisible(),
 }
 
+export const TreeUnavailable: Story = {
+  parameters: { msw: { handlers: [
+    http.get('/api/v1/auth/current', () => HttpResponse.json({ owner: { id: 'owner' } })),
+    http.get('/api/v1/workspace', () => HttpResponse.json({ available: false, reason: 'unavailable' }, { status: 503 })),
+  ] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(await canvas.findByRole('heading', { name: 'Workspace unavailable' })).toBeVisible()
+    await expect(canvas.queryByRole('tree', { name: 'Workspace files' })).toBeNull()
+  },
+}
+
 export const WorkbenchAndEditor: Story = {
   parameters: { msw: { handlers: handlers() } },
   play: async ({ canvasElement }) => {
@@ -124,6 +149,26 @@ export const MobileWorkbenchWithFilesDrawer: Story = {
     await userEvent.click(await canvas.findByTestId('mobile-files'))
     const dialog = await canvas.findByRole('dialog', { name: 'Files' })
     await expect(within(dialog).getByRole('button', { name: 'Close Files' })).toHaveFocus()
+  },
+}
+
+export const CollapsedFileTree: Story = {
+  parameters: { msw: { handlers: handlers() } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const tree = await canvas.findByRole('tree', { name: 'Workspace files' })
+    await userEvent.click(within(tree).getByRole('treeitem', { name: 'Projects' }))
+    await expect(within(tree).queryByRole('treeitem', { name: 'Plan' })).toBeNull()
+  },
+}
+
+export const StaleNoteRoute: Story = {
+  parameters: { msw: { handlers: handlers({ noteUnavailable: true }) } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('treeitem', { name: 'Plan' }))
+    await expect(await canvas.findByRole('heading', { name: 'Note unavailable' })).toBeVisible()
+    await expect(canvas.getByRole('tree', { name: 'Workspace files' })).toBeVisible()
   },
 }
 
@@ -179,10 +224,10 @@ export const SearchResults: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
-    const dialog = await canvas.findByRole('dialog', { name: 'Search' })
-    await userEvent.type(within(dialog).getByRole('searchbox'), 'foundation')
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Search' }))
-    await expect(await within(dialog).findByRole('button', { name: /Plan/ })).toBeVisible()
+    const navigation = await canvas.findByRole('complementary', { name: 'Workspace navigation' })
+    await userEvent.type(within(navigation).getByRole('searchbox'), 'foundation')
+    await userEvent.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await expect(await within(navigation).findByRole('button', { name: /Plan/ })).toBeVisible()
   },
 }
 
@@ -191,10 +236,71 @@ export const SearchError: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
+    const navigation = await canvas.findByRole('complementary', { name: 'Workspace navigation' })
+    await userEvent.type(within(navigation).getByRole('searchbox'), 'broken')
+    await userEvent.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await expect(await within(navigation).findByRole('alert')).toBeVisible()
+  },
+}
+
+export const SearchIdle: Story = {
+  parameters: { msw: { handlers: handlers() } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
+    await expect(await canvas.findByRole('searchbox', { name: 'Search notes' })).toHaveValue('')
+    await expect(canvasElement.querySelector('.search-panel')).toHaveAttribute('aria-busy', 'false')
+  },
+}
+
+export const SearchLoading: Story = {
+  parameters: { msw: { handlers: handlers({ searchPending: true }) } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
+    await userEvent.type(await canvas.findByRole('searchbox'), 'pending')
+    await userEvent.click(canvas.getByRole('button', { name: 'Run search' }))
+    await expect(await canvas.findByText('Searching locally…')).toBeVisible()
+  },
+}
+
+export const SearchNoResults: Story = {
+  parameters: { msw: { handlers: handlers({ searchResults: [] }) } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
+    await userEvent.type(await canvas.findByRole('searchbox'), 'missing')
+    await userEvent.click(canvas.getByRole('button', { name: 'Run search' }))
+    const navigation = await canvas.findByRole('complementary', { name: 'Workspace navigation' })
+    await expect(await within(navigation).findByRole('status')).toHaveTextContent('No notes match “missing”.')
+  },
+}
+
+export const SearchLongPath: Story = {
+  parameters: { msw: { handlers: handlers({ searchResults: [{
+      resourceId: 'res_plan', title: 'Plan',
+      displayPath: 'Areas/Products/GraphiteMD/Foundation/Architecture/Decisions/Very-Long-Planning-Document.md',
+      snippet: 'A long path remains readable without widening the navigation pane.',
+    }] }) } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
+    await userEvent.type(await canvas.findByRole('searchbox'), 'plan')
+    await userEvent.click(canvas.getByRole('button', { name: 'Run search' }))
+    await expect(await canvas.findByText(/Very-Long-Planning-Document/)).toBeVisible()
+  },
+}
+
+export const MobileSearch: Story = {
+  parameters: { viewport: { defaultViewport: 'mobile1' }, msw: { handlers: handlers() } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const tools = await canvas.findByRole('navigation', { name: 'Workspace tools' })
+    await userEvent.click(within(tools).getByRole('button', { name: 'Search' }))
     const dialog = await canvas.findByRole('dialog', { name: 'Search' })
-    await userEvent.type(within(dialog).getByRole('searchbox'), 'broken')
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Search' }))
-    await expect(await within(dialog).findByRole('alert')).toBeVisible()
+    await userEvent.type(within(dialog).getByRole('searchbox'), 'foundation')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Run search' }))
+    await expect(await within(dialog).findByRole('button', { name: /Plan/ })).toBeVisible()
   },
 }
 
@@ -235,5 +341,20 @@ export const PluginActivationRecovery: Story = {
     const dialog = await canvas.findByRole('dialog', { name: 'Settings' })
     await expect(await within(dialog).findByText(/Activation failed/)).toBeVisible()
     await expect(within(dialog).getByText('Activation Failed')).toBeVisible()
+  },
+}
+
+export const PluginIncompatible: Story = {
+  parameters: { msw: { handlers: handlers({ plugins: [{
+    id: 'future-plugin', status: 'incompatible', message: 'Plugin requires host ^2.0.0.', contributions: {},
+    manifest: { name: 'Future Plugin', version: '2.0.0', permissions: ['workspace:read'] },
+  }] }) } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Settings' }))
+    const dialog = await canvas.findByRole('dialog', { name: 'Settings' })
+    await expect(await within(dialog).findByText('Incompatible')).toBeVisible()
+    await expect(within(dialog).getByText('Plugin requires host ^2.0.0.')).toBeVisible()
+    await expect(within(dialog).queryByRole('button', { name: /Future Plugin/ })).toBeNull()
   },
 }

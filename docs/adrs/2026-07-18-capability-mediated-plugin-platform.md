@@ -30,6 +30,8 @@ Plugins SHALL:
 
 Bundled plugins SHALL pass the same conformance suite expected of the platform: manifest validation, enable/disable/restart/upgrade lifecycle, permission denial, restart and partial-operation recovery, state namespace isolation, and headless contract tests. Bundled status SHALL NOT grant raw SQLite, credential, filesystem, Git-process, shell, or unrestricted Node authority.
 
+For repository-owned bundled plugins, package exports, dependency constraints, AST-based forbidden-source checks, and review SHALL enforce that boundary against accidental bypass, while the capability broker remains authoritative for supported runtime operations. This trusted first-party model is not containment for deliberately malicious code.
+
 Arbitrary third-party installation, signing, distribution, compatibility guarantees, and untrusted-code isolation are deferred. Future community service plugins will require process or container isolation, and community UI will require sandboxed contribution boundaries.
 
 ## Options Considered

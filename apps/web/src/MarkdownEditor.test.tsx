@@ -33,7 +33,12 @@ describe('GMD-002/S2 source-preserving Markdown editor', () => {
     expect(view.container.querySelector('.cm-readable-emphasis')?.textContent).toBe('emphasis')
     expect(view.container.querySelector('.cm-readable-list-marker')?.getAttribute('aria-label')).toBe('- ')
     expect(view.container.querySelector('.cm-readable-task-marker')?.getAttribute('aria-label')).toBe('- [ ] ')
-    expect(view.container.querySelector('.cm-readable-table-row')?.getAttribute('aria-label')).toBe('| Name | State |')
+    const table = view.getByRole('table', { name: 'Markdown table' })
+    expect(view.getByRole('columnheader', { name: 'Name' })).not.toBeNull()
+    expect(view.getByRole('columnheader', { name: 'State' })).not.toBeNull()
+    expect(view.getByRole('cell', { name: 'Graphite' })).not.toBeNull()
+    expect(table.querySelectorAll('[tabindex]')).toHaveLength(0)
+    expect(view.container.querySelector('.cm-scroller')?.getAttribute('tabindex')).toBe('0')
     expect(view.container.querySelector('.cm-readable-wikilink')?.getAttribute('aria-label')).toBe('[[Ready Note|Ready]]')
     const content = view.container.querySelector('.cm-content') as HTMLElement
     await user.click(content)

@@ -347,7 +347,6 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
       if (!pending || pending.expectedRevision !== expectedRevision || basename(pending.targetPath) !== fileName) {
         throw new WorkspaceResourceUnavailableError()
       }
-      if (pending.result) return pending.result
       return withMutationLocks([pending.sourcePath, pending.targetPath], () => this.#reconcileCommittedRename(
         resourceId,
         opened,
@@ -550,9 +549,8 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
       throw new WorkspaceInvalidMutationError('indeterminate')
     }
     if (canonicalTarget !== targetPath) throw new WorkspaceInvalidMutationError('indeterminate')
-    const targetRevision = await revisionAtPath(targetPath, this.#inventoryOptions.maxSourceBytes)
-    if (targetRevision !== expectedRevision) throw new WorkspaceInvalidMutationError('indeterminate')
-    const result = await this.#issueRenamedResource(opened, targetDisplayPath, expectedRevision)
+    await revisionAtPath(targetPath, this.#inventoryOptions.maxSourceBytes)
+    const result = await this.#issueRenamedResource(opened, targetDisplayPath)
     this.#pendingRenames.set(resourceId, { ...pending, result })
     return result
   }
@@ -560,7 +558,7 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
   async #issueRenamedResource(
     opened: OpenWorkspace,
     targetDisplayPath: string,
-    expectedRevision: string,
+    expectedRevision?: string,
   ): Promise<RenameNoteResult> {
     const inventory = await inventoryMarkdown(opened.root, opened.snapshot.workspaceId, this.#inventoryOptions)
     const snapshot: WorkspaceSnapshot = {
@@ -574,7 +572,7 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
     this.#opened = { root: opened.root, identity: opened.identity, snapshot }
     try {
       const renamedNote = await this.readNote(renamedItem.resourceId)
-      if (renamedNote.revision !== expectedRevision) throw new WorkspaceInvalidMutationError('indeterminate')
+      if (expectedRevision && renamedNote.revision !== expectedRevision) throw new WorkspaceInvalidMutationError('indeterminate')
       return { workspace: snapshot, note: renamedNote }
     } catch (error) {
       this.#opened = opened

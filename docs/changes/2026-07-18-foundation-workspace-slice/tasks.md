@@ -5,11 +5,11 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: Fresh deep `/sdd-review` against immutable implementation source `0196774` passed every existing automated gate but found two blocking and eight required findings; review-safe repository truth corrections were committed as `49078f7`, and the private Idea front door was committed in its owning vault as `41a8c3c4`.
-- Next action: Run `/sdd-apply` from `review.md`, starting with credential-generation/session persistence and workspace-bound plugin authority, then remediate the required rename, plugin isolation, confinement, runtime-contract, responsive, preview, and Epic-evidence findings.
+- Last completed action: The review-remediation and fresh self-check waves are complete; all focused, root, Storybook, production E2E, dependency, reverse-traceability, and structural gates pass on the combined tree.
+- Next action: Commit the verified implementation/artifact reconciliation, transition the Change to `in_review`, and hand it to a fresh `/sdd-review`; user manual confirmation remains intentionally pending.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: None after the review-safe artifact commit; implementation findings remain intentionally unmodified by review.
-- Known blockers: Credential revocation can still race deferred session persistence, and plugin mutations are not bound to the accepted workspace identity. Required findings and manual terminal/visual/device/screen-reader confirmation also remain open.
+- Expected dirty files: Verified review-remediation implementation, tests, README/ADR/Epic truth, and this ledger until the authorized local commit.
+- Known blockers: None for independent rereview. Manual terminal, visual/device, and screen-reader confirmation remains pending user and is not claimed by automated evidence.
 
 ## Task Checklist
 
@@ -95,12 +95,23 @@ status: in_progress
 
 - [x] 7.1 Update README, architecture, testing, security/deployment guidance, and `CHANGELOG.md` with current implemented behavior only.
 - [x] 7.2 Run `/sdd-review` as the independent local integration gate for Story truth, source reuse, tests, security, docs, ADRs, and branch readiness.
-- [ ] 7.3 Record the review outcome in `review.md` and remediate its code/artifact findings; the 2026-07-19 rereview is recorded, but its implementation findings remain open and manual acceptance remains explicitly pending.
+- [x] 7.3 Record the review outcome in `review.md` and remediate its code/artifact findings; the historical changes-requested record remains intact and manual acceptance remains explicitly pending.
 - [ ] 7.4 Walk the user through the required disposable-workspace desktop/mobile confirmation and record `user confirmed` or `accepted gap`.
-- [ ] 7.5 Ensure proposal/design/tasks and all Epics no longer claim completed remediation behavior is unimplemented, unverified, or pending after the fresh finding set is resolved.
+- [x] 7.5 Ensure proposal/design/tasks and all Epics no longer claim completed remediation behavior is unimplemented, unverified, or pending after the fresh finding set is resolved.
 - [x] 7.6 Confirm current Change status, branch/ref, review record, manual confirmation, release communication, and PR/merge state agree.
 - [ ] 7.7 Return the implementation-complete Change to `in_review` only after the fresh finding set is remediated and self-checked; manual acceptance may remain open.
 - [ ] 7.8 Commit, push, open a PR, merge, or close only after the repository policy and explicit user authorization permit each operation.
+
+### 8. 2026-07-19 Review Remediation
+
+- [x] 8.1 Bind authenticated sessions to credential revocation generation across deferred session persistence and prove the post-route race through real HTTP behavior.
+- [x] 8.2 Bind plugin configuration/state mutations to the workspace identity accepted by the workspace authority and deny replacement-root writes.
+- [x] 8.3 Reconcile cached rename retries against current target state after a post-rename edit.
+- [x] 8.4 Retain and revalidate ancestor identity before plugin recovery and search-index commit mutations.
+- [x] 8.5 Reconcile bundled-plugin accidental-bypass enforcement and GMD-003 truth with the Accepted capability ADR without claiming malicious-code containment.
+- [x] 8.6 Implement shared runtime-validated HTTP contracts and browser response handling with malformed-response evidence.
+- [x] 8.7 Complete accepted desktop Search, intermediate responsive/touch behavior, and the required Storybook state matrix.
+- [x] 8.8 Reconcile affected Epics/docs, run changed-surface reverse traceability and the full verification/self-check union, then return to `in_review` only if clean.
 
 ## Implementation Ledger
 
@@ -131,6 +142,8 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Changed-surface reverse traceability | `sdd-orphan-audit --changed-from develop` for GMD-001/GMD-002/GMD-003 plus consolidated classification | 107-file final changed surface | Zero missing implementation/evidence references; behavior sources/tests are Epic-owned; Storybook/Playwright/bootstrap/manifests are support; contracts/domain are now runtime-owned rather than scaffold-only | `b787322` |
 | 2026-07-18 | Same-origin production delivery | Context7 official AdonisJS v7 static guidance; delegated production-path remediation | Static provider/middleware, SPA fallback, staged browser build, conditional compiled package exports, production Playwright server | `pnpm build && pnpm start` now serves the compiled browser, hashed assets, client history, and API from one Adonis origin; API 404s never fall through to HTML | `b787322` |
 | 2026-07-18 | Consolidated review remediation | Delegated TDD slices plus fresh combined-tree security, coverage/UI, and artifact self-checks | Auth issuance/revocation and bounded limiter; persisted workspace identity/selective ignores/durable rename receipts; workspace/plugin confinement; logout/accessibility/responsive panes; 18 Storybook states; README/CHANGELOG/design/Epics | Blocking credential race and required restart, confinement, throttling, browser, accessibility, responsive, preview, and documentation findings remediated; self-check edge cases folded into the same wave | `949dd77` |
+| 2026-07-19 | Fresh rereview remediation | `/sdd-apply`; delegated TDD; Adonis Session guidance; component and Web Interface Guidelines | Generation-bound sessions; workspace/plugin/search/rename authority; TypeBox contracts/browser adapter; desktop Search; responsive/touch and 30 Storybook states; README/ADR/Epics | Two blocking and seven implementation/artifact findings remediated without expanding scope; trusted bundled-plugin claims now distinguish accidental bypass enforcement from malicious containment | commit pending |
+| 2026-07-19 | Apply self-check regression wave | Fresh delegated code/security, artifact/traceability, and UI/coverage passes | Plugin cold start/retry; autosave response binding; search state announcements; semantic table rendering; production E2E | Self-check findings reproduced red, remediated, and folded into the final verification union | commit pending |
 
 ## Verification Ledger
 
@@ -161,6 +174,8 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Storybook 18/18 and Playwright 2/2 | component preview/accessibility and deterministic production E2E evidence | Accepted browser-renderable auth, workbench, editor, search, and plugin states plus compiled desktop/narrow owner flow, focus, and logout behavior. Host-only setup/reset and capability-denial states remain command/headless evidence. | Passing; manual visual/device/screen-reader confirmation remains pending |
 | 2026-07-18 | Scoped Change and GMD-001/GMD-002/GMD-003 validation | broad supporting gate | Reconciled change artifacts and Epic implementation/evidence references are structurally valid with zero errors or warnings. | Passing |
 | 2026-07-18 | `sdd-orphan-audit --changed-from develop --epic` for GMD-001, GMD-002, and GMD-003 | changed-surface reverse-traceability inventory | 108 candidates classify across the three affected Epics or shared framework/test/documentation support; all implementation and verification references resolve, with no stranded replacement surface identified. | Passing; zero missing implementation or verification references |
+| 2026-07-19 | Root lint/typecheck/test/build; Storybook 30/30; Playwright 2/2; production dependency audit; diff check | broad, component/accessibility, production E2E, dependency, and hygiene gates | Final combined review remediation plus self-check regressions compile and pass across contracts 6, domain 4, plugin SDK 7, workspace 30, web 44, System Status 1, and server 60 tests. | Passing; existing 812 KB chunk and Node deprecation warnings remain non-blocking follow-up |
+| 2026-07-19 | Per-Epic `sdd-orphan-audit --changed-from develop` | changed-surface reverse-traceability inventory | 113 candidates classify across GMD-001/GMD-002/GMD-003 or shared support; every referenced implementation and verification path resolves. | Passing; zero missing implementation or verification references |
 
 ## Manual Feedback
 
@@ -196,18 +211,18 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 
 ## Closeout
 
-- Change status: in_progress; the fresh review against `0196774` returned implementation findings to `/sdd-apply`.
-- Epic files updated: GMD-001, GMD-002, and GMD-003 remain structurally valid, but implementation/evidence truth must be reconciled again with the fresh findings.
+- Change status: in_progress pending the guarded transition to `in_review` after the verified commit.
+- Epic files updated: GMD-001, GMD-002, and GMD-003 describe the remediated implementation and evidence truth.
 - Story labels/references and Requirement/Scenario IDs current: Yes for planned scope.
 - Implemented By maps current: Yes; new auth, workspace, plugin persistence, and browser owners have stable code anchors.
-- Scenario-mapped Verified By maps current: No; the fresh review identified missing risk-shaped evidence and an overstated GMD-002 preview claim. Manual confirmation remains an explicit gap.
+- Scenario-mapped Verified By maps current: Yes for automated evidence; manual terminal, visual/device, and screen-reader confirmation remains an explicit gap.
 - Superseded earlier Epic truth reconciled: Not applicable; spike Epics remain reference truth in their own repositories.
-- ADR status: Four Accepted ADRs remain linked; plugin isolation and client runtime-contract obligations are not yet satisfied. Initial rename-receipt retention is now documented.
+- ADR status: Four Accepted ADRs remain linked; runtime contracts and the accepted trusted-first-party bundled-plugin boundary are implemented, while untrusted community isolation remains deferred.
 - Release communication current: README and public-safe `CHANGELOG.md` describe the implemented foundation and operator boundary.
 - `sdd-review` verdict: `changes-requested` against source commit `019677434dd1108798ef68e63f4db85d9fe0ee78` and target `develop@15901773ce4565c4facfc7c50d1835463ef808c8`.
 - Review record: `docs/changes/2026-07-18-foundation-workspace-slice/review.md`.
-- `review.md` findings resolved: No; two blocking and seven required roots remain for `/sdd-apply`.
-- Planning updates resolved: No; accepted runtime-contract, responsive composition, plugin authority/isolation, and preview behavior remain incomplete.
+- `review.md` findings resolved: Yes in the apply tree; the historical `changes-requested` verdict remains unchanged until independent rereview.
+- Planning updates resolved: Yes for the accepted Change scope; manual confirmation and deferred product scope remain explicit.
 - Manual UI confirmation status: pending user; deterministic desktop/narrow browser evidence passes, but user acceptance remains intentionally unclaimed.
 - PR / merge state: Local implementation branch created; no remote, PR, or merge.
 - Deferred scope accepted: Recorded in proposal/design/Epics.

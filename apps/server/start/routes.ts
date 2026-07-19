@@ -11,6 +11,7 @@ import {
 import Owner from '#models/owner'
 import {
   acceptsPasswordInput,
+  AUTH_REVOCATION_GENERATION_SESSION_KEY,
   OwnerSetupService,
   PasswordPolicyError,
   resolveSecurityStateDirectory,
@@ -32,14 +33,17 @@ const loginAttempts = new LoginAttemptLimiter()
 
 async function pluginRuntime(): Promise<PluginRuntimeService | undefined> {
   if (!plugins) return undefined
-  pluginsStarted ??= plugins.start()
+  pluginsStarted ??= plugins.start().catch((error) => {
+    pluginsStarted = undefined
+    throw error
+  })
   await pluginsStarted
   return plugins
 }
 
 router.get('/api/v1/health', () => serviceDescriptor)
 
-router.post('/api/v1/auth/login', async ({ auth, request, response }) => {
+router.post('/api/v1/auth/login', async ({ auth, request, response, session }) => {
   const source = request.ip()
   const attempt = loginAttempts.acquire(source)
   if (!attempt) {
@@ -53,9 +57,11 @@ router.post('/api/v1/auth/login', async ({ auth, request, response }) => {
   try {
     authenticated = acceptsPasswordInput(password) && await ownerSetup.authenticate(
       password,
-      async () => {
+      async (revocationGeneration) => {
         if (!owner) return false
         await auth.use('web').login(owner)
+        session.put(AUTH_REVOCATION_GENERATION_SESSION_KEY, revocationGeneration)
+        await session.commit()
         return true
       },
       async () => auth.use('web').logout(),

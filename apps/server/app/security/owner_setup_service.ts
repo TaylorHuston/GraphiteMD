@@ -18,6 +18,8 @@ export {
 const DATABASE_FILE = 'security.sqlite'
 const OWNER_ID = 1
 
+export const AUTH_REVOCATION_GENERATION_SESSION_KEY = 'graphitemd_auth_generation'
+
 class CredentialLock {
   #tail = Promise.resolve()
 
@@ -132,7 +134,7 @@ export class OwnerSetupService {
 
   async authenticate(
     password: string,
-    establishSession: () => Promise<boolean | void>,
+    establishSession: (revocationGeneration: number) => Promise<boolean | void>,
     invalidateSession: () => Promise<void> = async () => {},
   ): Promise<boolean> {
     if (!acceptsPasswordInput(password)) return false
@@ -147,7 +149,7 @@ export class OwnerSetupService {
         database.close()
       }
       if (!owner || !(await this.#hasher.verify(owner.password_hash, password))) return false
-      if ((await establishSession()) === false) return false
+      if ((await establishSession(owner.revocation_generation)) === false) return false
 
       const generationDatabase = await this.#openDatabase()
       let generation: number | undefined
@@ -164,6 +166,19 @@ export class OwnerSetupService {
       }
       return true
     })
+  }
+
+  async isCurrentRevocationGeneration(generation: unknown): Promise<boolean> {
+    if (!Number.isSafeInteger(generation) || (generation as number) < 0) return false
+    const database = await this.#openDatabase()
+    try {
+      const owner = database
+        .prepare('SELECT revocation_generation FROM owners WHERE id = ?')
+        .get(OWNER_ID) as { revocation_generation: number } | undefined
+      return owner?.revocation_generation === generation
+    } finally {
+      database.close()
+    }
   }
 
   async changePassword(currentPassword: string, replacementPassword: string): Promise<boolean> {
@@ -249,7 +264,25 @@ export class OwnerSetupService {
         expires_at TEXT NOT NULL
       ) STRICT;
       CREATE INDEX IF NOT EXISTS sessions_user_id_index ON sessions (user_id);
-      CREATE INDEX IF NOT EXISTS sessions_expires_at_index ON sessions (expires_at)
+      CREATE INDEX IF NOT EXISTS sessions_expires_at_index ON sessions (expires_at);
+      CREATE TRIGGER IF NOT EXISTS reject_revoked_session_insert
+      BEFORE INSERT ON sessions
+      WHEN json_extract(NEW.data, '$.message.auth_web') IS NOT NULL
+        AND json_extract(NEW.data, '$.message.graphitemd_auth_generation') IS NOT (
+          SELECT revocation_generation FROM owners WHERE id = 1
+        )
+      BEGIN
+        SELECT RAISE(ABORT, 'session credential generation is no longer current');
+      END;
+      CREATE TRIGGER IF NOT EXISTS reject_revoked_session_update
+      BEFORE UPDATE OF data ON sessions
+      WHEN json_extract(NEW.data, '$.message.auth_web') IS NOT NULL
+        AND json_extract(NEW.data, '$.message.graphitemd_auth_generation') IS NOT (
+          SELECT revocation_generation FROM owners WHERE id = 1
+        )
+      BEGIN
+        SELECT RAISE(ABORT, 'session credential generation is no longer current');
+      END
     `)
     const ownerColumns = database.prepare('PRAGMA table_info(owners)').all() as Array<{ name: string }>
     if (!ownerColumns.some(({ name }) => name === 'revocation_generation')) {

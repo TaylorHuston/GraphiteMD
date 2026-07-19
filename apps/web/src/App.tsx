@@ -1,21 +1,25 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
+import {
+  MarkdownNoteResponse as MarkdownNoteSchema,
+  OwnerResponse,
+  PluginsResponse,
+  RenameNoteResponse,
+  SearchRebuildResponse,
+  SearchResponse,
+  WorkspaceResponse,
+  type MarkdownNoteResponse as Note,
+  type PluginInventoryItem,
+  type WorkspaceResponse as Workspace,
+} from '@graphitemd/contracts'
 import { MarkdownEditor } from './MarkdownEditor.js'
 import { SettingsPanel } from './SettingsPanel.js'
 import { AutosaveCoordinator, prepareAutosaveTransition, type AutosaveSnapshot } from './autosave.js'
+import { InvalidApiResponseError, request, requestJson } from './api.js'
 
-type NoteItem = { kind: 'note'; resourceId: string; displayPath: string }
-type FolderItem = { kind: 'folder'; displayPath: string }
+type NoteItem = Workspace['notes'][number]
+type FolderItem = Extract<Workspace['inventory'][number], { kind: 'folder' }>
 type InventoryItem = NoteItem | FolderItem
-type Workspace = { available: true; workspaceId: string; notes: NoteItem[]; inventory: InventoryItem[] }
-type Note = {
-  resourceId: string
-  displayPath: string
-  source: string
-  revision: string
-  yamlProperties: Array<{ name: string; value: unknown }>
-  yamlParseError: string | null
-}
 type AppState =
   | { kind: 'loading' }
   | { kind: 'login'; expired: boolean; error?: string }
@@ -24,10 +28,6 @@ type AppState =
 
 type TreeNode = { name: string; path: string; kind: 'folder'; children: TreeNode[] } | {
   name: string; path: string; kind: 'note'; resourceId: string
-}
-
-async function getJson(path: string, init?: RequestInit) {
-  return fetch(path, { credentials: 'same-origin', ...init })
 }
 
 function xsrfToken(): string {
@@ -169,7 +169,7 @@ function Login({ expired, initialError, onAuthenticated }: {
   async function submit(event: FormEvent) {
     event.preventDefault(); setPending(true); setError(undefined)
     try {
-      const result = await getJson('/api/v1/auth/login', {
+      const result = await requestJson('/api/v1/auth/login', OwnerResponse, {
         method: 'POST', headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() },
         body: JSON.stringify({ account: 'owner', password }),
       })
@@ -228,42 +228,44 @@ function Drawer({ name, onClose, children }: { name: DrawerName; onClose: () => 
   </div>
 }
 
-type SearchResult = { resourceId: string; title: string; displayPath: string; snippet: string | null }
-type PluginContribution = { id: string; title: string }
-type PluginInventoryItem = {
-  id: string
-  status: string
-  contributions: Partial<Record<'commands' | 'views', PluginContribution[]>>
-}
+type SearchResult = SearchResponse['results'][number]
 function SearchPanel({ onSelect, onSessionExpired }: { onSelect: (resourceId: string) => void; onSessionExpired: () => void }) {
+  const searchId = useId()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
-  const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [submittedQuery, setSubmittedQuery] = useState('')
+  const [indexedNotes, setIndexedNotes] = useState<number | null>(null)
+  const [status, setStatus] = useState<'idle' | 'searching' | 'ready' | 'error' | 'rebuilding' | 'rebuilt'>('idle')
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!query.trim()) { setResults([]); setStatus('idle'); return }
-    setStatus('loading')
+    const submitted = query.trim()
+    setResults([]); setIndexedNotes(null); setSubmittedQuery(submitted)
+    if (!submitted) { setStatus('idle'); return }
+    setStatus('searching')
     try {
-      const response = await getJson(`/api/v1/search?q=${encodeURIComponent(query)}`)
+      const response = await requestJson(`/api/v1/search?q=${encodeURIComponent(submitted)}`, SearchResponse)
       if (response.status === 401) { onSessionExpired(); return }
       if (!response.ok) { setStatus('error'); return }
-      const body = await response.json() as { results: SearchResult[] }
-      setResults(body.results); setStatus('ready')
+      setResults(response.data.results); setStatus('ready')
     } catch { setStatus('error') }
   }
   const rebuild = async () => {
-    setStatus('loading')
+    setResults([]); setIndexedNotes(null); setStatus('rebuilding')
     try {
-      const response = await getJson('/api/v1/search/rebuild', { method: 'POST', headers: { 'x-xsrf-token': xsrfToken() } })
+      const response = await requestJson('/api/v1/search/rebuild', SearchRebuildResponse, { method: 'POST', headers: { 'x-xsrf-token': xsrfToken() } })
       if (response.status === 401) { onSessionExpired(); return }
-      setStatus(response.ok ? 'idle' : 'error')
+      if (!response.ok) { setStatus('error'); return }
+      setIndexedNotes(response.data.indexed); setStatus('rebuilt')
     } catch { setStatus('error') }
   }
-  return <div className="search-panel"><form name="workspace-search" onSubmit={(event) => void submit(event)}><label htmlFor="search">Search notes</label><div className="search-controls"><input id="search" name="query" type="search" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Title, path, properties, or body" /><button type="submit" disabled={status === 'loading'}>Search</button></div></form>
-    {status === 'loading' && <p aria-live="polite">Searching locally…</p>}
-    {status === 'ready' && results.length === 0 && <p>No notes match “{query}”.</p>}
+  const busy = status === 'searching' || status === 'rebuilding'
+  return <div className="search-panel" aria-busy={busy}><form name="workspace-search" onSubmit={(event) => void submit(event)}><label htmlFor={searchId}>Search notes</label><div className="search-controls"><input id={searchId} name="query" type="search" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Title, path, properties, or body" /><button type="submit" aria-label="Run search" disabled={busy}>Search</button></div></form>
+    {status === 'searching' && <p aria-live="polite">Searching locally…</p>}
+    {status === 'rebuilding' && <p aria-live="polite">Rebuilding local index…</p>}
+    {status === 'rebuilt' && indexedNotes !== null && <p role="status" aria-label="Search index status" aria-live="polite">Index rebuilt. {indexedNotes} {indexedNotes === 1 ? 'note' : 'notes'} indexed.</p>}
+    {status === 'ready' && results.length === 0 && <p role="status" aria-live="polite">No notes match “{submittedQuery}”.</p>}
     {status === 'error' && <div role="alert"><p>Local search is unavailable. Your note and draft are unchanged.</p><button type="button" onClick={() => void rebuild()}>Rebuild index</button></div>}
-    {results.length > 0 && <ul className="search-results">{results.map((result) => <li key={result.resourceId}><button type="button" onClick={() => onSelect(result.resourceId)}><strong>{result.title}</strong><span>{result.displayPath}</span>{result.snippet && <small>{result.snippet}</small>}</button></li>)}</ul>}
+    {status === 'ready' && results.length > 0 && <ul className="search-results">{results.map((result) => <li key={result.resourceId}><button type="button" onClick={() => onSelect(result.resourceId)}><strong>{result.title}</strong><span>{result.displayPath}</span>{result.snippet && <small>{result.snippet}</small>}</button></li>)}</ul>}
   </div>
 }
 function displayProperty(value: unknown): string {
@@ -315,6 +317,7 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
   const selectedRef = useRef<Note | null>(null)
   const [noteStatus, setNoteStatus] = useState<'idle' | 'loading' | 'unavailable'>('idle')
   const [drawer, setDrawer] = useState<DrawerName | null>(null)
+  const [navigationView, setNavigationView] = useState<'files' | 'search'>('files')
   const requestSequence = useRef(0)
   const autosave = useMemo(() => new AutosaveCoordinator(750), [])
   const [save, setSave] = useState<AutosaveSnapshot>(() => autosave.snapshot())
@@ -346,18 +349,17 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
   const logout = useCallback(async () => {
     if (!(await guardTransition())) return
     try {
-      const response = await getJson('/api/v1/auth/logout', { method: 'POST', headers: { 'x-xsrf-token': xsrfToken() } })
+      const response = await request('/api/v1/auth/logout', { method: 'POST', headers: { 'x-xsrf-token': xsrfToken() } })
       if (response.ok || response.status === 401) onSignedOut()
     } catch { /* Keep the signed-in workbench when logout cannot be confirmed. */ }
   }, [guardTransition, onSignedOut])
 
   const refreshPlugins = useCallback(async () => {
     try {
-      const response = await getJson('/api/v1/plugins')
+      const response = await requestJson('/api/v1/plugins', PluginsResponse)
       if (response.status === 401) { onSessionExpired(); return }
       if (!response.ok) return
-      const result = await response.json() as { plugins: PluginInventoryItem[] }
-      if (Array.isArray(result.plugins)) setPlugins(result.plugins)
+      setPlugins(response.data.plugins)
     } catch { /* Plugin inventory failure must not take down the workbench. */ }
   }, [onSessionExpired])
 
@@ -370,7 +372,7 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
       revision: note.revision,
       eligible: true,
       save: async ({ resourceId: savingResource, source, expectedRevision }) => {
-        const response = await getJson(`/api/v1/notes/${encodeURIComponent(savingResource)}`, {
+        const response = await requestJson(`/api/v1/notes/${encodeURIComponent(savingResource)}`, MarkdownNoteSchema, {
           method: 'PUT',
           headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() },
           body: JSON.stringify({ source, expectedRevision }),
@@ -378,7 +380,10 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
         if (response.status === 401) { onSessionExpired(); throw new Error('Authentication required.') }
         if (response.status === 409) return { status: 'conflict' as const }
         if (!response.ok) throw new Error('Unable to save Markdown.')
-        const saved = await response.json() as Note
+        const saved = response.data
+        if (saved.resourceId !== savingResource || saved.source !== source) {
+          throw new InvalidApiResponseError(`/api/v1/notes/${encodeURIComponent(savingResource)}`)
+        }
         setSelected((current) => current?.resourceId === saved.resourceId ? saved : current)
         return { status: 'saved' as const, revision: saved.revision }
       },
@@ -396,7 +401,7 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
     const sequence = ++requestSequence.current
     setNoteStatus('loading')
     try {
-      const response = await getJson(`/api/v1/notes/${encodeURIComponent(resourceId)}`)
+      const response = await requestJson(`/api/v1/notes/${encodeURIComponent(resourceId)}`, MarkdownNoteSchema)
       if (sequence !== requestSequence.current) return
       if (response.status === 401) { onSessionExpired(); return }
       if (!response.ok) {
@@ -404,7 +409,7 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
         window.history.replaceState(null, '', window.location.pathname)
         return
       }
-      const note = await response.json() as Note
+      const note = response.data
       if (note.resourceId !== resourceId) throw new Error('Resource response mismatch')
       if (history === 'push') window.history.pushState(null, '', noteLocation(resourceId))
       setSelected(note); setNoteStatus('idle')
@@ -447,23 +452,36 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
     if (!selected || !(await guardTransition())) return
     const snapshot = autosave.snapshot()
     if (!snapshot.revision) return
-    const response = await getJson(`/api/v1/notes/${encodeURIComponent(selected.resourceId)}/rename`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() },
-      body: JSON.stringify({ expectedRevision: snapshot.revision, fileName: renameDraft }),
-    })
-    if (response.status === 401) { onSessionExpired(); return }
-    if (!response.ok) { setRenameError(response.status === 409 ? 'The note changed or the rename outcome needs reconciliation.' : 'Choose a valid unused Markdown filename.'); return }
-    const result = await response.json() as { note: Note; workspace: Workspace }
-    workspaceRef.current = result.workspace; setWorkspaceState(result.workspace); setSelected(result.note); setRenameDraft(result.note.displayPath.split('/').at(-1) ?? '')
-    bindAutosave(result.note)
-    const url = new URL(window.location.href); url.search = ''; url.searchParams.set('resource', result.note.resourceId)
-    window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+    try {
+      const response = await requestJson(`/api/v1/notes/${encodeURIComponent(selected.resourceId)}/rename`, RenameNoteResponse, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() },
+        body: JSON.stringify({ expectedRevision: snapshot.revision, fileName: renameDraft }),
+      })
+      if (response.status === 401) { onSessionExpired(); return }
+      if (!response.ok) { setRenameError(response.status === 409 ? 'The note changed or the rename outcome needs reconciliation.' : 'Choose a valid unused Markdown filename.'); return }
+      const result = response.data
+      workspaceRef.current = result.workspace; setWorkspaceState(result.workspace); setSelected(result.note); setRenameDraft(result.note.displayPath.split('/').at(-1) ?? '')
+      bindAutosave(result.note)
+      const url = new URL(window.location.href); url.search = ''; url.searchParams.set('resource', result.note.resourceId)
+      window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+    } catch {
+      setRenameError('GraphiteMD received an invalid rename response. Your note was not replaced.')
+    }
   }
   const systemStatusMounted = plugins?.some((plugin) => plugin.id === 'system-status' && plugin.status === 'active'
     && plugin.contributions.views?.some((view) => view.id === 'system-status'))
-  const navigation = <><div className="panel-switcher"><button type="button" aria-pressed="true">Files</button><button type="button" onClick={() => setDrawer('Search')}>Search</button></div>
-    {workspaceState.inventory.length ? <FileTree inventory={workspaceState.inventory} selected={selected?.resourceId ?? null} onSelect={(note) => { void openNote(note.resourceId, 'push'); setDrawer(null) }} /> : <p className="panel-empty">No Markdown notes</p>}</>
+  const filesPanel = workspaceState.inventory.length
+    ? <FileTree inventory={workspaceState.inventory} selected={selected?.resourceId ?? null} onSelect={(note) => { void openNote(note.resourceId, 'push'); setDrawer(null) }} />
+    : <p className="panel-empty">No Markdown notes</p>
+  const navigation = <>
+    <div className="panel-switcher" aria-label="Navigation view">
+      <button type="button" aria-pressed={navigationView === 'files'} aria-controls="desktop-files-panel" onClick={() => setNavigationView('files')}>Files</button>
+      <button type="button" aria-pressed={navigationView === 'search'} aria-controls="desktop-search-panel" onClick={() => setNavigationView('search')}>Search</button>
+    </div>
+    <div id="desktop-files-panel" hidden={navigationView !== 'files'}>{filesPanel}</div>
+    <div id="desktop-search-panel" hidden={navigationView !== 'search'}><SearchPanel onSessionExpired={onSessionExpired} onSelect={(resourceId) => void openNote(resourceId, 'push', true)} /></div>
+  </>
 
   const paneStyle = { '--navigation-width': `${navigationWidth}rem`, '--context-width': `${contextWidth}rem` } as CSSProperties
   return <main className={`workbench ${navigationOpen ? '' : 'navigation-collapsed'} ${contextOpen ? '' : 'context-collapsed'}`} style={paneStyle}>
@@ -479,7 +497,7 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
       <div className="document-body">{workspaceState.inventory.length === 0 ? <EmptyState /> : noteStatus === 'loading' ? <div className="empty-state" aria-live="polite"><h2>Opening note…</h2></div> : selected ? <>{(save.phase === 'error' || save.phase === 'conflict') && <div className="save-recovery" role="alert"><p>{save.phase === 'conflict' ? 'This note changed on the host. Your local draft has not been overwritten.' : 'GraphiteMD could not save this draft.'}</p>{save.phase === 'error' ? <button type="button" onClick={() => void autosave.retry()}>Retry save</button> : <button type="button" onClick={() => { autosave.discard(); void openNote(selected.resourceId, 'restore') }}>Discard draft and reload</button>}</div>}<form name="rename-note" className="rename-note" onSubmit={(event) => void renameSelected(event)}><label htmlFor="note-filename">Filename</label><input id="note-filename" name="filename" autoComplete="off" value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} disabled={save.pending} /><button type="submit" disabled={save.pending}>Rename</button>{renameError && <p role="alert">{renameError}</p>}</form><MarkdownEditor key={selected.resourceId} source={save.resourceId === selected.resourceId ? save.draft : selected.source} onChange={(source) => autosave.edit(source)} /></> : noteStatus === 'unavailable' ? <div className="empty-state" role="alert"><h2>Note unavailable</h2><p>The requested note could not be opened. Select another note from Files.</p></div> : <div className="empty-state"><div className="empty-mark" aria-hidden="true">◇</div><h2>Select a note</h2><p>Choose a Markdown file from Files to open it here.</p></div>}</div>
     </article>
     <aside className="context-panel" aria-label="Note context"><div className="pane-controls context-pane-controls"><button type="button" aria-label="Make Context pane narrower" onClick={() => setContextWidth((value) => Math.max(13, value - 2))}>−</button><button type="button" aria-label="Make Context pane wider" onClick={() => setContextWidth((value) => Math.min(26, value + 2))}>+</button><button type="button" aria-label="Collapse Context pane" onClick={() => setContextOpen(false)}>›</button></div><ContextPlaceholder note={selected} />{systemStatusMounted && <section className="system-status-contribution" aria-labelledby="system-status-title"><p className="panel-label">System Status</p><h2 id="system-status-title">Service connected</h2><dl><div><dt>Workspace</dt><dd>Available</dd></div><div><dt>Markdown notes</dt><dd>{workspaceState.notes.length}</dd></div></dl></section>}<div className="context-actions"><button type="button" onClick={() => setDrawer('Settings')}>Settings</button></div></aside>
-    {drawer && <Drawer name={drawer} onClose={closeDrawer}>{drawer === 'Files' ? navigation : drawer === 'Search' ? <SearchPanel onSessionExpired={onSessionExpired} onSelect={(resourceId) => { void openNote(resourceId, 'push', true); setDrawer(null) }} /> : drawer === 'Context' ? <ContextPlaceholder note={selected} /> : <SettingsPanel onSessionExpired={onSessionExpired} onPluginsChanged={refreshPlugins} onLogout={() => void logout()} />}</Drawer>}
+    {drawer && <Drawer name={drawer} onClose={closeDrawer}>{drawer === 'Files' ? filesPanel : drawer === 'Search' ? <SearchPanel onSessionExpired={onSessionExpired} onSelect={(resourceId) => { void openNote(resourceId, 'push', true); setDrawer(null) }} /> : drawer === 'Context' ? <ContextPlaceholder note={selected} /> : <SettingsPanel onSessionExpired={onSessionExpired} onPluginsChanged={refreshPlugins} onLogout={() => void logout()} />}</Drawer>}
   </main>
 }
 
@@ -488,14 +506,21 @@ export function App() {
   const load = async () => {
     setState({ kind: 'loading' })
     try {
-      const auth = await getJson('/api/v1/auth/current')
+      const auth = await requestJson('/api/v1/auth/current', OwnerResponse)
       if (auth.status === 401) { setState({ kind: 'login', expired: false }); return }
       if (!auth.ok) { setState({ kind: 'unavailable', message: 'The authentication service is unavailable.' }); return }
-      const workspace = await getJson('/api/v1/workspace')
+      const workspace = await requestJson('/api/v1/workspace', WorkspaceResponse)
       if (workspace.status === 401) { setState({ kind: 'login', expired: true }); return }
       if (!workspace.ok) { setState({ kind: 'unavailable', message: 'The configured workspace is unavailable on this host.' }); return }
-      setState({ kind: 'ready', workspace: await workspace.json() as Workspace })
-    } catch { setState({ kind: 'unavailable', message: 'GraphiteMD could not reach the service.' }) }
+      setState({ kind: 'ready', workspace: workspace.data })
+    } catch (error) {
+      setState({
+        kind: 'unavailable',
+        message: error instanceof InvalidApiResponseError && error.path === '/api/v1/workspace'
+          ? 'GraphiteMD received an invalid workspace response. Try again after checking the host service.'
+          : 'GraphiteMD could not reach the service.',
+      })
+    }
   }
   useEffect(() => { void load() }, [])
 

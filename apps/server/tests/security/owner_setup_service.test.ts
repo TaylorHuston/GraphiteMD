@@ -44,6 +44,37 @@ describe('GMD-001/S1 R1 host-local owner setup', () => {
 })
 
 describe('GMD-001/S2 owner credential maintenance', () => {
+  it('R2-S1 upgrades legacy owner/session tables before installing generation guards', async () => {
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const databasePath = join(stateDirectory, 'security.sqlite')
+    const legacy = new DatabaseSync(databasePath)
+    legacy.exec(`
+      CREATE TABLE owners (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        password_hash TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE sessions (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        user_id TEXT,
+        expires_at TEXT NOT NULL
+      ) STRICT
+    `)
+    legacy.close()
+
+    await expect(new OwnerSetupService(stateDirectory).hasOwner()).resolves.toBe(false)
+
+    const migrated = new DatabaseSync(databasePath)
+    const ownerColumns = migrated.prepare('PRAGMA table_info(owners)').all() as Array<{ name: string }>
+    const triggers = migrated.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as Array<{ name: string }>
+    migrated.close()
+    expect(ownerColumns.map(({ name }) => name)).toContain('revocation_generation')
+    expect(triggers.map(({ name }) => name)).toEqual(expect.arrayContaining([
+      'reject_revoked_session_insert',
+      'reject_revoked_session_update',
+    ]))
+  })
+
   it('R1-S1 does not let an old-password authentication complete after credential revocation', async () => {
     const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
     const loginService = new OwnerSetupService(stateDirectory)

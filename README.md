@@ -7,7 +7,7 @@ The product is designed around four durable promises:
 - Markdown and inspectable local files remain authoritative.
 - The editor remains useful without an AI provider.
 - AI reads and actions pass through visible, bounded capabilities.
-- A minimal core can grow through constrained plugins without granting extensions unrestricted process or filesystem access.
+- A minimal core can grow through capability-mediated plugins. Bundled plugins are trusted repository-owned code whose source and dependency boundaries prevent accidental direct privilege bypass; untrusted community-code containment remains deferred.
 
 ## Repository Status
 

@@ -10,6 +10,7 @@ router.use([
   () => import('@adonisjs/cors/cors_middleware'),
   () => import('@adonisjs/core/bodyparser_middleware'),
   () => import('@adonisjs/session/session_middleware'),
+  () => import('../app/middleware/session_generation_middleware.js'),
   () => import('@adonisjs/shield/shield_middleware'),
   () => import('@adonisjs/auth/initialize_auth_middleware'),
 ])

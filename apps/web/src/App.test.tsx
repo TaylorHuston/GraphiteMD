@@ -118,6 +118,18 @@ describe('GMD-002/S1 responsive browse shell', () => {
     expect(screen.queryByText(/session has expired/i)).not.toBeInTheDocument()
   })
 
+  it('fails closed with recovery when the workspace success payload is malformed', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
+      .mockImplementationOnce(() => response(200, { available: true, workspaceId: '/private/notes', notes: [], inventory: [] })))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Workspace unavailable' })).toBeVisible()
+    expect(screen.getByText(/invalid workspace response/i)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
+  })
+
   it('traps drawer focus and restores it to the opener', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
@@ -243,7 +255,7 @@ describe('GMD-002/S1 responsive browse shell', () => {
 
     expect(await screen.findByRole('tree', { name: 'Workspace files' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Your workspace', level: 1 })).toBeVisible()
-    expect(window.location.search).toBe('')
+    await waitFor(() => expect(window.location.search).toBe(''))
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
@@ -263,6 +275,26 @@ describe('GMD-002/S1 responsive browse shell', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in to GraphiteMD' })).toBeVisible()
   })
 
+  it('keeps the workspace shell usable when a note success payload is malformed', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
+      .mockImplementationOnce(() => response(200, workspace))
+      .mockImplementationOnce(() => response(200, { plugins: [] }))
+      .mockImplementationOnce(() => response(200, {
+        resourceId: 'res_alpha', displayPath: 'Alpha.md', source: '# Alpha\n',
+        revision: 4, yamlProperties: [], yamlParseError: null,
+      })))
+    const user = userEvent.setup()
+    render(<App />)
+
+    const tree = await screen.findByRole('tree', { name: 'Workspace files' })
+    await user.click(within(tree).getByRole('treeitem', { name: /Alpha/ }))
+
+    expect(await screen.findByRole('heading', { name: 'Note unavailable' })).toBeVisible()
+    expect(tree).toBeVisible()
+    expect(window.location.search).toBe('')
+  })
+
   it('S3/R1-S1 searches locally and opens an opaque result through the guarded note transition', async () => {
     const fetchMock = vi.fn()
       .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
@@ -273,12 +305,11 @@ describe('GMD-002/S1 responsive browse shell', () => {
     vi.stubGlobal('fetch', fetchMock)
     const user = userEvent.setup()
     render(<App />)
-    await screen.findByRole('tree', { name: 'Workspace files' })
-    await user.click(screen.getAllByRole('button', { name: 'Search' })[0]!)
-    const drawer = screen.getByRole('dialog', { name: 'Search' })
-    await user.type(within(drawer).getByRole('searchbox', { name: 'Search notes' }), 'launch')
-    await user.click(within(drawer).getByRole('button', { name: 'Search' }))
-    await user.click(await within(drawer).findByRole('button', { name: /Roadmap/ }))
+    const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
+    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
+    await user.type(within(navigation).getByRole('searchbox', { name: 'Search notes' }), 'launch')
+    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await user.click(await within(navigation).findByRole('button', { name: /Roadmap/ }))
     expect(await screen.findByRole('heading', { name: 'Roadmap', level: 1 })).toBeVisible()
     expect(window.location.search).toBe('?resource=res_roadmap')
     expect(fetchMock).toHaveBeenNthCalledWith(4, '/api/v1/search?q=launch', expect.objectContaining({ credentials: 'same-origin' }))
@@ -293,16 +324,15 @@ describe('GMD-002/S1 responsive browse shell', () => {
       .mockImplementationOnce(() => response(503, { error: { code: 'search_unavailable' } })))
     const user = userEvent.setup()
     render(<App />)
-    await screen.findByRole('tree', { name: 'Workspace files' })
-    await user.click(screen.getAllByRole('button', { name: 'Search' })[0]!)
-    const drawer = screen.getByRole('dialog', { name: 'Search' })
-    const searchbox = within(drawer).getByRole('searchbox', { name: 'Search notes' })
+    const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
+    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
+    const searchbox = within(navigation).getByRole('searchbox', { name: 'Search notes' })
     await user.type(searchbox, 'missing')
-    await user.click(within(drawer).getByRole('button', { name: 'Search' }))
-    expect(await within(drawer).findByText('No notes match “missing”.')).toBeVisible()
+    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    expect(await within(navigation).findByText('No notes match “missing”.')).toBeVisible()
     await user.clear(searchbox); await user.type(searchbox, 'broken')
-    await user.click(within(drawer).getByRole('button', { name: 'Search' }))
-    expect(await within(drawer).findByRole('button', { name: 'Rebuild index' })).toBeVisible()
+    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    expect(await within(navigation).findByRole('button', { name: 'Rebuild index' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Your workspace', level: 1 })).toBeVisible()
   })
 
@@ -315,15 +345,50 @@ describe('GMD-002/S1 responsive browse shell', () => {
       .mockImplementationOnce(() => response(200, { resourceId: 'res_external', displayPath: 'New/External.md', source: '# External\n', revision: 'rev_external', yamlProperties: [], yamlParseError: null }))
     vi.stubGlobal('fetch', fetchMock)
     const user = userEvent.setup(); render(<App />)
-    await screen.findByRole('tree', { name: 'Workspace files' })
-    await user.click(screen.getAllByRole('button', { name: 'Search' })[0]!)
-    const drawer = screen.getByRole('dialog', { name: 'Search' })
-    await user.type(within(drawer).getByRole('searchbox'), 'external')
-    await user.click(within(drawer).getByRole('button', { name: 'Search' }))
-    await user.click(await within(drawer).findByRole('button', { name: /External/ }))
+    const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
+    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
+    await user.type(within(navigation).getByRole('searchbox'), 'external')
+    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await user.click(await within(navigation).findByRole('button', { name: /External/ }))
     expect(await screen.findByRole('heading', { name: 'External', level: 1 })).toBeVisible()
-    await waitFor(() => expect(screen.getByRole('treeitem', { name: /External/ })).toHaveAttribute('aria-selected', 'true'))
+    await user.click(within(navigation).getByRole('button', { name: 'Files' }))
+    await waitFor(() => expect(within(navigation).getByRole('treeitem', { name: /External/ })).toHaveAttribute('aria-selected', 'true'))
     expect(window.location.search).toBe('?resource=res_external')
+  })
+
+  it('keeps desktop search persistent and preserves its query while switching back to Files', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
+      .mockImplementationOnce(() => response(200, workspace))
+      .mockImplementationOnce(() => response(200, { plugins: [] })))
+    const user = userEvent.setup(); render(<App />)
+    const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
+
+    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
+    const searchbox = within(navigation).getByRole('searchbox', { name: 'Search notes' })
+    await user.type(searchbox, 'kept query')
+    expect(screen.queryByRole('dialog', { name: 'Search' })).not.toBeInTheDocument()
+
+    await user.click(within(navigation).getByRole('button', { name: 'Files' }))
+    expect(within(navigation).getByRole('tree', { name: 'Workspace files' })).toBeVisible()
+    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
+    expect(within(navigation).getByRole('searchbox', { name: 'Search notes' })).toHaveValue('kept query')
+  })
+
+  it('turns a malformed search success response into a recoverable local-search error', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
+      .mockImplementationOnce(() => response(200, workspace))
+      .mockImplementationOnce(() => response(200, { plugins: [] }))
+      .mockImplementationOnce(() => response(200, { results: [{ resourceId: 'res_alpha', title: 'Alpha' }] })))
+    const user = userEvent.setup(); render(<App />)
+    const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
+    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
+    await user.type(within(navigation).getByRole('searchbox'), 'alpha')
+    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+
+    expect(await within(navigation).findByRole('button', { name: 'Rebuild index' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Your workspace', level: 1 })).toBeVisible()
   })
 
   it('S2/R2-S4 restores the displayed note URL when a dirty popstate transition is cancelled', async () => {
@@ -387,14 +452,17 @@ describe('GMD-002/S1 responsive browse shell', () => {
   })
 
   it('S2/R2-S3 exposes a recoverable retry after a transient save failure', async () => {
-    const saved = { resourceId: 'res_alpha', displayPath: 'Alpha.md', source: '# Retried\n', revision: 'rev_saved', yamlProperties: [], yamlParseError: null }
+    const saved = { resourceId: 'res_alpha', displayPath: 'Alpha.md', source: '# Retried', revision: 'rev_saved', yamlProperties: [], yamlParseError: null }
     const fetchMock = vi.fn()
       .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
       .mockImplementationOnce(() => response(200, workspace))
       .mockImplementationOnce(() => response(200, { plugins: [] }))
       .mockImplementationOnce(() => response(200, { ...saved, source: '# Alpha\n', revision: 'rev_alpha' }))
       .mockImplementationOnce(() => response(503, { error: { code: 'save_unavailable' } }))
-      .mockImplementationOnce(() => response(200, saved))
+      .mockImplementationOnce((_url, init) => response(200, {
+        ...saved,
+        source: JSON.parse(String(init?.body)).source,
+      }))
     vi.stubGlobal('fetch', fetchMock)
     const user = userEvent.setup(); const view = render(<App />)
     await user.click(await screen.findByRole('treeitem', { name: /Alpha/ }))
@@ -404,6 +472,56 @@ describe('GMD-002/S1 responsive browse shell', () => {
     await user.click(retry)
     await waitFor(() => expect(screen.getByText('Saved')).toBeVisible())
     expect(fetchMock).toHaveBeenLastCalledWith('/api/v1/notes/res_alpha', expect.objectContaining({ method: 'PUT' }))
+  })
+
+  it.each([
+    ['another resource', { resourceId: 'res_other', source: '# Edited\n' }],
+    ['different source', { resourceId: 'res_alpha', source: '# Host changed\n' }],
+  ])('rejects an autosave success response bound to %s', async (_case, mismatch) => {
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
+      .mockImplementationOnce(() => response(200, workspace))
+      .mockImplementationOnce(() => response(200, { plugins: [] }))
+      .mockImplementationOnce(() => response(200, { resourceId: 'res_alpha', displayPath: 'Alpha.md', source: '# Alpha\n', revision: 'rev_alpha', yamlProperties: [], yamlParseError: null }))
+      .mockImplementationOnce(() => response(200, { ...mismatch, displayPath: 'Alpha.md', revision: 'rev_other', yamlProperties: [], yamlParseError: null }))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup(); const view = render(<App />)
+    await user.click(await screen.findByRole('treeitem', { name: /Alpha/ }))
+    const editor = view.container.querySelector('.cm-content') as HTMLElement
+    await user.click(editor); await user.keyboard('{Control>}a{/Control}# Edited')
+
+    expect(await screen.findByRole('button', { name: 'Retry save' }, { timeout: 2_000 })).toBeVisible()
+    expect(screen.getByText('Save failed')).toBeVisible()
+  })
+
+  it('clears results for a subsequent failed query and announces a successful rebuild', async () => {
+    let finishRebuild!: (response: Response) => void
+    const rebuild = new Promise<Response>((resolve) => { finishRebuild = resolve })
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
+      .mockImplementationOnce(() => response(200, workspace))
+      .mockImplementationOnce(() => response(200, { plugins: [] }))
+      .mockImplementationOnce(() => response(200, { results: [{ resourceId: 'res_roadmap', title: 'Roadmap', displayPath: 'Areas/Roadmap.md', snippet: 'First result' }] }))
+      .mockImplementationOnce(() => response(503, { error: { code: 'search_unavailable' } }))
+      .mockImplementationOnce(() => rebuild)
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup(); render(<App />)
+    const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
+    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
+    const searchbox = within(navigation).getByRole('searchbox')
+    await user.type(searchbox, 'roadmap')
+    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    expect(await within(navigation).findByRole('button', { name: /Roadmap/ })).toBeVisible()
+
+    await user.clear(searchbox); await user.type(searchbox, 'broken')
+    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    expect(await within(navigation).findByRole('button', { name: 'Rebuild index' })).toBeVisible()
+    expect(within(navigation).queryByRole('button', { name: /Roadmap/ })).not.toBeInTheDocument()
+
+    await user.click(within(navigation).getByRole('button', { name: 'Rebuild index' }))
+    expect(await within(navigation).findByText('Rebuilding local index…')).toBeVisible()
+    finishRebuild(new Response(JSON.stringify({ indexed: 2 }), { status: 200 }))
+    expect(await within(navigation).findByRole('status', { name: 'Search index status' })).toHaveTextContent('Index rebuilt. 2 notes indexed.')
   })
 
   it('GMD-003/S1 R2-S1 mounts and removes only the active declared System Status contribution', async () => {

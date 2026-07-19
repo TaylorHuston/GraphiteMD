@@ -23,6 +23,28 @@ async function workspaceRoot(): Promise<string> {
 afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))))
 
 describe('GMD-003/S1 R2 inspectable enablement', () => {
+  it('cold-starts against a valid configured workspace without a prior workspace request', async () => {
+    const root = await workspaceRoot()
+    const service = new PluginRuntimeService(root, new ConfiguredWorkspaceAuthority(root))
+
+    await expect(service.start()).resolves.toBeUndefined()
+    expect(service.list()[0]?.status).toBe('active')
+  })
+
+  it('retries startup after the configured workspace becomes available', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'graphitemd-plugin-parent-'))
+    roots.push(parent)
+    const root = join(parent, 'workspace')
+    const service = new PluginRuntimeService(root, new ConfiguredWorkspaceAuthority(root))
+
+    await expect(service.start()).rejects.toMatchObject({ name: 'WorkspaceUnavailableError' })
+    await mkdir(join(root, 'Notes'), { recursive: true })
+    await writeFile(join(root, 'Notes', 'Welcome.md'), '# Welcome\n')
+
+    await expect(service.start()).resolves.toBeUndefined()
+    expect(service.list()[0]?.status).toBe('active')
+  })
+
   it('persists disablement before a restarted production host loads bundled code', async () => {
     const root = await workspaceRoot()
     const authority = new ConfiguredWorkspaceAuthority(root)
@@ -55,6 +77,24 @@ describe('GMD-003/S1 R2 inspectable enablement', () => {
       enabled: { 'system-status': false, 'future-plugin': true },
     })
   })
+
+  it('fails closed instead of persisting enablement into a replacement workspace identity', async () => {
+    const root = await workspaceRoot()
+    const retained = `${root}-retained`
+    roots.push(retained)
+    const authority = new ConfiguredWorkspaceAuthority(root)
+    await authority.openConfigured()
+    const service = new PluginRuntimeService(root, authority)
+    await service.start()
+    await rename(root, retained)
+    await mkdir(root)
+
+    await expect(service.setEnabled('system-status', false)).rejects.toMatchObject({
+      name: 'WorkspaceUnavailableError',
+      reason: 'identity_changed',
+    })
+    await expect(readFile(join(root, '.graphite', 'plugins.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
 })
 
 describe('GMD-003/S1 R4 atomic namespaced state', () => {
@@ -78,6 +118,15 @@ describe('GMD-003/S1 R4 atomic namespaced state', () => {
 
     await writeFile(join(directory, 'state.json.tmp'), '{broken')
     await expect(backend.recovery('system-status')).resolves.toBe('failed')
+  })
+
+  it('rejects a malformed state namespace parent instead of reporting clean recovery', async () => {
+    const root = await workspaceRoot()
+    await mkdir(join(root, '.graphite', 'plugins'), { recursive: true })
+    await writeFile(join(root, '.graphite', 'plugins', 'system-status'), 'not a directory')
+    const backend = new FilesystemPluginStateBackend(root)
+
+    await expect(backend.recovery('system-status')).rejects.toThrow('unavailable')
   })
 
   it('denies a namespace redirected through a symbolic link', async () => {
@@ -126,5 +175,28 @@ describe('GMD-003/S1 R4 atomic namespaced state', () => {
 
     await expect(backend.transaction('system-status', { secret: true })).rejects.toThrow()
     await expect(readFile(join(outside, 'state.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('denies recovery when the namespace parent is swapped immediately before commit', async () => {
+    const root = await workspaceRoot()
+    const outside = await mkdtemp(join(tmpdir(), 'graphitemd-plugin-recovery-escape-'))
+    roots.push(outside)
+    const pluginDirectory = join(root, '.graphite', 'plugins', 'system-status')
+    const retained = join(root, '.graphite', 'plugins', 'system-status-retained')
+    await mkdir(pluginDirectory, { recursive: true })
+    await writeFile(join(pluginDirectory, 'state.json.tmp'), '{"schemaVersion":1,"value":{"safe":true}}')
+    let swap = true
+    const backend = new FilesystemPluginStateBackend(root, {
+      beforeCommit: async () => {
+        if (!swap) return
+        swap = false
+        await rename(pluginDirectory, retained)
+        await symlink(outside, pluginDirectory)
+      },
+    })
+
+    await expect(backend.recovery('system-status')).resolves.toBe('failed')
+    await expect(readFile(join(outside, 'state.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(join(retained, 'state.json.tmp'), 'utf8')).toContain('"safe":true')
   })
 })
