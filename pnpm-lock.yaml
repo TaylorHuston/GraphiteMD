@@ -26,6 +26,9 @@ importers:
       '@adonisjs/core':
         specifier: ^7.3.3
         version: 7.3.5(@adonisjs/assembler@8.4.0(typescript@6.0.3))(youch@4.1.1)
+      '@adonisjs/hash':
+        specifier: ^10.1.0
+        version: 10.1.0
       '@graphitemd/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

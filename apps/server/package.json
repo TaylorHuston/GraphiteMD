@@ -11,9 +11,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
-  "imports": { "#start/*": "./start/*.js" },
+  "imports": {
+    "#start/*": "./start/*.js"
+  },
   "dependencies": {
     "@adonisjs/core": "^7.3.3",
+    "@adonisjs/hash": "^10.1.0",
     "@graphitemd/contracts": "workspace:*",
     "@graphitemd/domain": "workspace:*",
     "reflect-metadata": "^0.2.2"

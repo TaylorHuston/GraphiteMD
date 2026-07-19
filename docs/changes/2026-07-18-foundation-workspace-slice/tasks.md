@@ -5,8 +5,8 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: `GMD-002/S1 R1` package authority is implemented and focused tests prove opaque identity, fail-closed root validation/replacement, and reconnect stability; authenticated HTTP delivery remains intentionally pending on `GMD-001`.
-- Next action: Finish and verify `GMD-001/S1 R1` host-local owner setup while committing the completed `GMD-002/S1 R2` confined inventory slice; then implement browser session authentication.
+- Last completed action: `GMD-002/S1 R2` confined inventory was committed in `a70f7da`; `GMD-001/S1 R1` host-local setup now passes its server, Ace registration, and SDD gates with only real-terminal masking left for manual confirmation.
+- Next action: Commit `GMD-001/S1 R1`, then implement `GMD-001/S1 R2` browser sessions and authenticated workspace delivery.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
 - Expected dirty files: `packages/workspace/`, `apps/server/`, `packages/contracts/`, `docs/epics/gmd-002-markdown-workbench/epic.md`, and this ledger for the current Requirement slice.
 - Known blockers: None. Spike repositories are read-only reference sources.
@@ -44,7 +44,7 @@ status: in_progress
   - [x] Create runtime-validated GraphiteMD contract, domain, workspace, plugin SDK, and plugin testkit package boundaries.
   - [x] Document install, dev, lint, typecheck, test, build, and production start commands.
 - [ ] 4.2 Implement `GMD-001/S1` Establish And Authenticate The Owner Account through BDD/TDD.
-  - [ ] R1 host-local first-owner setup and existing-owner refusal.
+  - [x] R1 host-local first-owner setup and existing-owner refusal.
   - [ ] R2 valid/invalid login, session regeneration, protected APIs, and logout invalidation.
   - [ ] R3 exact-origin, secure-cookie, and CSRF/XSRF enforcement.
 - [ ] 4.3 Implement `GMD-001/S2` Maintain And Recover Access through BDD/TDD.
@@ -112,7 +112,8 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Apply Discovery and promotion | `/sdd-apply`; TDD; component accessibility/composition guidance; Context7 AdonisJS v7 docs | Active Change, branch policy, PRD, ADRs, Epics, both spike surfaces | Change promoted and transitioned to `in_progress`; exact transplant map confirmed; official session regeneration and credentialed SPA guidance reconfirmed | `d8c827a` |
 | 2026-07-18 | Monorepo enabling slice for `GMD-002/S1 R1` | Delegated implementation; curated Coordinator scaffold | Root workspace; `apps/server`; `apps/web`; contracts/domain/workspace/plugin packages; System Status plugin | Compileable service-first skeleton established without Coordinator product behavior; package boundary tests pass; generated artifacts removed and ignored in `f3e4269` | `d8c827a`, `f3e4269` |
 | 2026-07-18 | `GMD-002/S1 R1` service-owned workspace authority | Delegated TDD; Coordinator confinement/reconnect patterns adapted | `packages/workspace`; `GMD-002` Epic | Real configured-root validation, opaque identity, root replacement invalidation, and stable reconnect snapshot implemented; authenticated HTTP proof remains an explicit gap | `762e713` |
-| 2026-07-18 | `GMD-002/S1 R2` confined Markdown inventory | Delegated TDD; Dashboard inventory cases plus Coordinator no-follow confinement adapted | `packages/workspace`; `GMD-002` Epic | Deterministic tree-ready inventory, opaque resources, exclusions, bounded strict UTF-8 reads, and empty projection implemented; presentation remains under R4 | commit pending |
+| 2026-07-18 | `GMD-002/S1 R2` confined Markdown inventory | Delegated TDD; Dashboard inventory cases plus Coordinator no-follow confinement adapted | `packages/workspace`; `GMD-002` Epic | Deterministic tree-ready inventory, opaque resources, exclusions, bounded strict UTF-8 reads, and empty projection implemented; presentation remains under R4 | `a70f7da` |
+| 2026-07-18 | `GMD-001/S1 R1` host-local owner setup | Delegated TDD; current AdonisJS v7 Ace/hash guidance | Server security service, `owner:setup` command, focused tests, `GMD-001` Epic | Machine-local permission-restricted SQLite owner store, Scrypt hash, secure prompt seam, and overwrite refusal implemented; real TTY masking is a manual evidence gap | commit pending |
 
 ## Verification Ledger
 
@@ -124,6 +125,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | `pnpm lint && pnpm typecheck && pnpm test && pnpm build` | broad supporting gate | The new nine-project workspace installs, compiles, tests, and produces server/web builds. | Passing; Adonis emits a Node deprecation warning during build |
 | 2026-07-18 | `pnpm --filter @graphitemd/workspace test`; workspace lint/typecheck/build | focused automated evidence plus supporting gates | `GMD-002/S1/R1-S1..R1-S3`: opaque authority, invalid/replaced-root denial, and reconnect snapshot behavior over disposable real directories. | Passing: 4 tests |
 | 2026-07-18 | Workspace package 7-test suite plus lint/typecheck/build | focused automated evidence plus supporting gates | `GMD-002/S1/R2-S1..R2-S3`: nested deterministic inventory, unsafe/internal/excluded content denial, and honest empty inventory. | Passing: 7 tests |
+| 2026-07-18 | Server 8-test suite, lint/typecheck/build, `node ace list`, and scoped SDD validation | focused automated evidence plus supporting gates | `GMD-001/S1/R1-S1..R1-S2`: hash-only singleton owner setup, permission-restricted machine state, secure prompt adapter, credential-free output, and overwrite refusal. | Passing; TTY masking pending manual confirmation |
 
 ## Manual Feedback
 
