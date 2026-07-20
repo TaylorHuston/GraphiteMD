@@ -6,7 +6,7 @@ GraphiteMD already has a persistent authenticated AdonisJS service, opaque works
 
 Coordinator-Local provides a working reference for embedding `@earendil-works/pi-coding-agent`, driving OpenAI Codex OAuth through application-owned callbacks, disabling Pi's ambient resources, defining custom tools, normalizing session events, and keeping credentials in application-owned state. GraphiteMD must adapt that precedent to its accepted plugin and workspace boundaries rather than copy Coordinator's developer-agent scope.
 
-As of planning, npm reports `@earendil-works/pi-coding-agent` `0.80.10` as current. The implementation should target the `0.80.x` programmatic SDK and let the pnpm lockfile pin the reviewed resolution.
+As of planning, npm reported `@earendil-works/pi-coding-agent` `0.80.10` as current. Direct package characterization found that `0.80.10` no longer exports the programmatic `AuthStorage` boundary selected by this design. The implementation therefore locks the compatible `0.80.6` package family through workspace overrides, still within the accepted `0.80.x` range; a later Pi upgrade requires a fresh adapter characterization.
 
 ## Goals / Non-Goals
 
@@ -350,7 +350,7 @@ It produces the smallest slice that proves real product value and the critical t
 ## Decisions
 
 - One Story owns the complete connect-and-ask user path.
-- Pi `0.80.x` is adopted behind an adapter; `0.80.10` was current during planning.
+- Pi `0.80.x` is adopted behind an adapter; the characterized implementation locks the compatible `0.80.6` package family rather than the planning-time `0.80.10` latest.
 - Codex OAuth is the only onboarding route and `gpt-5.4` is the initial documented default with a host-only override.
 - The Assistant is a bundled plugin using service-owned model/auth/workspace capabilities.
 - Context/Settings reuse makes a separate design workflow unnecessary for this slice.

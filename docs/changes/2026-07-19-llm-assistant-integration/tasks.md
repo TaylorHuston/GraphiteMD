@@ -5,11 +5,11 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: completed the enabling contracts/SDK phase with focused evidence. It establishes safe normalized browser/plugin contracts and a declared-capability facade, but no Story behavior is implemented yet.
-- Next action: implement `GMD-004/S1/R1-R2` by adding the machine-local Pi/Codex credential boundary, normalized OAuth manager, injected deterministic runtime seam, and authenticated HTTP adapter.
-- Active branch/ref: `change/llm-assistant-integration` at enabling-phase commit `452a781`.
-- Expected dirty files: `packages/contracts/src/index.{ts,test.ts}`, `packages/plugin-sdk/{package.json,src/index.{ts,test.ts}}`, `pnpm-lock.yaml`, and this ledger for the enabling-phase commit.
-- Known blockers: none for promotion or deterministic implementation. Live Codex verification later requires the owner to complete OAuth.
+- Last completed action: implemented the machine-local Pi/Codex OAuth boundary, authenticated normalized HTTP adapter, and Settings surface with deterministic provider-flow and access-control evidence.
+- Next action: implement `GMD-004/S2/R1-R3`: brokered retrieval, restricted Pi question loop, source provenance, and canonical conversation persistence.
+- Active branch/ref: `change/llm-assistant-integration` at the pending OAuth phase commit.
+- Expected dirty files: Assistant runtime/routes/tests, Settings UI/test, contracts, Pi dependency lock/configuration, and this ledger.
+- Known blockers: none for deterministic implementation. A separate owner-completed Codex OAuth is still required for live-provider verification.
 
 ## Task Checklist
 
@@ -41,8 +41,8 @@ status: in_progress
 
 - [ ] 4.1 Establish the runtime-neutral Assistant contracts and service boundaries through BDD/TDD.
   - [x] Define provider status, normalized OAuth flow/input, conversation, turn, source, and error schemas used by service, plugin, and browser adapters.
-  - [ ] Add injected model/auth/runtime and conversation-store interfaces; keep AdonisJS, React, Pi, paths, and credentials out of domain contracts.
-  - [ ] Add the Pi `0.80.x` dependency at the reviewed current version and lock the exact resolution.
+  - [x] Add injected model/auth/runtime and conversation-store interfaces; keep AdonisJS, React, Pi, paths, and credentials out of domain contracts.
+  - [x] Add the Pi `0.80.x` dependency at the reviewed current version and lock the exact resolution.
 - [ ] 4.2 Implement `GMD-004/S1/R1 GraphiteMD-Owned Codex OAuth`.
   - [ ] `R1-S1`: complete normalized Codex OAuth through Assistant Settings and persist owner-only machine-local credentials.
   - [ ] `R1-S2`: cover accessible cancel/input/progress/error states, invalid/stale input, provider failure, bounded terminal retention, retry, and concurrent-flow conflict.
@@ -101,6 +101,7 @@ status: in_progress
 | Date | Slice | Agent / Guidance | Files / Areas | Result | Commit / Ref |
 |---|---|---|---|---|---|
 | 2026-07-19 | Enabling contracts and capability facade | main + bounded discovery worker; Context7 Pi API check and Coordinator-local `0.80.6` reference | `packages/contracts`, `packages/plugin-sdk` | Failing-first contract coverage followed by runtime-validated sanitized provider/OAuth/question/turn/source schemas and a declared service-owned Assistant capability facade. No Pi, OAuth, routes, manifest, retrieval, persistence, or UI behavior yet. | `452a781` |
+| 2026-07-19 | GMD-004/S1 OAuth boundary and Settings controls | main | `apps/server/app/assistant`, authenticated assistant routes/tests, Settings UI, contracts, Pi package lock | Locked Pi's compatible `0.80.6` adapter graph; credentials and session scratch remain machine-local. Deterministic tests cover flow conflict/cancel/retry/failure, transient device-code instructions, credential permissions, normalized owner provider state, and unauthenticated route rejection. The Settings tab polls only normalized flow state and never receives credentials. Live OAuth remains an external verification gap. | pending |
 | YYYY-MM-DD | GMD-004/S1 R1-R2 | main | Codex provider/OAuth, credential lifecycle, browser Settings | pending | pending |
 | YYYY-MM-DD | GMD-004/S2 R1-R2 | main | Assistant loop, brokered search/read, provenance | pending | pending |
 | YYYY-MM-DD | GMD-004/S2 R3 | main | canonical conversation authority | pending | pending |
@@ -113,6 +114,7 @@ status: in_progress
 |---|---|---|---|---|
 | YYYY-MM-DD | Assistant focused suites | focused automated test | GMD-004/S1-S2 deterministic behavior and risky boundaries | pending |
 | 2026-07-19 | `pnpm --filter @graphitemd/contracts test`; `pnpm --filter @graphitemd/plugin-sdk test`; package lints/typechecks; server bundled import-boundary suite | focused automated test / supporting gate | Sanitized Assistant contracts reject token-bearing or malformed terminal payloads; SDK operations require declared capabilities and validate replies before plugins can consume them; the existing bundled import boundary remains green. | passing; enables later Story evidence but does not verify a GMD-004 Scenario alone |
+| 2026-07-19 | contracts/plugin SDK suites; server OAuth and authenticated HTTP suites; web Settings suite; package lint/typecheck | focused automated test | S1 deterministic flow states, protected state permissions, normalized owner-only service responses, unauthenticated mutation rejection, and accessible three-tab Settings navigation. | passing; live provider path remains pending owner OAuth |
 | YYYY-MM-DD | Production fake-provider browser journey | deterministic E2E | Connect, ask, brokered read, service-derived sources, persistence, disconnect, desktop/mobile continuity | pending |
 | YYYY-MM-DD | Rendered Context/Settings matrix | rendered UI verification | GMD-004/S2 R4 responsive states, interaction, accessibility, and visual containment | pending |
 | YYYY-MM-DD | Live Codex note-grounding playtest | live-provider playtest | Real OAuth/model can answer from a uniquely identifiable note with matching source provenance | pending owner authorization |
@@ -135,6 +137,7 @@ status: in_progress
 | Date | Feedback / Discovery | Classification | Reference / Target | Preserve / Change / Non-Goals | Artifact Updates | Next Apply Starting Point |
 |---|---|---|---|---|---|---|
 | YYYY-MM-DD | TBD | experience refinement / experience defect / accessibility correction / responsive correction | Context / Settings | Preserve read-only connect-and-ask behavior and source provenance. | design.md / tasks.md | `/sdd-apply` TBD |
+| 2026-07-19 | Pi `0.80.10` removed the programmatic `AuthStorage` export used by the accepted service adapter, while the `0.80.6` package and its matching internal packages expose the characterized API. | technical constraint | Pi runtime adapter | Preserve the accepted `0.80.x` dependency range and service boundary; lock `0.80.6` with workspace overrides until a separately characterized upgrade. | design.md / tasks.md | `/sdd-apply` GMD-004/S2 |
 
 ## Manual UI Confirmation
 

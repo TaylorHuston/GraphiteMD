@@ -160,6 +160,12 @@ export const AssistantOAuthInput = Type.Union([
     options: Type.Array(Type.Object({ id: Type.String({ minLength: 1 }), label: Type.String({ minLength: 1 }) }, { additionalProperties: false }), { minItems: 1 }),
     required: Type.Boolean(),
   }, { additionalProperties: false }),
+  Type.Object({
+    kind: Type.Literal('device_code'),
+    label: Type.String({ minLength: 1 }),
+    verificationUri: Type.String({ minLength: 1 }),
+    userCode: Type.String({ minLength: 1 }),
+  }, { additionalProperties: false }),
 ])
 export type AssistantOAuthInput = Static<typeof AssistantOAuthInput>
 

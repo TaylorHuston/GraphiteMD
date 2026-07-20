@@ -104,6 +104,39 @@ afterAll(async () => {
 })
 
 describe('GMD-001/S1 R2 browser session authentication', () => {
+  it('GMD-004/S1 R2-S3 rejects unauthenticated Codex reads and mutations without exposing flow state', async () => {
+    const anonymous = await csrfSession()
+    const requests = await Promise.all([
+      fetch(`${origin}/api/v1/assistant/provider`),
+      fetch(`${origin}/api/v1/assistant/oauth`, {
+        method: 'POST', headers: { cookie: anonymous.cookie, 'x-xsrf-token': anonymous.token },
+      }),
+      fetch(`${origin}/api/v1/assistant/oauth/flow_unknown/cancel`, {
+        method: 'POST', headers: { cookie: anonymous.cookie, 'x-xsrf-token': anonymous.token },
+      }),
+      fetch(`${origin}/api/v1/assistant/disconnect`, {
+        method: 'POST', headers: { cookie: anonymous.cookie, 'x-xsrf-token': anonymous.token },
+      }),
+    ])
+    expect(requests.map((response) => response.status)).toEqual([401, 401, 401, 401])
+    expect(await Promise.all(requests.map((response) => response.json()))).toEqual([
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
+    ])
+  })
+
+  it('GMD-004/S1 R1-S1 returns only the normalized provider projection to the authenticated owner', async () => {
+    const owner = await loginOwner()
+    const provider = await fetch(`${origin}/api/v1/assistant/provider`, { headers: { cookie: owner.cookie } })
+    expect(provider.status).toBe(200)
+    expect(await provider.json()).toMatchObject({
+      provider: 'openai-codex',
+      status: expect.stringMatching(/^(disconnected|connected|unavailable|failed)$/),
+    })
+  })
+
   it('R2-S1 establishes an official server-owned session and protects workspace delivery', async () => {
     const anonymous = await fetch(`${origin}/api/v1/auth/current`)
     const anonymousCookie = sessionCookie(anonymous)

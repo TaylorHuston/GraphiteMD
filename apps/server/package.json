@@ -24,6 +24,7 @@
     "@adonisjs/session": "^8.1.0",
     "@adonisjs/shield": "^9.0.0",
     "@adonisjs/static": "^2.0.1",
+    "@earendil-works/pi-coding-agent": "0.80.6",
     "@graphitemd/contracts": "workspace:*",
     "@graphitemd/domain": "workspace:*",
     "@graphitemd/plugin-sdk": "workspace:*",

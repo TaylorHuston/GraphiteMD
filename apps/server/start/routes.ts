@@ -19,6 +19,7 @@ import {
 import { PluginRuntimeService } from '../app/plugins/plugin_runtime_service.js'
 import { LocalSearchService, LocalSearchUnavailableError } from '../app/search/local_search_service.js'
 import { LoginAttemptLimiter } from '../app/security/login_attempt_limiter.js'
+import { AssistantOAuthFlowError, AssistantOAuthFlowManager, PiRuntimeBoundary } from '../app/assistant/index.js'
 
 const ownerSetup = new OwnerSetupService(resolveSecurityStateDirectory())
 const workspace = new ConfiguredWorkspaceAuthority(process.env.GRAPHITEMD_WORKSPACE_ROOT)
@@ -30,6 +31,31 @@ const plugins = process.env.GRAPHITEMD_WORKSPACE_ROOT
   : undefined
 let pluginsStarted: Promise<void> | undefined
 const loginAttempts = new LoginAttemptLimiter()
+let assistantOAuth: Promise<AssistantOAuthFlowManager> | undefined
+
+function oauthManager(): Promise<AssistantOAuthFlowManager> {
+  assistantOAuth ??= PiRuntimeBoundary.create(resolveSecurityStateDirectory())
+    .then((runtime) => new AssistantOAuthFlowManager(runtime))
+  return assistantOAuth
+}
+
+async function requireOwner(auth: { use: (guard: 'web') => { authenticate: () => Promise<unknown> } }, response: { unauthorized: (body: unknown) => unknown }): Promise<boolean> {
+  try {
+    await auth.use('web').authenticate()
+    return true
+  } catch {
+    response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+    return false
+  }
+}
+
+function assistantOAuthErrorResponse(error: unknown, response: { badRequest: (body: unknown) => unknown; conflict: (body: unknown) => unknown; serviceUnavailable: (body: unknown) => unknown }): unknown {
+  if (error instanceof AssistantOAuthFlowError) {
+    const body = { error: { code: error.code, message: error.message } }
+    return error.code === 'flow_conflict' ? response.conflict(body) : response.badRequest(body)
+  }
+  return response.serviceUnavailable({ error: { code: 'provider_unavailable', message: 'Codex authorization is unavailable.' } })
+}
 
 async function pluginRuntime(): Promise<PluginRuntimeService | undefined> {
   if (!plugins) return undefined
@@ -86,6 +112,64 @@ router.get('/api/v1/auth/current', async ({ auth, response }) => {
     return { owner: { id: 'owner' } }
   } catch {
     return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+})
+
+router.get('/api/v1/assistant/provider', async ({ auth, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).providerStatus()
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.post('/api/v1/assistant/oauth', async ({ auth, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).start()
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.get('/api/v1/assistant/oauth/:flowId', async ({ auth, params, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).flow(params.flowId)
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.post('/api/v1/assistant/oauth/:flowId/answer', async ({ auth, params, request, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  const value = request.input('value')
+  if (typeof value !== 'string') {
+    return response.badRequest({ error: { code: 'invalid_input', message: 'The authorization input is invalid or no longer current.' } })
+  }
+  try {
+    return await (await oauthManager()).answer(params.flowId, value)
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.post('/api/v1/assistant/oauth/:flowId/cancel', async ({ auth, params, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).cancel(params.flowId)
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.post('/api/v1/assistant/disconnect', async ({ auth, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).disconnect()
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
   }
 })
 
