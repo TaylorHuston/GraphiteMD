@@ -236,14 +236,14 @@ The system SHALL provide a responsive, keyboard-accessible Assistant question fl
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
-| S2/R1 | Not implemented yet. | primary | Read-only Assistant run behavior after implementation. |
+| S2/R1-S2, S2/R1-S3 | `apps/server/app/assistant/question_service.ts#AssistantQuestionService` | primary | Serializes normalized questions, persists terminal outcomes, requires provider state, and refuses empty, duplicate, unavailable, or ungrounded runs. |
 | S2/R2-S1, S2/R2-S2, S2/R2-S3 | `apps/server/app/assistant/workspace_context.ts#AssistantWorkspaceContext` | primary | Performs bounded opaque search/read revalidation and derives source evidence only from successful reads. |
 | S2/R3-S1, S2/R3-S2 | `apps/server/app/assistant/conversation_store.ts#ConversationStore` | primary | Writes confined versioned turns atomically and recovers incomplete turns as explicit interrupted failures. |
 | S2/R4 | Not implemented yet. | primary | Responsive Assistant presentation after implementation. |
 
 #### Implementation Gaps
 
-- `S2/R1`: Not implemented yet.
+- `S2/R1-S1`: Pi adapter and authenticated browser path are not implemented yet.
 - `S2/R4`: Not implemented yet.
 
 #### Verified By
@@ -252,10 +252,11 @@ The system SHALL provide a responsive, keyboard-accessible Assistant question fl
 |---|---|---|---|
 | S2/R2-S1, S2/R2-S2, S2/R2-S3 | `apps/server/app/assistant/workspace_context.test.ts` | Internal/symlinked/unknown resources cannot enter the broker; UTF-8 and total context limits are deterministic; provenance appears only after a successful authority read. | focused automated passing |
 | S2/R3-S1, S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts` | Canonical versioned turns persist beneath `.graphite/conversations`; malformed and redirected state fails closed; interrupted turns are recovered honestly. | focused automated passing |
+| S2/R1-S2, S2/R1-S3 | `apps/server/app/assistant/question_service.test.ts` | Only brokered tools can produce sources; no-read replies become honest no-evidence failures; disconnected, empty, and concurrent requests are refused. | focused automated passing |
 
 #### Verification Gaps
 
-- `S2/R1-S1`, `S2/R1-S2`, `S2/R1-S3`: Not verified yet.
+- `S2/R1-S1`: Pi adapter and authenticated browser path are not verified yet.
 - `S2/R4-S1`, `S2/R4-S2`, `S2/R4-S3`: Not verified yet.
 
 #### Story Notes
