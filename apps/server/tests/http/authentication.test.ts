@@ -439,7 +439,7 @@ describe('GMD-002/S3 authenticated local search', () => {
     expect(await rebuilt.json()).toMatchObject({ indexed: expect.any(Number) })
   })
 
-  it('R2-S1 reports a recoverable local-index failure without misclassifying workspace authority', async () => {
+  it('R1-S3 reports a recoverable local-index failure without misclassifying workspace authority', async () => {
     const authenticated = await loginOwner()
     const databasePath = join(workspaceRoot, '.graphite', 'cache', 'search.sqlite')
     await rm(databasePath, { force: true })
