@@ -7,8 +7,8 @@ status: in_progress
 
 - Last completed action: implemented the machine-local Pi/Codex OAuth boundary, authenticated normalized HTTP adapter, and Settings surface with deterministic provider-flow and access-control evidence.
 - Next action: implement `GMD-004/S2/R1-R3`: brokered retrieval, restricted Pi question loop, source provenance, and canonical conversation persistence.
-- Active branch/ref: `change/llm-assistant-integration` at the pending OAuth phase commit.
-- Expected dirty files: Assistant runtime/routes/tests, Settings UI/test, contracts, Pi dependency lock/configuration, and this ledger.
+- Active branch/ref: `change/llm-assistant-integration` at OAuth phase checkpoint `f5738d7`.
+- Expected dirty files: retrieval/conversation runtime, authenticated question routes/tests, bundled Assistant plugin, Context UI/test, and this ledger.
 - Known blockers: none for deterministic implementation. A separate owner-completed Codex OAuth is still required for live-provider verification.
 
 ## Task Checklist
