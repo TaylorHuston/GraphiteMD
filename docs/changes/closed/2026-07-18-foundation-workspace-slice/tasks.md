@@ -5,10 +5,10 @@ status: in_review
 
 ## Resume Here
 
-- Last completed action: The user explicitly authorized merge-and-close and accepted the remaining terminal, real-device, and screen-reader confirmation as a documented gap.
-- Next action: Commit the closed artifact move, merge the reviewed source into `develop`, and reconcile the final merge record.
-- Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: Closed Change artifact move only until committed.
+- Last completed action: The reviewed and closed foundation Change was merged locally into `develop` as `48392e8`; remaining manual checks are recorded as accepted gaps.
+- Next action: Start the next GraphiteMD Change from the integrated `develop` foundation.
+- Active branch/ref: `develop` at merge commit `48392e8`; source branch retained at closeout commit `9d6b0b0`.
+- Expected dirty files: Final merge-ledger reconciliation only until committed.
 - Known blockers: None. Manual terminal, real-device, and screen-reader confirmation is an accepted gap, not claimed as completed evidence.
 
 ## Task Checklist
@@ -239,6 +239,6 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 - `review.md` findings resolved: Yes in the immutable implementation commit; accepted workspace identity and plugin lifecycle remain fail-closed, and the current shell passes direct rendered inspection.
 - Planning updates resolved: Yes for the accepted Change scope; accepted manual gaps and deferred product scope remain explicit.
 - Manual UI confirmation status: accepted gap; deterministic desktop/narrow browser evidence passes, while terminal, real-device, and screen-reader checks remain unperformed.
-- PR / merge state: Local merge into `develop` and Change closeout explicitly authorized on 2026-07-19; pending execution. No remote, PR, push, deployment, or branch deletion.
+- PR / merge state: Merged locally into `develop` as `48392e8f00cc4ad044000e8412644dc9f1dcc1ec` from source closeout `9d6b0b0ae9aa1dfac988f68de63247b852d8166e`. No remote, PR, push, deployment, or branch deletion.
 - Deferred scope accepted: Recorded in proposal/design/Epics.
 - Change moved to `docs/changes/closed/`: Yes; closed through `sdd change close` under explicit user authorization.
