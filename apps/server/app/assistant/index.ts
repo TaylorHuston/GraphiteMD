@@ -21,6 +21,7 @@ import type {
   AssistantOAuthInput,
   AssistantProviderStatus,
 } from '@graphitemd/contracts'
+import { assertMachineLocalStateDirectory } from '../security/owner_setup_service.js'
 
 export const OPENAI_CODEX_PROVIDER = 'openai-codex' as const
 export const DEFAULT_OPENAI_CODEX_MODEL = 'gpt-5.4' as const
@@ -102,11 +103,12 @@ export class PiRuntimeBoundary implements PiOAuthRuntime {
     this.#modelRegistry = ModelRegistry.create(this.#authStorage, paths.models)
   }
 
-  static async create(stateDirectory: string): Promise<PiRuntimeBoundary> {
+  static async create(stateDirectory: string, workspaceRoot = process.env.GRAPHITEMD_WORKSPACE_ROOT): Promise<PiRuntimeBoundary> {
     if (!isAbsolute(stateDirectory)) {
       throw new Error('Assistant state directory must be an absolute path.')
     }
     const stateRoot = resolve(stateDirectory)
+    await assertMachineLocalStateDirectory(stateRoot, workspaceRoot)
     const root = join(stateRoot, 'assistant', 'pi')
     const paths: PiStatePaths = {
       root,

@@ -1,4 +1,4 @@
-# ADR: Pi-Backed Assistant Runtime And Codex Credential Boundary
+# ADR: Pi-Backed Assistant Runtime And Split Storage Boundary
 
 - Status: Proposed
 - Date: 2026-07-19
@@ -9,7 +9,7 @@
 
 GraphiteMD needs its first model-backed capability without coupling product contracts to one SDK or allowing a bundled plugin to bypass workspace, credential, and provider authority. Coordinator-Local proves that Pi can embed an agent session and drive OpenAI Codex OAuth, but GraphiteMD has a stricter production plugin boundary: plugins use brokered resources and must not receive raw credentials, host paths, or ambient process authority.
 
-The decision must also preserve a useful non-AI workbench, keep provider secrets outside the workspace, and let future runtimes or providers replace Pi/Codex without rewriting browser and durable conversation contracts.
+The decision must also preserve a useful non-AI workbench, keep provider secrets outside the workspace, and let future runtimes or providers replace Pi/Codex without rewriting browser and durable conversation contracts. The owner has selected an atomic, Obsidian-like workspace boundary: inspectable workspace state must travel with the workspace under `.graphitemd/`, while per-machine secrets must remain outside it.
 
 ## Decision
 
@@ -17,7 +17,9 @@ GraphiteMD SHALL adopt Pi `0.80.x` as the first replaceable embedded Assistant r
 
 - The service owns Pi lifecycle, provider status, OAuth-flow normalization, model resolution, session events, abort, and credential storage.
 - OpenAI Codex OAuth is the only provider onboarding path in the first Assistant Change.
-- Provider credentials live beneath the machine-local `GRAPHITEMD_STATE_DIR` with owner-only permissions. They never live under the workspace, plugin state, browser storage, logs, typed responses, or conversation records.
+- Workspace-canonical GraphiteMD state lives beneath `<workspace>/.graphitemd/`: workspace identity/configuration, plugin configuration/state, normalized conversations, and other inspectable workspace-scoped data. Derived caches and operation receipts are excluded from normal workspace tracking as documented by its `.gitignore`.
+- Provider credentials, owner password/session state, encryption keys, and Pi runtime scratch live beneath machine-local `~/.graphitemd/` by default with owner-only permissions. `GRAPHITEMD_STATE_DIR` remains a supported explicit override, but it must resolve outside the configured workspace and never under `.graphitemd/`.
+- Existing valid `.graphite/` workspace state migrates to `.graphitemd/` before workspace services use it. Migration is an atomic rename only when the destination is absent and both paths are safe real directories; a destination conflict, symlink, or invalid layout fails closed with an actionable recovery message and never merges directories.
 - The bundled Assistant plugin owns the Assistant prompt, retrieval strategy, tool policy, and presentation contribution, but invokes models and workspace resources only through production SDK capabilities. It never receives raw provider credentials or unrestricted Pi, filesystem, shell, process, or network authority.
 - Pi automatic project resources, extensions, skills, prompt templates, themes, context-file discovery, and built-in tools are disabled. The first session receives only GraphiteMD-defined search and bounded-read tools backed by opaque workspace resources.
 - Runtime-neutral contracts own provider status, normalized OAuth interaction, question/answer state, successful source provenance, errors, and durable conversation events. Pi-specific session records are not browser authority.
@@ -47,19 +49,21 @@ This decision clarifies the existing plugin ADR: brokered model/auth capability 
 
 ## Consequences
 
-- Positive: Codex credentials, provider behavior, and note context cross explicit auditable service boundaries.
+- Positive: Codex credentials, provider behavior, note context, and workspace state cross explicit auditable boundaries while workspace-local state remains portable and inspectable with its Markdown files.
 - Positive: Pi can be upgraded or replaced without changing durable conversation, source, or browser contracts.
 - Positive: The bundled Assistant proves real model and workspace capabilities through the same SDK intended for future plugins.
 - Negative: The service must maintain an OAuth state machine, runtime adapter, normalized event model, and upgrade characterization suite.
+- Negative: The service must maintain safe legacy namespace migration, a machine-state default, and clear backup/recovery guidance for the intentionally separate secret vault.
 - Negative: Some Pi features remain intentionally unavailable until GraphiteMD can expose them through safe capabilities.
 - Follow-up: A later provider/model Change may generalize onboarding and selection without weakening this credential boundary.
 
 ## Validation
 
 - Prove unauthenticated clients and disabled plugins cannot start OAuth or model work.
-- Prove Codex credentials are absent from the workspace, browser responses/storage, conversation records, logs, and source evidence.
+- Prove `.graphite/` migrates without loss to `.graphitemd/`, and conflicting or unsafe legacy layouts fail closed without overwriting workspace data.
+- Prove the default machine-local state directory and any override remain outside the workspace; Codex credentials, password/session state, and Pi scratch are absent from workspace files, browser responses/storage, conversation records, logs, and source evidence.
 - Prove Pi sessions load no automatic workspace context and expose only the two brokered read-only tools.
-- Prove `.graphite/`, excluded, symlinked, oversized, stale, unknown, and replaced-root resources cannot reach provider context.
+- Prove `.graphitemd/`, excluded, symlinked, oversized, stale, unknown, and replaced-root resources cannot reach provider context.
 - Prove deterministic runtime and OAuth doubles cover success, cancellation, failure, retry, abort, unavailable-model, and malformed-event behavior.
 - Complete a separate live Codex playtest against a disposable uniquely identifiable Markdown note and inspect the resulting source provenance.
 

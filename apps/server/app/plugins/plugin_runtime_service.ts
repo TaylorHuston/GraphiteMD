@@ -142,12 +142,12 @@ export class PluginEnablementStore {
   #pending: Promise<unknown> = Promise.resolve()
 
   constructor(private readonly workspaceRoot: string, private readonly options: AtomicPluginWriteOptions = {}) {
-    this.#path = join(workspaceRoot, '.graphite', 'plugins.json')
+    this.#path = join(workspaceRoot, '.graphitemd', 'plugins.json')
   }
 
   async read(): Promise<EnablementDocument> {
     await this.options.assertAuthority?.()
-    await assertNoSymlink(dirname(dirname(this.#path)), ['.graphite', 'plugins.json'])
+    await assertNoSymlink(dirname(dirname(this.#path)), ['.graphitemd', 'plugins.json'])
     const value = await readJson(this.#path)
     if (value === undefined) return DEFAULT_ENABLEMENT
     if (typeof value !== 'object' || value === null || Array.isArray(value) ||
@@ -184,7 +184,7 @@ export class FilesystemPluginStateBackend implements PluginStateBackend {
 
   #statePath(pluginId: string): string {
     if (!PLUGIN_ID.test(pluginId)) throw new Error('Invalid plugin identity.')
-    return join(this.workspaceRoot, '.graphite', 'plugins', pluginId, 'state.json')
+    return join(this.workspaceRoot, '.graphitemd', 'plugins', pluginId, 'state.json')
   }
 
   async read(pluginId: string): Promise<unknown | undefined> {
@@ -251,7 +251,7 @@ export class FilesystemPluginStateBackend implements PluginStateBackend {
 
   async #assertSafe(pluginId: string): Promise<void> {
     if (!PLUGIN_ID.test(pluginId)) throw new Error('Invalid plugin identity.')
-    await assertNoSymlink(this.workspaceRoot, ['.graphite', 'plugins', pluginId])
+    await assertNoSymlink(this.workspaceRoot, ['.graphitemd', 'plugins', pluginId])
   }
 }
 

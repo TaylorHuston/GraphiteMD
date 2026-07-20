@@ -170,7 +170,7 @@ export interface PluginStateBackend {
 export function createPluginStateAdapter(pluginId: string, schemaVersion: number, backend: PluginStateBackend) {
   if (!IDENTIFIER.test(pluginId)) throw new Error('Invalid plugin identity.')
   return Object.freeze({
-    namespace: `.graphite/plugins/${pluginId}/`,
+    namespace: `.graphitemd/plugins/${pluginId}/`,
     read: async (): Promise<unknown | undefined> => {
       const envelope = await backend.read(pluginId)
       if (envelope === undefined) return undefined

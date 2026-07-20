@@ -11,6 +11,7 @@ GraphiteMD is intended to be a document-native AI workbench, but the current app
 - Let the authenticated owner ask a question from the existing Context surface.
 - Give the Assistant only brokered workspace search and read tools over eligible opaque note resources.
 - Show source references derived from successful tool reads and preserve an inspectable workspace-local conversation record.
+- Establish `.graphitemd/` as the workspace-local GraphiteMD vault, including a safe migration from the legacy `.graphite/` namespace; keep password, session, OAuth, and runtime-secret state in a separate machine-local GraphiteMD vault.
 - Keep ordinary Markdown browsing, editing, search, and plugin behavior fully usable when Codex is disconnected or unavailable.
 
 ## Target Repositories
@@ -41,19 +42,22 @@ GraphiteMD is intended to be a document-native AI workbench, but the current app
   - The owner can ask about any Markdown note that the existing workspace authority considers eligible.
   - Answers expose source references that prove which workspace notes were actually read.
   - Pi has no built-in filesystem, shell, write, extension, skill, prompt-template, theme, or automatic context-file authority.
-  - Durable conversation state is inspectable beneath `.graphite/`; credentials remain machine-local outside the workspace.
+  - Durable conversation, workspace configuration, plugin configuration, and other inspectable workspace-local state are canonical beneath `<workspace>/.graphitemd/`.
+  - Password, session, OAuth, encryption, and Pi runtime-secret state are machine-local beneath `~/.graphitemd/` by default (or an explicitly configured, non-workspace `GRAPHITEMD_STATE_DIR`).
+  - Existing `.graphite/` workspace state migrates to `.graphitemd/` without data loss; ambiguous or unsafe layouts fail closed with a recovery message rather than merging state.
   - The Assistant uses the existing desktop Context panel and narrow-screen Context drawer; provider setup uses Settings.
 - Deferred:
   - Document proposals, direct writes, autonomous grants, destructive or external tools, developer agents, background work, and schedules.
   - Providers other than Codex, API-key onboarding, model selection UI, custom system prompts, named agents, memory, compaction UX, and multi-agent delegation.
   - Conversation library/navigation, cross-device conversation resume, attachments, image input, voice, and polished citation navigation.
-  - User-configurable Assistant-only folder or mount exclusions. This slice still enforces the existing eligible-resource boundary, including `.graphite/`, configured inventory exclusions when present, symlinks, unsupported files, and size limits.
+  - User-configurable Assistant-only folder or mount exclusions. This slice still enforces the existing eligible-resource boundary, including `.graphitemd/`, configured inventory exclusions when present, symlinks, unsupported files, and size limits.
 - Assumptions:
   - The implementation will adopt the current Pi `0.80.x` SDK behind a GraphiteMD-owned adapter; the package lockfile will pin the exact resolved version.
   - The existing local search and opaque note-read authority are the only workspace context sources needed for this proof.
   - A model answer is not proof of grounding unless GraphiteMD can associate it with successful brokered read events.
 - User decisions that shaped the Story/Requirement split:
   - The user confirmed a usable Assistant vertical slice, then narrowed the acceptance proof to Codex authentication plus asking about any note in the vault. Planning validation led to two Stories so provider onboarding and note Q&A each remain one primary user path.
+  - The user selected an Obsidian-like atomic workspace boundary: workspace-canonical state belongs in `<workspace>/.graphitemd/`, while machine-specific secrets remain outside the workspace. This replan adds the namespace migration and default machine-state resolution to the existing vertical slice.
 
 ## Change Folder
 
@@ -64,10 +68,10 @@ GraphiteMD is intended to be a document-native AI workbench, but the current app
 ## Impact
 
 - Product: Introduces the first usable workspace-grounded Assistant without weakening normal non-AI editing.
-- Code: Adds runtime-neutral Assistant contracts, a service-owned Pi/Codex boundary, brokered model and workspace operations, a bundled Assistant contribution, conversation persistence, authenticated HTTP routes, and responsive web UI.
+- Code: Adds runtime-neutral Assistant contracts, a service-owned Pi/Codex boundary, brokered model and workspace operations, a bundled Assistant contribution, conversation persistence, authenticated HTTP routes, responsive web UI, and a safe `.graphite/` to `.graphitemd/` workspace-state migration with a machine-local state default.
 - Tests: Adds deterministic provider/OAuth doubles, package/service/contract/component coverage, production-browser E2E, a live Codex playtest, and direct rendered UI inspection.
-- Docs: Updates the new Epic, README runtime/security guidance, plugin and Assistant boundaries, and user-visible changelog.
-- ADRs: Adds a Proposed ADR for the Pi-backed Assistant runtime and Codex credential boundary; links the existing agent-authority ADR to read-only Q&A in `GMD-004/S2`.
+- Docs: Updates the new Epic, README runtime/security/backup and migration guidance, plugin and Assistant boundaries, and user-visible changelog.
+- ADRs: Revises the Proposed Pi-backed Assistant ADR to record the workspace-vault/machine-vault split and migration, and links the existing agent-authority ADR to read-only Q&A in `GMD-004/S2`.
 
 ## Release Communication Impact
 

@@ -1,5 +1,6 @@
-import { chmod, mkdir } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
+import { chmod, lstat, mkdir, realpath } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
 import { Scrypt } from '@adonisjs/hash/drivers/scrypt'
@@ -64,13 +65,53 @@ export class OwnerNotFoundError extends Error {
 
 export function resolveSecurityStateDirectory(environment = process.env): string {
   const configured = environment.GRAPHITEMD_STATE_DIR?.trim()
-  if (!configured) {
-    throw new Error('GRAPHITEMD_STATE_DIR must identify the machine-local state directory')
-  }
-  if (!isAbsolute(configured)) {
+  if (configured && !isAbsolute(configured)) {
     throw new Error('GRAPHITEMD_STATE_DIR must be an absolute path')
   }
-  return resolve(configured)
+  const stateDirectory = configured ? resolve(configured) : join(homedir(), '.graphitemd')
+  const workspaceRoot = environment.GRAPHITEMD_WORKSPACE_ROOT?.trim()
+  if (workspaceRoot && isInside(resolve(workspaceRoot), stateDirectory)) {
+    throw new Error('GRAPHITEMD_STATE_DIR must resolve outside GRAPHITEMD_WORKSPACE_ROOT')
+  }
+  return stateDirectory
+}
+
+function isInside(root: string, candidate: string): boolean {
+  const path = relative(root, candidate)
+  return path === '' || (path !== '..' && !path.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) && !isAbsolute(path))
+}
+
+async function nearestExistingAncestor(path: string): Promise<string> {
+  let current = path
+  while (true) {
+    try {
+      await lstat(current)
+      return current
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      const parent = dirname(current)
+      if (parent === current) throw error
+      current = parent
+    }
+  }
+}
+
+/** Denies a configured state path that reaches the workspace through a symlinked ancestor. */
+export async function assertMachineLocalStateDirectory(
+  stateDirectory: string,
+  workspaceRoot = process.env.GRAPHITEMD_WORKSPACE_ROOT,
+): Promise<void> {
+  if (!workspaceRoot?.trim()) return
+  const configuredWorkspace = resolve(workspaceRoot)
+  if (isInside(configuredWorkspace, stateDirectory)) {
+    throw new Error('Machine-local state must not be stored inside the configured workspace')
+  }
+  const ancestor = await nearestExistingAncestor(stateDirectory)
+  const canonicalWorkspace = await realpath(configuredWorkspace).catch(() => configuredWorkspace)
+  const canonicalState = resolve(await realpath(ancestor), relative(ancestor, stateDirectory))
+  if (isInside(canonicalWorkspace, canonicalState)) {
+    throw new Error('Machine-local state must not traverse into the configured workspace')
+  }
 }
 
 export class OwnerSetupService {
@@ -79,7 +120,7 @@ export class OwnerSetupService {
   readonly #hasher = new Scrypt({})
   readonly #credentialLock: CredentialLock
 
-  constructor(stateDirectory: string) {
+  constructor(stateDirectory: string, private readonly workspaceRoot = process.env.GRAPHITEMD_WORKSPACE_ROOT) {
     if (!isAbsolute(stateDirectory)) {
       throw new Error('Security state directory must be an absolute path')
     }
@@ -247,7 +288,12 @@ export class OwnerSetupService {
   }
 
   async #openDatabase(): Promise<DatabaseSync> {
+    await assertMachineLocalStateDirectory(this.#stateDirectory, this.workspaceRoot)
     await mkdir(this.#stateDirectory, { recursive: true, mode: 0o700 })
+    const metadata = await lstat(this.#stateDirectory)
+    if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+      throw new Error('Security state directory is unavailable')
+    }
     await chmod(this.#stateDirectory, 0o700)
     const database = new DatabaseSync(this.#databasePath)
     await chmod(this.#databasePath, 0o600)

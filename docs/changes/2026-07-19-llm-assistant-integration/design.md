@@ -2,7 +2,7 @@
 
 ## Context
 
-GraphiteMD already has a persistent authenticated AdonisJS service, opaque workspace resource identities, confined note reads, local full-text search, a React workbench with desktop and narrow Context surfaces, a capability-mediated bundled-plugin host, and filesystem-canonical `.graphite/` state. It has no model provider, Assistant contract, OAuth flow, conversation store, or model-backed UI.
+GraphiteMD already has a persistent authenticated AdonisJS service, opaque workspace resource identities, confined note reads, local full-text search, a React workbench with desktop and narrow Context surfaces, a capability-mediated bundled-plugin host, and filesystem-canonical workspace state. This Change standardizes that state under `.graphitemd/` rather than the legacy `.graphite/` namespace. It has no model provider, Assistant contract, OAuth flow, conversation store, or model-backed UI.
 
 Coordinator-Local provides a working reference for embedding `@earendil-works/pi-coding-agent`, driving OpenAI Codex OAuth through application-owned callbacks, disabling Pi's ambient resources, defining custom tools, normalizing session events, and keeping credentials in application-owned state. GraphiteMD must adapt that precedent to its accepted plugin and workspace boundaries rather than copy Coordinator's developer-agent scope.
 
@@ -17,7 +17,7 @@ As of planning, npm reported `@earendil-works/pi-coding-agent` `0.80.10` as curr
 - Prove grounding through service-derived source evidence tied to successful brokered reads.
 - Keep credentials outside the workspace and expose no raw host paths or provider secrets.
 - Keep Pi behind runtime-neutral contracts with automatic resources and built-in tools disabled.
-- Preserve an inspectable canonical conversation record under `.graphite/`.
+- Preserve inspectable canonical workspace state, including conversation records, under `.graphitemd/`.
 - Exercise the bundled Assistant through the production plugin/capability boundary.
 - Keep all non-AI workbench behavior usable when the provider is absent or fails.
 
@@ -32,7 +32,7 @@ As of planning, npm reported `@earendil-works/pi-coding-agent` `0.80.10` as curr
 
 - Scope boundary reviewed: yes; the user selected a usable vertical slice and narrowed its proof to Codex auth plus questions about workspace notes.
 - User decisions: use Pi as the core; authenticate with Codex; use Coordinator-Local as the implementation reference; prove that the LLM can read any eligible note.
-- Assumptions: one owner, one workspace, one Codex provider, one documented default model (`gpt-5.4`, overridable by a host setting), and one read-only question at a time.
+- Assumptions: one owner, one workspace, one Codex provider, one documented default model (`gpt-5.4`, overridable by a host setting), one read-only question at a time, and a machine-local user home available for the default secret vault.
 - Deferred scope: writes, autonomy, multiple providers/models, conversation library/resume, Assistant-specific exclusions, memory, attachments, and developer capabilities.
 - Story boundaries challenged: the first draft combined onboarding and Q&A into fourteen Scenarios. It was split into `S1` provider connection and `S2` workspace Q&A so each Story owns one predictable user path without changing the vertical-slice outcome.
 - Requirements refined: onboarding, grounded answering, confinement/provenance, canonical conversation state, and responsive UI are independently observable across the two primary paths.
@@ -107,7 +107,7 @@ The system SHALL enforce the active workspace's eligible-resource boundary acros
 
 The system SHALL keep a versioned workspace-local record of submitted questions, terminal answers/failures, provider/model identity, and successful sources without credentials.
 
-- `R3-S1 Successful Turn Is Inspectable`: the completed normalized turn is committed under `.graphite/conversations/` and survives deletion of derived indexes.
+- `R3-S1 Successful Turn Is Inspectable`: the completed normalized turn is committed under `.graphitemd/conversations/` and survives deletion of derived indexes.
 - `R3-S2 Interrupted Turn Recovers Honestly`: atomic state transitions preserve the last valid record and surface incomplete/malformed state without fabricating completion.
 
 ##### Requirement R4: Accessible Context Experience
@@ -149,7 +149,7 @@ Not verified yet.
 - Client surfaces: Existing Settings modal and Context panel/drawer.
 - API / contract shape: Versioned provider-status/OAuth-flow/conversation/question/answer/source/error schemas under `/api/v1/assistant/**`.
 - Frontend/backend boundary: Browser renders normalized state only; the service owns OAuth, runs, retrieval, persistence, and provenance.
-- Data / schema impact: New versioned canonical files under `.graphite/conversations/`; no canonical database table.
+- Data / schema impact: New versioned canonical files under `.graphitemd/conversations/`; no canonical database table. A one-way legacy namespace migration preserves existing workspace state.
 - Auth / security impact: Owner session plus XSRF protects mutations; credentials stay under `GRAPHITEMD_STATE_DIR`; only brokered opaque reads reach Pi.
 - Testability: Strong through injected OAuth/runtime doubles and deterministic provider tool-call scripts.
 - Operational risk: Pi/provider API churn and OAuth callback behavior; contained by adapter characterization and explicit status.
@@ -199,6 +199,7 @@ Select Option 1.
 
 ### Authentication And Credential State
 
+- Resolve `GRAPHITEMD_STATE_DIR` to `~/.graphitemd/` when it is unset. Preserve the environment variable as an explicit override only when its resolved path is outside `GRAPHITEMD_WORKSPACE_ROOT`; reject workspace-contained, symlinked, or otherwise unsafe state-directory layouts before initializing security or provider state.
 - Store Pi auth/model settings beneath `GRAPHITEMD_STATE_DIR/assistant/pi/`, never beneath `GRAPHITEMD_WORKSPACE_ROOT`.
 - Provision parent directories with owner-only permissions and verify the credential file is not group/world-readable after login and at startup.
 - Model the OAuth lifecycle as `awaiting_provider`, `awaiting_input`, `succeeded`, `failed`, or `cancelled`, with auth URL, device code, progress, selection/text/manual-code prompt, timestamps, and sanitized error.
@@ -217,9 +218,17 @@ Select Option 1.
 ### Conversation State
 
 - Bind each conversation to one workspace ID and use opaque conversation/turn IDs.
-- Store a versioned, transparent canonical document under `.graphite/conversations/<conversation-id>.json` using the existing confined atomic-write discipline: question, terminal status, answer or sanitized failure, timestamps, provider/model identity, and successful source references.
+- Store a versioned, transparent canonical document under `.graphitemd/conversations/<conversation-id>.json` using the existing confined atomic-write discipline: question, terminal status, answer or sanitized failure, timestamps, provider/model identity, and successful source references.
 - Record an in-progress turn before provider work, then atomically reconcile it to completed/failed/cancelled. Restart exposes an interrupted state rather than replaying or inventing completion.
 - Keep Pi runtime/session scratch state machine-local or ephemeral. The normalized conversation file is canonical; future indexes remain rebuildable.
+
+### Workspace State Topology And Legacy Migration
+
+- Treat `<workspace>/.graphitemd/` as the canonical portable GraphiteMD vault. It contains `workspace.json`, plugin configuration/state, normalized conversations, and future inspectable workspace-scoped settings. It never contains password hashes, sessions, OAuth tokens, callback material, encryption keys, or Pi scratch state.
+- Retain `.graphitemd/.gitignore` exclusions for derived cache and operation-receipt paths so normal workspace content remains reviewable while rebuildable or transient projections do not become canonical user content.
+- At workspace initialization, migrate a legacy `.graphite/` directory by atomic rename only when `.graphitemd/` is absent and the legacy path is a real, confined directory. Preserve every contained file, including workspace identity, plugin state, conversations, caches, and operations.
+- If both namespaces exist, either path is a symlink, a path escapes the workspace, or the rename cannot complete, stop startup with an actionable recovery message. Do not merge, delete, or silently select one directory.
+- New code reads and writes only `.graphitemd/` after migration succeeds. Existing resource eligibility and assistant retrieval exclude both `.graphitemd/` and the legacy `.graphite/` during the compatibility period.
 
 ### HTTP And Browser Integration
 
@@ -316,13 +325,13 @@ It produces the smallest slice that proves real product value and the critical t
 - Required: yes
 - ADR path: `docs/adrs/2026-07-19-pi-backed-assistant-runtime.md`
 - Status: Proposed until implementation and review prove the boundary.
-- Decision summary: run Pi behind service-owned model/auth capabilities, keep Codex credentials machine-local, and expose only brokered read-only Assistant tools.
+- Decision summary: run Pi behind service-owned model/auth capabilities, keep workspace-canonical state in `.graphitemd/`, keep credentials in the default machine-local `~/.graphitemd/` vault (or a non-workspace override), and expose only brokered read-only Assistant tools.
 - Reconsider when: Pi's programmatic boundary becomes unstable, local models change disclosure assumptions, multiple providers require a registry, or community plugin isolation changes runtime placement.
 
 ## Implementation Constraints
 
 - Do not expose raw workspace or state-directory paths through HTTP, plugin, Pi tool, conversation, log, or source contracts.
-- Do not place provider credentials, auth callback material, password/session state, or encryption keys under `.graphite/`.
+- Do not place provider credentials, auth callback material, password/session state, encryption keys, or Pi scratch state under `<workspace>/.graphitemd/`.
 - Do not enable Pi built-in tools or automatic project/config/resource discovery.
 - Do not create a production fake-provider fallback. Fakes exist only behind injected test seams.
 - Do not weaken the all-bundled-source import/dependency boundary with a blanket Assistant exception; allow only reviewed host/model capability dependencies.
@@ -337,8 +346,9 @@ It produces the smallest slice that proves real product value and the critical t
   - Runtime contracts reject malformed provider/OAuth/turn/source payloads.
   - OAuth manager covers success, option/text/manual input, cancellation, failure, conflict, stale input, logout, bounded retention, and credential redaction.
   - Pi adapter characterization proves no automatic resources/built-ins and normalizes text, usage, tool, source, abort, and failure events at the locked SDK version.
-  - Workspace Assistant capability covers eligible search/read, stale/unknown resource, `.graphite`, exclusions, symlink/root replacement, byte/result/context budgets, and prompt-injection text.
-  - Conversation authority covers atomic create/update, interrupted turn, malformed state, workspace binding, no credentials, and derived-index independence.
+  - Workspace bootstrap covers safe `.graphite/` migration, `.graphitemd/` initialization, default/override machine-state resolution, conflict refusal, and secret-boundary permissions.
+  - Workspace Assistant capability covers eligible search/read, stale/unknown resource, `.graphitemd/` and legacy `.graphite/`, exclusions, symlink/root replacement, byte/result/context budgets, and prompt-injection text.
+  - Conversation authority covers atomic create/update beneath `.graphitemd/`, interrupted turn, malformed state, workspace binding, no credentials, and derived-index independence.
   - Plugin conformance and import-boundary suites cover the Assistant's declared contributions/capabilities without privileged bypass.
   - Browser components cover all provider, question, answer, source, error, focus, tab, and session-expiry states.
 - Broad supporting gates: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm test:storybook`, `pnpm build-storybook`, `pnpm test:e2e`, and `pnpm audit --audit-level high`.
@@ -355,7 +365,7 @@ It produces the smallest slice that proves real product value and the critical t
 - The Assistant is a bundled plugin using service-owned model/auth/workspace capabilities.
 - Context/Settings reuse makes a separate design workflow unnecessary for this slice.
 - Source UI is derived from successful reads, never parsed from model text.
-- Canonical conversations are versioned workspace files; credentials and Pi scratch state are not.
+- Canonical conversations and workspace configuration are versioned workspace files beneath `.graphitemd/`; credentials and Pi scratch state are not and default to machine-local `~/.graphitemd/`.
 - First delivery is terminal request/response rather than token streaming.
 
 ## Risks / Trade-Offs
@@ -364,4 +374,5 @@ It produces the smallest slice that proves real product value and the critical t
 - Codex OAuth may require owner interaction that deterministic CI cannot complete; live acceptance remains a separate external gate.
 - Context-panel space limits long conversations; this is acceptable for the proof but may force a dedicated Assistant surface later.
 - Persisting normalized conversations without a library/resume UI creates inspectable truth before complete navigation; the files are intentionally canonical future input rather than hidden dead state.
+- Legacy namespace migration can halt startup for an ambiguous or unsafe workspace; failing closed protects user state and requires a clear manual recovery path rather than automatic merging.
 - Read access can disclose sensitive note content to the provider. This slice enforces current eligibility boundaries, but user-configurable Assistant exclusions remain important follow-up work.

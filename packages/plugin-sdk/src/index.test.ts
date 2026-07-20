@@ -213,7 +213,7 @@ describe('GMD-003/S1 R4 namespaced state', () => {
     const system = createPluginStateAdapter('system-status', 1, backend)
     const other = createPluginStateAdapter('other-plugin', 1, backend)
     await system.write({ lastCheck: 'ok' })
-    expect(system.namespace).toBe('.graphite/plugins/system-status/')
+    expect(system.namespace).toBe('.graphitemd/plugins/system-status/')
     await expect(system.read()).resolves.toEqual({ lastCheck: 'ok' })
     await expect(other.read()).resolves.toBeUndefined()
     expect(backend.values.get('system-status')).toEqual({ schemaVersion: 1, value: { lastCheck: 'ok' } })

@@ -474,7 +474,7 @@ describe('GMD-002/S3 authenticated local search', () => {
 
   it('R1-S3 reports a recoverable local-index failure without misclassifying workspace authority', async () => {
     const authenticated = await loginOwner()
-    const databasePath = join(workspaceRoot, '.graphite', 'cache', 'search.sqlite')
+    const databasePath = join(workspaceRoot, '.graphitemd', 'cache', 'search.sqlite')
     await rm(databasePath, { force: true })
     await mkdir(databasePath)
     try {
@@ -518,7 +518,7 @@ describe('GMD-003/S1 production plugin host', () => {
     expect(await disabled.json()).toEqual({
       plugin: expect.objectContaining({ id: 'system-status', status: 'disabled', contributions: {} }),
     })
-    expect(JSON.parse(await readFile(join(workspaceRoot, '.graphite', 'plugins.json'), 'utf8')))
+    expect(JSON.parse(await readFile(join(workspaceRoot, '.graphitemd', 'plugins.json'), 'utf8')))
       .toEqual({ schemaVersion: 1, enabled: { 'system-status': false } })
   })
 })
@@ -575,6 +575,6 @@ describe('GMD-002/S1 R1 workspace identity authority', () => {
     const response = await fetch(`${origin}/api/v1/workspace`, { headers: { cookie: authenticated.cookie } })
     expect(response.status).toBe(503)
     expect(await response.json()).toEqual({ available: false, reason: 'identity_changed' })
-    await expect(stat(join(workspaceRoot, '.graphite'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(join(workspaceRoot, '.graphitemd'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

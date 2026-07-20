@@ -25,7 +25,7 @@ async function fixture() {
 }
 
 describe('GMD-004/S2 R3 inspectable conversation records', () => {
-  it('R3-S1 atomically persists only normalized turns under .graphite/conversations', async () => {
+  it('R3-S1 atomically persists only normalized turns under .graphitemd/conversations', async () => {
     const { root, store } = await fixture()
     await store.create(startedTurn)
     const completed = { ...startedTurn, status: 'completed' as const, completedAt: '2026-07-20T00:00:01.000Z', answer: 'The launch is documented.', sources: [{
@@ -34,7 +34,7 @@ describe('GMD-004/S2 R3 inspectable conversation records', () => {
     await store.replaceTurn(completed)
 
     expect(await store.read('conv_alpha')).toEqual(expect.objectContaining({ schemaVersion: 1, turns: [completed] }))
-    const source = await readFile(join(root, '.graphite', 'conversations', 'conv_alpha.json'), 'utf8')
+    const source = await readFile(join(root, '.graphitemd', 'conversations', 'conv_alpha.json'), 'utf8')
     expect(source).not.toMatch(/token|refresh|auth\.json|graphitemd-conversations-/i)
     expect(source).toContain('launch fact')
   })
@@ -53,13 +53,13 @@ describe('GMD-004/S2 R3 inspectable conversation records', () => {
   it('R3-S2 fails closed for malformed records and a redirected conversations directory', async () => {
     const { root, store } = await fixture()
     await store.create(startedTurn)
-    await writeFile(join(root, '.graphite', 'conversations', 'conv_alpha.json'), '{ bad json')
+    await writeFile(join(root, '.graphitemd', 'conversations', 'conv_alpha.json'), '{ bad json')
     await expect(store.read('conv_alpha')).rejects.toBeInstanceOf(ConversationStoreError)
 
     const redirected = await mkdtemp(join(tmpdir(), 'graphitemd-conversation-redirect-'))
     roots.push(redirected)
-    await rm(join(root, '.graphite', 'conversations'), { recursive: true })
-    await symlink(redirected, join(root, '.graphite', 'conversations'))
+    await rm(join(root, '.graphitemd', 'conversations'), { recursive: true })
+    await symlink(redirected, join(root, '.graphitemd', 'conversations'))
     await expect(store.create({ ...startedTurn, conversationId: 'conv_beta', turnId: 'turn_beta' })).rejects.toBeInstanceOf(ConversationStoreError)
   })
 })

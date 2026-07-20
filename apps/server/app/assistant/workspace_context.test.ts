@@ -21,9 +21,9 @@ async function fixture() {
 describe('GMD-004/S2 R2 confined context and provenance', () => {
   it('R2-S1 revalidates opaque resources and excludes internal or symlinked content before returning it to the model', async () => {
     const { root, workspace, context } = await fixture()
-    await mkdir(join(root, '.graphite'))
+    await mkdir(join(root, '.graphitemd'))
     await writeFile(join(root, 'Visible.md'), '# Visible\nverified workspace fact')
-    await writeFile(join(root, '.graphite', 'Hidden.md'), '# Hidden\nsecret assistant state')
+    await writeFile(join(root, '.graphitemd', 'Hidden.md'), '# Hidden\nsecret assistant state')
     await workspace.openConfigured()
 
     const results = await context.search('workspace')

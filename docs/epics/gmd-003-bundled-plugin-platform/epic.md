@@ -28,7 +28,7 @@ The workspace owner will be able to inspect and control bundled plugins while Gr
 - Bundled first-party service and web plugin manifests.
 - Plugin inventory, enable/disable control, lifecycle state, compatibility reporting, and contribution registration.
 - Broker-mediated permissions for workspace resources, plugin state, commands, views, and events.
-- Inspectable namespaced durable plugin state under `.graphite/plugins/<plugin-id>/`.
+- Inspectable namespaced durable plugin state under `.graphitemd/plugins/<plugin-id>/`.
 - A small useful bundled System Status plugin plus test-only conformance fixtures exercising the production SDK.
 
 ## Deferred Scope
@@ -115,7 +115,7 @@ The system SHALL grant a plugin only declared broker capabilities over opaque wo
 
 ##### Requirement R4: Namespaced Inspectable State And Recovery
 
-The system SHALL confine durable plugin state to its documented `.graphite/plugins/<plugin-id>/` namespace and run lifecycle and recovery checks against every bundled plugin.
+The system SHALL confine durable plugin state to its documented `.graphitemd/plugins/<plugin-id>/` namespace and run lifecycle and recovery checks against every bundled plugin.
 
 ###### Scenario R4-S1: Plugin State Is Isolated
 

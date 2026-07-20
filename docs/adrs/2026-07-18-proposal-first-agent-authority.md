@@ -27,7 +27,7 @@ Direct autonomous action SHALL require an explicit one-run grant containing:
 - whether writes require review or may be applied directly;
 - automatic expiration when the run ends;
 - visible live activity and an immediate stop control;
-- a durable inspectable record under `.graphite/`.
+- a durable inspectable record under `.graphitemd/`.
 
 Destructive actions and externally consequential operations SHALL require separate confirmation rather than being implied by a general grant. Edited Markdown or grant-record files SHALL NOT confer authority by themselves; the capability broker must validate the active grant.
 

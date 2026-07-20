@@ -3,7 +3,7 @@ schema: sdd-epic-v2
 id: GMD-004
 status: draft
 created: 2026-07-19
-modified: 2026-07-19
+modified: 2026-07-20
 last_verified:
 stories:
   - S1
@@ -34,7 +34,7 @@ The workspace owner will be able to connect an OpenAI Codex subscription and ask
 - One built-in workspace Assistant surfaced through the existing Context experience.
 - OpenAI Codex subscription OAuth through a replaceable Pi runtime adapter.
 - Brokered search and bounded note reads over opaque resources issued by the active workspace authority.
-- Service-derived source provenance and a versioned, inspectable conversation record under `.graphite/`.
+- Service-derived source provenance and a versioned, inspectable conversation record under `.graphitemd/`.
 - One authenticated owner and one configured workspace.
 - Read-only questions; no proposal, write, process, Git, network-tool, or autonomous authority.
 
@@ -57,14 +57,14 @@ The workspace owner will be able to connect an OpenAI Codex subscription and ask
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | not implemented | unverified | Connect and disconnect an OpenAI Codex subscription safely. |  | Provider onboarding prerequisite. |
-| S2 | partial | partial | Ask the read-only Assistant about eligible workspace notes with visible source evidence. | 2026-07-20 | Retrieval confinement and provenance are implemented; the run loop, persistence, plugin, and Context UI remain. |
+| S1 | implemented | partial | Connect and disconnect an OpenAI Codex subscription safely. | 2026-07-20 | OAuth/runtime behavior is implemented; live owner authorization remains a gap. |
+| S2 | partial | partial | Ask the read-only Assistant about eligible workspace notes with visible source evidence. | 2026-07-20 | Retrieval, persistence, and the Pi question path are implemented; the bundled Assistant contribution and Context UI remain. |
 
 ## Stories
 
 ### Story S1: Connect OpenAI Codex
 
-Implementation: partial
+Implementation: implemented
 Verification: partial
 Created: 2026-07-19
 Modified: 2026-07-19
@@ -116,23 +116,26 @@ The system SHALL keep the Codex credential in protected machine-local state, exp
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
-| S1/R1 | Not implemented yet. | primary | Codex OAuth interaction after implementation. |
-| S1/R2 | Not implemented yet. | primary | Credential/status/disconnect behavior after implementation. |
+| S1/R1 | `apps/server/app/assistant/index.ts#AssistantOAuthFlowManager` | primary | Owns normalized Codex OAuth flow state, cancellation, retry, and sanitized provider status. |
+| S1/R1 | `apps/server/start/routes.ts#oauthManager` | supporting route | Restricts OAuth mutations and flow inspection to the owner session. |
+| S1/R2-S1 | `apps/server/app/security/owner_setup_service.ts#resolveSecurityStateDirectory` and `#assertMachineLocalStateDirectory` | primary | Defaults secrets to the machine vault and rejects workspace-contained or symlinked overrides. |
+| S1/R2-S1 | `apps/server/app/assistant/index.ts#PiRuntimeBoundary.create` | supporting runtime | Keeps Pi credentials and scratch in owner-only machine-local state. |
+| S1/R2-S2, S1/R2-S3 | `apps/server/start/routes.ts#assistantOAuthErrorResponse` | primary | Exposes only sanitized status and owner-authorized disconnect/error behavior. |
 
 #### Implementation Gaps
 
-- `S1/R1`: Not implemented yet.
-- `S1/R2`: Not implemented yet.
+None for the accepted Codex onboarding scope.
 
 #### Verified By
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
+| S1/R1-S1, S1/R1-S2, S1/R2-S2, S1/R2-S3 | `apps/server/tests/assistant/oauth_flow_manager.test.ts` and authenticated HTTP tests | Normalized OAuth lifecycle, cancellation/retry, sanitized state, and owner-only mutation behavior. | focused automated passing |
+| S1/R2-S1 | `apps/server/tests/security/owner_setup_service.test.ts` | Default machine-vault state and direct/symlinked workspace override refusal. | focused automated passing |
 
 #### Verification Gaps
 
-- `S1/R1-S1`, `S1/R1-S2`: Not verified yet.
-- `S1/R2-S1`, `S1/R2-S2`, `S1/R2-S3`: Not verified yet.
+- `S1/R1-S1`: Live owner-completed Codex authorization remains unverified.
 
 #### Story Notes
 
@@ -141,11 +144,11 @@ The system SHALL keep the Codex credential in protected machine-local state, exp
 
 ### Story S2: Ask The Workspace Through Codex
 
-Implementation: not implemented
-Verification: unverified
+Implementation: partial
+Verification: partial
 Created: 2026-07-19
-Modified: 2026-07-19
-Last verified:
+Modified: 2026-07-20
+Last verified: 2026-07-20
 
 As the workspace owner, I want to ask Codex questions about my Markdown notes, so that I can prove the Assistant can read and reason over my workspace without receiving write authority.
 
@@ -179,7 +182,7 @@ The system SHALL enforce the active workspace's eligible-resource boundary acros
 
 ###### Scenario R2-S1: Ineligible Content Never Reaches The Model
 
-- WHEN `.graphite/`, configured inventory exclusions, symlinks, unsupported files, oversized sources, unknown resources, or a replaced workspace root are encountered
+- WHEN `.graphitemd/`, legacy `.graphite/`, configured inventory exclusions, symlinks, unsupported files, oversized sources, unknown resources, or a replaced workspace root are encountered
 - THEN those sources are denied before their content can enter the provider request, Assistant log, or source list
 - AND the denial cannot be bypassed by note text or model instructions.
 
@@ -202,7 +205,7 @@ The system SHALL keep a versioned workspace-local record of each submitted quest
 ###### Scenario R3-S1: Successful Turn Is Inspectable
 
 - WHEN an Assistant turn completes
-- THEN its question, answer, timestamps, provider/model identity, and opaque/display source references are committed beneath `.graphite/`
+- THEN its question, answer, timestamps, provider/model identity, and opaque/display source references are committed beneath `.graphitemd/`
 - AND deleting a derived index does not remove that canonical record.
 
 ###### Scenario R3-S2: Interrupted Turn Recovers Honestly
@@ -251,7 +254,8 @@ The system SHALL provide a responsive, keyboard-accessible Assistant question fl
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
 | S2/R2-S1, S2/R2-S2, S2/R2-S3 | `apps/server/app/assistant/workspace_context.test.ts` | Internal/symlinked/unknown resources cannot enter the broker; UTF-8 and total context limits are deterministic; provenance appears only after a successful authority read. | focused automated passing |
-| S2/R3-S1, S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts` | Canonical versioned turns persist beneath `.graphite/conversations`; malformed and redirected state fails closed; interrupted turns are recovered honestly. | focused automated passing |
+| S2/R2-S1 | `packages/workspace/src/index.test.ts` | Canonical `.graphitemd/` state is excluded, a safe legacy vault migrates atomically, and conflicting or symlinked layouts fail closed. | focused automated passing |
+| S2/R3-S1, S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts` | Canonical versioned turns persist beneath `.graphitemd/conversations`; malformed and redirected state fails closed; interrupted turns are recovered honestly. | focused automated passing |
 | S2/R1-S2, S2/R1-S3 | `apps/server/app/assistant/question_service.test.ts` | Only brokered tools can produce sources; no-read replies become honest no-evidence failures; disconnected, empty, and concurrent requests are refused. | focused automated passing |
 
 #### Verification Gaps

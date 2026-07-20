@@ -109,7 +109,7 @@ export class ConversationStore {
   }
 
   async #directory(): Promise<string> {
-    const graphite = join(this.#root, '.graphite')
+    const graphite = join(this.#root, '.graphitemd')
     const directory = join(graphite, 'conversations')
     try { await mkdir(directory, { recursive: true, mode: 0o700 }) } catch { throw new ConversationStoreError() }
     for (const path of [graphite, directory]) {

@@ -5,10 +5,10 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: wired the restricted Pi adapter and authenticated question route to the deterministic question orchestration; direct Pi adapter and HTTP fake-runtime characterization remain required.
+- Last completed action: implemented the `.graphitemd` workspace-vault cutover, guarded legacy migration, and default machine-local secret vault.
 - Next action: add the bundled Assistant/Context browser surface and deterministic route/E2E injection evidence.
-- Active branch/ref: `change/llm-assistant-integration` at OAuth phase checkpoint `f5738d7`.
-- Expected dirty files: conversation runtime/tests, restricted run orchestration, authenticated question routes/tests, bundled Assistant plugin, Context UI/test, and this ledger.
+- Active branch/ref: `change/llm-assistant-integration`; storage checkpoint commit pending.
+- Expected dirty files: bundled Assistant plugin/conformance, Context browser components/tests, deterministic fake-runtime E2E, and this ledger.
 - Known blockers: none for deterministic implementation. A separate owner-completed Codex OAuth is still required for live-provider verification.
 
 ## Task Checklist
@@ -36,8 +36,14 @@ status: in_progress
 - [x] 3.1 Compare service-owned Pi capability, direct plugin Pi, and monolithic core Assistant options.
 - [x] 3.2 Create `docs/adrs/2026-07-19-pi-backed-assistant-runtime.md` for `GMD-004/S1-S2` and link read-only Q&A in `GMD-004/S2` from the existing agent-authority ADR.
 - [x] 3.3 Keep the new ADR `Proposed` until implementation and review prove its credential, tool, and workspace boundaries.
+- [x] 3.4 Replan the user-selected split storage topology: portable workspace state under `.graphitemd/`, secrets under a machine-local `~/.graphitemd/` default (or safe override), and a fail-closed legacy migration.
 
 ### 4. Implementation
+
+- [x] 4.0 Implement the workspace-vault and machine-vault boundary before further Assistant UI work.
+  - [x] Replace `.graphite/` provisioning and all workspace-state consumers with `.graphitemd/`; atomically migrate a safe legacy directory and refuse ambiguous, symlinked, escaping, or conflicting layouts without data loss.
+  - [x] Resolve an unset `GRAPHITEMD_STATE_DIR` to `~/.graphitemd/`; preserve explicit overrides only outside the workspace and enforce owner-only secret-state permissions.
+  - [x] Reconcile search cache, plugin state, conversation persistence, resource exclusions, test fixtures, README backup/setup guidance, and assistant authority so `.graphitemd/` is canonical and both namespaces remain inaccessible to retrieval during the compatibility period.
 
 - [ ] 4.1 Establish the runtime-neutral Assistant contracts and service boundaries through BDD/TDD.
   - [x] Define provider status, normalized OAuth flow/input, conversation, turn, source, and error schemas used by service, plugin, and browser adapters.
@@ -59,7 +65,7 @@ status: in_progress
   - [x] `R2-S2`: enforce deterministic search/read/turn budgets and explicit truncation.
   - [x] `R2-S3`: derive source evidence only from successful brokered reads and never from model citation text.
 - [ ] 4.6 Implement `GMD-004/S2/R3 Inspectable Conversation Record`.
-  - [x] `R3-S1`: atomically store versioned normalized turns beneath `.graphite/conversations/` without credentials or host paths.
+  - [x] `R3-S1`: atomically store versioned normalized turns beneath `.graphitemd/conversations/` without credentials or host paths.
   - [x] `R3-S2`: reconcile interrupted turns honestly and fail closed on malformed/partial state.
 - [ ] 4.7 Implement `GMD-004/S2/R4 Accessible Context Experience`.
   - [ ] `R4-S1`: add desktop Context question/answer/source states without obscuring the document workbench.
@@ -77,6 +83,7 @@ status: in_progress
 ### 5. Verification
 
 - [ ] 5.1 Add focused contract, OAuth, Pi-adapter, retrieval/confinement, conversation, plugin, server-route, and browser-component evidence for every Scenario.
+- [x] 5.1a Add workspace bootstrap/state resolver evidence for fresh `.graphitemd/` initialization, lossless legacy migration, conflict and symlink refusal, cache/operation exclusions, default machine state, safe override, and secret permissions.
 - [ ] 5.2 Add deterministic production-server/browser E2E using fake OAuth/runtime boundaries and a disposable workspace with uniquely identifiable notes.
 - [ ] 5.3 Verify the deterministic E2E proves visible service-derived sources and the canonical conversation file, not merely plausible model text.
 - [ ] 5.4 Run and directly inspect the rendered UI matrix across desktop and narrow viewports, including console and network failures.
@@ -104,6 +111,7 @@ status: in_progress
 | 2026-07-19 | GMD-004/S1 OAuth boundary and Settings controls | main | `apps/server/app/assistant`, authenticated assistant routes/tests, Settings UI, contracts, Pi package lock | Locked Pi's compatible `0.80.6` adapter graph; credentials and session scratch remain machine-local. Deterministic tests cover flow conflict/cancel/retry/failure, transient device-code instructions, credential permissions, normalized owner provider state, and unauthenticated route rejection. The Settings tab polls only normalized flow state and never receives credentials. Live OAuth remains an external verification gap. | `f5738d7` |
 | 2026-07-20 | GMD-004/S2 R2 confined context and provenance | main + bounded discovery worker | `apps/server/app/assistant/workspace_context.*`, Assistant error contract, GMD-004 Epic | A service-owned broker limits search/read context, revalidates every opaque resource through workspace authority, avoids UTF-8 replacement output, emits explicit context-limit failure, and records source evidence only after successful reads. | `9d9a551` |
 | 2026-07-20 | GMD-004/S2 R3 canonical conversation record | main | `apps/server/app/assistant/conversation_store.*`, GMD-004 Epic | Confined atomic conversation documents persist normalized turns without provider state. Malformed/redirection state fails closed and unfinished turns recover to explicit interrupted failures. | `61de525` |
+| 2026-07-20 | Workspace vault and machine secret vault | main | workspace authority/bootstrap, search/plugin/conversation state consumers, security resolver, Pi boundary, README, ADRs, GMD-004 | Safe `.graphite` state atomically migrates to `.graphitemd`; conflicts and symlinks fail closed; retrieval excludes both namespaces. Secret state defaults to `~/.graphitemd` and rejects workspace or symlink traversal. | commit pending |
 | 2026-07-20 | GMD-004/S2 R1 deterministic question orchestration | main | `apps/server/app/assistant/question_service.*`, GMD-004 Epic | Normalized owner questions have one in-flight slot, a persisted in-progress/terminal record, explicit unavailable/invalid/no-evidence outcomes, and sources only from brokered reads. Pi/HTTP/UI adapters remain the next phase. | `d6edd59` |
 | 2026-07-20 | GMD-004/S2 R1 Pi/HTTP adapter | main + Context7 Pi SDK documentation | Pi adapter, assistant question route, server dependency graph | The production adapter exposes only custom `workspace_search` and `workspace_read` tools to a no-builtins Pi session and routes authenticated normalized questions through the service. Direct adapter/HTTP fake-runtime evidence remains pending. | `71cfacf` |
 | YYYY-MM-DD | GMD-004/S1 R1-R2 | main | Codex provider/OAuth, credential lifecycle, browser Settings | pending | pending |
@@ -122,6 +130,7 @@ status: in_progress
 | 2026-07-20 | `pnpm --filter @graphitemd/server test -- workspace_context.test.ts`; server typecheck/lint; contracts and plugin SDK suites | focused automated test | `GMD-004/S2/R2-S1-S3`: existing workspace authority is rechecked at brokered reads; `.graphite`, unknown and symlinked content stay out; context bounds are UTF-8 safe and source provenance follows successful reads only. | passing |
 | 2026-07-20 | `pnpm --filter @graphitemd/server test -- conversation_store.test.ts`; server typecheck/lint | focused automated test | `GMD-004/S2/R3-S1-S2`: canonical conversation files are versioned and confined, avoid credential/path leakage, recover interrupted turns honestly, and fail closed for malformed or redirected state. | passing |
 | 2026-07-20 | `pnpm --filter @graphitemd/server test -- question_service.test.ts` plus retrieval/conversation suites; server typecheck/lint | focused automated test | `GMD-004/S2/R1-S2-S3`: no-evidence, disconnected, empty, and duplicate questions terminate specifically; a completed answer can only carry brokered-read sources. | passing |
+| 2026-07-20 | `pnpm --filter @graphitemd/workspace test`; `pnpm --filter @graphitemd/plugin-sdk test`; focused server workspace/state/search/plugin/conversation/authentication suites; workspace/plugin-sdk/server lint and typecheck | focused automated test / supporting gate | `GMD-004/S1/R2-S1` and `GMD-004/S2/R2-S1,R3-S1`: safe legacy state migrates atomically to `.graphitemd`, conflicts and symlinks fail closed, retrieval/state consumers use the canonical namespace, and machine secret state defaults outside the workspace. | passing: 38 workspace, 14 SDK, and 64 focused server tests |
 | YYYY-MM-DD | Production fake-provider browser journey | deterministic E2E | Connect, ask, brokered read, service-derived sources, persistence, disconnect, desktop/mobile continuity | pending |
 | YYYY-MM-DD | Rendered Context/Settings matrix | rendered UI verification | GMD-004/S2 R4 responsive states, interaction, accessibility, and visual containment | pending |
 | YYYY-MM-DD | Live Codex note-grounding playtest | live-provider playtest | Real OAuth/model can answer from a uniquely identifiable note with matching source provenance | pending owner authorization |
@@ -138,12 +147,14 @@ status: in_progress
 | Date | Discovery | Classification | Planning Updates | Next Apply Starting Point |
 |---|---|---|---|---|
 | YYYY-MM-DD | TBD | in-scope refinement / scope expansion / product drift / Epic ownership change / technical constraint / follow-up change | proposal.md / design.md / tasks.md | `/sdd-apply` TBD |
+| 2026-07-20 | Owner selected an atomic Obsidian-like workspace vault while keeping credentials out of the workspace. | scope expansion, explicitly accepted | Replanned `.graphite/` to `.graphitemd/` workspace migration, machine-local `~/.graphitemd/` state default, override safety guard, compatibility exclusions, and documentation/verification obligations in proposal/design/tasks and the Proposed ADR. Actual Epic and application code remain unchanged in this planning pass. | `/sdd-apply` 4.0 workspace-vault and machine-vault boundary |
 
 ## Design Updates
 
 | Date | Feedback / Discovery | Classification | Reference / Target | Preserve / Change / Non-Goals | Artifact Updates | Next Apply Starting Point |
 |---|---|---|---|---|---|---|
 | YYYY-MM-DD | TBD | experience refinement / experience defect / accessibility correction / responsive correction | Context / Settings | Preserve read-only connect-and-ask behavior and source provenance. | design.md / tasks.md | `/sdd-apply` TBD |
+| 2026-07-20 | Owner selected a portable workspace vault and a separate machine secret vault. | technical constraint | Workspace initialization and configuration | Preserve the existing Context/Settings experience and read-only boundaries; change only the storage topology, migration, defaults, and recovery messaging. | proposal.md / design.md / tasks.md / ADR | `/sdd-apply` 4.0 storage boundary |
 | 2026-07-19 | Pi `0.80.10` removed the programmatic `AuthStorage` export used by the accepted service adapter, while the `0.80.6` package and its matching internal packages expose the characterized API. | technical constraint | Pi runtime adapter | Preserve the accepted `0.80.x` dependency range and service boundary; lock `0.80.6` with workspace overrides until a separately characterized upgrade. | design.md / tasks.md | `/sdd-apply` GMD-004/S2 |
 | 2026-07-20 | Context exhaustion needs a distinct normalized result so it is not misreported as a workspace outage. | technical constraint | Assistant error contract | Add `context_limit`; retain `workspace_unavailable` only for authority/search availability failures. | contracts / tasks.md | `/sdd-apply` GMD-004/S2 R3 |
 
@@ -157,6 +168,8 @@ status: in_progress
 | Canonical conversation durability | Atomic, confined versioned record plus interruption recovery. | `conversation_store.test.ts`; passing |
 | Provider/tool confinement | Pi has exactly brokered search/read custom tools and no ambient built-ins/resources. | pending `S2/R1` adapter characterization |
 | Question state and no-evidence | One active run is permitted; replies without successful brokered reads fail closed and persist a terminal result. | `question_service.test.ts`; passing |
+| Workspace namespace migration | Existing `.graphite/` moves only by safe atomic rename; conflict, symlink, escape, or partial layout stops without merge or deletion. | `packages/workspace` 38-test suite passing |
+| Secret-vault boundary | Unset state defaults to `~/.graphitemd/`; configured state cannot resolve inside the workspace and remains owner-only. | focused `owner_setup_service` test passing |
 
 ## Verification Environment
 
@@ -197,18 +210,18 @@ status: in_progress
 
 ## Closeout
 
-- Change status: in progress; promoted but not implemented.
-- Epic files updated: `GMD-004` draft created; implementation remains `not implemented`.
-- Story labels/references and Requirement/Scenario IDs current: yes for planned `S1` onboarding and `S2` Q&A scope.
-- Implemented By maps current: honest `Not implemented yet.` entries.
-- Scenario-mapped Verified By maps current: empty; all Scenarios are explicit verification gaps.
+- Change status: in progress; storage boundary is implemented and further Assistant/browser work remains.
+- Epic files updated: `GMD-004` maps current partial provider, retrieval, conversation, and storage-boundary behavior.
+- Story labels/references and Requirement/Scenario IDs current: yes for `S1` onboarding and `S2` Q&A scope.
+- Implemented By maps current: storage and prior deterministic Assistant anchors reconciled.
+- Scenario-mapped Verified By maps current: partial; deterministic OAuth, retrieval, conversation, migration, and secret-boundary evidence is recorded, while live/browser cases remain gaps.
 - Superseded earlier Epic truth reconciled: no superseded behavior; `GMD-003` boundary retained.
 - ADR status: `docs/adrs/2026-07-19-pi-backed-assistant-runtime.md` Proposed.
 - Release communication current: planned for README and `CHANGELOG.md`; not written as shipped behavior.
 - `sdd-review` verdict: not run.
 - Review record: none.
 - `review.md` findings resolved: not applicable yet.
-- Planning updates resolved: none.
+- Planning updates resolved: 2026-07-20 split workspace-vault/machine-vault topology implemented and reconciled.
 - Manual UI confirmation status: pending user after implementation.
 - Rendered UI verification status: pending implementation.
 - PR / merge state: local implementation branch `change/llm-assistant-integration`; no push, PR, merge, or closeout authorization inferred.
