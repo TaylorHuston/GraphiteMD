@@ -114,11 +114,13 @@ function AssistantSettings({ onSessionExpired }: { onSessionExpired: () => void 
   const selectedOption = input?.kind === 'selection'
     ? input.options.find((option) => option.id === value) ?? input.options[0]
     : undefined
+  const status = flow && !['succeeded', 'failed', 'cancelled'].includes(flow.status) ? 'connecting' : provider?.status
   return <section id="settings-panel-assistant" role="tabpanel" aria-labelledby="settings-tab-assistant"><p className="panel-label">Assistant</p><h2>OpenAI Codex</h2>
-    <p aria-live="polite">{provider ? `Status: ${provider.status}.` : 'Checking Codex status…'}</p>
+    <p aria-live="polite">{status ? `Status: ${status}.` : 'Checking Codex status…'}</p>
     {error && <p className="form-error" role="alert">{error}</p>}
     {provider?.status !== 'connected' && !flow && <button className="primary-button" type="button" disabled={pending} onClick={() => void start()}>{pending ? 'Starting…' : 'Connect Codex'}</button>}
     {flow && <div className="settings-form" aria-live="polite"><p>Authorization status: {flow.status.replaceAll('_', ' ')}.</p>
+      {flow.authorization && <p className="oauth-browser-login">{flow.authorization.instructions ?? 'Complete login in your browser.'} <a href={flow.authorization.url} target="_blank" rel="noreferrer">Open secure OpenAI login</a></p>}
       {input?.kind === 'device_code' && <p>Open <a href={input.verificationUri} target="_blank" rel="noreferrer">Codex device authorization</a> and enter code <strong>{input.userCode}</strong>.</p>}
       {input?.kind === 'selection' && <form className="oauth-selection-form" onSubmit={(event) => void answer(event)}>
         <fieldset>

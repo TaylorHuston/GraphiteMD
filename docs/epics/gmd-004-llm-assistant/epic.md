@@ -81,7 +81,8 @@ The system SHALL let only the authenticated owner start, inspect, answer, cancel
 ###### Scenario R1-S1: Complete Codex OAuth
 
 - WHEN the authenticated owner starts Codex setup and completes the provider's required browser, selection, device-code, or manual-code steps
-- THEN GraphiteMD reports the Codex provider as connected
+- THEN GraphiteMD exposes the provider's transient browser authorization link alongside any manual-code fallback
+- AND GraphiteMD reports the Codex provider as connected
 - AND the credential remains in the host's machine-local protected state.
 
 ###### Scenario R1-S2: Cancel Or Recover From Failed OAuth
@@ -116,9 +117,9 @@ The system SHALL keep the Codex credential in protected machine-local state, exp
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
-| S1/R1 | `apps/server/app/assistant/index.ts#AssistantOAuthFlowManager` | primary | Owns normalized Codex OAuth flow state, including provider-supplied opaque selection IDs, cancellation, retry, and sanitized provider status. |
+| S1/R1 | `apps/server/app/assistant/index.ts#AssistantOAuthFlowManager` | primary | Owns normalized Codex OAuth flow state, including transient browser authorization links, provider-supplied opaque selection IDs, cancellation, retry, and sanitized provider status. |
 | S1/R1-S2 | `apps/server/start/routes.ts#oauthManager` and `/api/v1/assistant/oauth/active` | supporting route | Restricts OAuth mutations and active-flow recovery to the owner session. |
-| S1/R1-S2 | `apps/web/src/SettingsPanel.tsx#AssistantSettings` and `apps/web/src/AssistantSettings.css` | browser adapter | Restores an active OAuth prompt after Settings remount, presents provider-supplied choices as labelled radio cards, names the selected continuation action, and retains independent cancellation. |
+| S1/R1 | `apps/web/src/SettingsPanel.tsx#AssistantSettings` and `apps/web/src/AssistantSettings.css` | browser adapter | Presents the active provider browser-login link, restores an active OAuth prompt after Settings remount, presents provider-supplied choices as labelled radio cards, names the selected continuation action, and retains independent cancellation. |
 | S1/R2-S1 | `apps/server/app/security/owner_setup_service.ts#resolveSecurityStateDirectory` and `#assertMachineLocalStateDirectory` | primary | Defaults secrets to the machine vault and rejects workspace-contained or symlinked overrides. |
 | S1/R2-S1 | `apps/server/app/assistant/index.ts#PiRuntimeBoundary.create` | supporting runtime | Keeps Pi credentials and scratch in owner-only machine-local state. |
 | S1/R2-S2, S1/R2-S3 | `apps/server/start/routes.ts#assistantOAuthErrorResponse` | primary | Exposes only sanitized status and owner-authorized disconnect/error behavior. |
@@ -131,8 +132,8 @@ None for the accepted Codex onboarding scope.
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
-| S1/R1-S1, S1/R1-S2, S1/R2-S2, S1/R2-S3 | `apps/server/tests/assistant/oauth_flow_manager.test.ts` and authenticated HTTP tests | Normalized OAuth lifecycle, provider selection-ID preservation, active-flow recovery, cancellation/retry, sanitized state, and owner-only mutation behavior. | focused automated passing |
-| S1/R1-S2 | `apps/web/src/SettingsPanel.test.tsx` and direct Vite-browser inspection at 1440x900 and 390x844 | An active OAuth choice is restored after Settings remount; choice radios use the selected/default answer value, continuation names that choice, cancellation remains available, and the pending-selection control is visually contained without console errors. | focused automated and rendered pending-selection state passing |
+| S1/R1-S1, S1/R1-S2, S1/R2-S2, S1/R2-S3 | `apps/server/tests/assistant/oauth_flow_manager.test.ts` and authenticated HTTP tests | Normalized OAuth lifecycle, active-only browser-link delivery, provider selection-ID preservation, active-flow recovery, cancellation/retry, sanitized state, and owner-only mutation behavior. | focused automated passing |
+| S1/R1-S1, S1/R1-S2 | `apps/web/src/SettingsPanel.test.tsx` and direct Vite-browser inspection at 1440x900 and 390x844 | Browser authorization link is explicit and opens safely; an active OAuth choice is restored after Settings remount; choice radios use the selected/default answer value, continuation names that choice, cancellation remains available, and the pending-selection control is visually contained without console errors. | focused automated and rendered pending-selection state passing |
 | S1/R2-S1 | `apps/server/tests/security/owner_setup_service.test.ts` | Default machine-vault state and direct/symlinked workspace override refusal. | focused automated passing |
 
 #### Verification Gaps

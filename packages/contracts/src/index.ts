@@ -171,6 +171,12 @@ export const AssistantOAuthInput = Type.Union([
 ])
 export type AssistantOAuthInput = Static<typeof AssistantOAuthInput>
 
+export const AssistantOAuthAuthorization = Type.Object({
+  url: Type.String({ minLength: 1 }),
+  instructions: Type.Optional(Type.String({ minLength: 1 })),
+}, { additionalProperties: false })
+export type AssistantOAuthAuthorization = Static<typeof AssistantOAuthAuthorization>
+
 export const AssistantOAuthFlow = Type.Object({
   flowId: AssistantFlowId,
   provider: Type.Literal('openai-codex'),
@@ -183,6 +189,7 @@ export const AssistantOAuthFlow = Type.Object({
   ]),
   createdAt: Type.String({ minLength: 1 }),
   updatedAt: Type.String({ minLength: 1 }),
+  authorization: Type.Union([AssistantOAuthAuthorization, Type.Null()]),
   input: Type.Union([AssistantOAuthInput, Type.Null()]),
   error: Type.Union([AssistantError, Type.Null()]),
 }, { additionalProperties: false })

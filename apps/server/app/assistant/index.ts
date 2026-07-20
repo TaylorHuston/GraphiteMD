@@ -326,6 +326,7 @@ export class AssistantOAuthFlowManager {
         status: 'awaiting_provider',
         createdAt: now,
         updatedAt: now,
+        authorization: null,
         input: null,
         error: null,
       },
@@ -395,7 +396,7 @@ export class AssistantOAuthFlowManager {
   async #run(record: FlowRecord): Promise<void> {
     try {
       await this.runtime.login({
-        onAuth: () => this.#setAwaitingProvider(record),
+        onAuth: (authorization) => this.#setAwaitingProvider(record, authorization),
         onDeviceCode: (info) => this.#setDeviceCode(record, info),
         onProgress: () => this.#setAwaitingProvider(record),
         onPrompt: () => this.#waitForText(record),
@@ -408,9 +409,12 @@ export class AssistantOAuthFlowManager {
     }
   }
 
-  #setAwaitingProvider(record: FlowRecord): void {
+  #setAwaitingProvider(
+    record: FlowRecord,
+    authorization: AssistantOAuthFlow['authorization'] = record.snapshot.authorization,
+  ): void {
     if (terminal(record.snapshot.status)) return
-    this.#replace(record, { status: 'awaiting_provider', input: null, error: null })
+    this.#replace(record, { status: 'awaiting_provider', authorization, input: null, error: null })
   }
 
   #setDeviceCode(record: FlowRecord, info: Readonly<{ verificationUri: string; userCode: string }>): void {
@@ -467,7 +471,10 @@ export class AssistantOAuthFlowManager {
     })
   }
 
-  #replace(record: FlowRecord, update: Pick<AssistantOAuthFlow, 'status' | 'input' | 'error'>): void {
+  #replace(
+    record: FlowRecord,
+    update: Pick<AssistantOAuthFlow, 'status' | 'input' | 'error'> & Partial<Pick<AssistantOAuthFlow, 'authorization'>>,
+  ): void {
     record.snapshot = { ...record.snapshot, ...update, updatedAt: this.options.now() }
   }
 
@@ -475,7 +482,7 @@ export class AssistantOAuthFlowManager {
     const pending = record.pendingInput
     record.pendingInput = undefined
     if (pending) pending.reject(new AssistantOAuthFlowError(status === 'cancelled' ? 'cancelled' : 'invalid_input'))
-    this.#replace(record, { status, input: null, error: flowError ?? null })
+    this.#replace(record, { status, authorization: null, input: null, error: flowError ?? null })
     if (this.#activeFlowId === record.snapshot.flowId) this.#activeFlowId = undefined
     this.#lastTerminalStatus = status
     this.#terminalOrder.push(record.snapshot.flowId)

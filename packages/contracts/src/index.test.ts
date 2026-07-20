@@ -80,13 +80,13 @@ describe('public contracts', () => {
     })).toBe(false)
 
     expect(matchesContract(AssistantOAuthFlow, {
-      flowId: 'flow_alpha', provider: 'openai-codex', status: 'awaiting_input',
+      flowId: 'flow_alpha', provider: 'openai-codex', status: 'awaiting_input', authorization: null,
       createdAt: '2026-07-19T12:00:00.000Z', updatedAt: '2026-07-19T12:00:01.000Z',
       input: { kind: 'text', label: 'Paste verification code', secret: true, required: true },
       error: null,
     })).toBe(true)
     expect(matchesContract(AssistantOAuthFlow, {
-      flowId: 'flow_alpha', provider: 'openai-codex', status: 'awaiting_input',
+      flowId: 'flow_alpha', provider: 'openai-codex', status: 'awaiting_input', authorization: null,
       createdAt: '2026-07-19T12:00:00.000Z', updatedAt: '2026-07-19T12:00:01.000Z',
       input: { kind: 'text', label: 'Paste verification code', secret: true, required: true },
       error: { code: 'provider_failure', message: 'No credential value here', credential: 'secret' },

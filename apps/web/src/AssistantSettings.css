@@ -69,6 +69,23 @@
   margin-top: 0;
 }
 
+.oauth-browser-login {
+  display: grid;
+  gap: .3rem;
+  margin: 0;
+}
+
+.oauth-browser-login a {
+  width: fit-content;
+  color: var(--action-text);
+  font-weight: 650;
+}
+
+.oauth-browser-login a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .settings-form .oauth-cancel-button {
   width: auto;
   min-height: 2.5rem;

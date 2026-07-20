@@ -179,7 +179,7 @@ describe('GMD-003/S1 R3 capability mediation', () => {
       async perform(operation) {
         operations.push(operation)
         if (operation.permission === 'assistant:provider-status') return { provider: 'openai-codex', status: 'disconnected', model: null }
-        if (operation.permission === 'assistant:oauth-flow') return { flowId: 'flow_alpha', provider: 'openai-codex', status: 'awaiting_provider', createdAt: '2026-07-19T12:00:00.000Z', updatedAt: '2026-07-19T12:00:00.000Z', input: null, error: null }
+        if (operation.permission === 'assistant:oauth-flow') return { flowId: 'flow_alpha', provider: 'openai-codex', status: 'awaiting_provider', createdAt: '2026-07-19T12:00:00.000Z', updatedAt: '2026-07-19T12:00:00.000Z', authorization: null, input: null, error: null }
         if (operation.permission === 'assistant:question') return { turnId: 'turn_alpha', conversationId: 'conv_alpha', status: 'completed', question: 'What changed?', provider: 'openai-codex', model: 'gpt-5.4', createdAt: '2026-07-19T12:00:00.000Z', completedAt: '2026-07-19T12:00:02.000Z', answer: 'Nothing yet.', error: null, sources: [] }
         if (operation.permission === 'workspace:search') return { results: [] }
         return { resourceId: operation.resource, displayPath: 'Notes/Alpha.md', source: '# Alpha', revision: 'rev_alpha', yamlProperties: [], yamlParseError: null }

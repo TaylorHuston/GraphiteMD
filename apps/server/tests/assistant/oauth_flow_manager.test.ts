@@ -108,6 +108,35 @@ describe('GMD-004/S1 R1 GraphiteMD-owned Codex OAuth', () => {
     runtime.succeed()
     await expect(manager.waitForTerminal(flow.flowId)).resolves.toMatchObject({ status: 'succeeded' })
   })
+
+  it('R1-S1 exposes the transient browser authorization link alongside the manual fallback', async () => {
+    const runtime = new FakePiOAuthRuntime()
+    const manager = new AssistantOAuthFlowManager(runtime, {
+      now: () => '2026-07-20T00:00:00.000Z',
+      nextFlowId: () => 'flow_browser',
+    })
+    const flow = await manager.start()
+    await Promise.resolve()
+
+    runtime.callbacks!.onAuth({
+      url: 'https://auth.example.test/authorize',
+      instructions: 'Complete login in your browser.',
+    })
+    const manual = runtime.callbacks!.onManualCodeInput!()
+
+    await expect(manager.flow(flow.flowId)).resolves.toMatchObject({
+      status: 'awaiting_input',
+      authorization: {
+        url: 'https://auth.example.test/authorize',
+        instructions: 'Complete login in your browser.',
+      },
+      input: { kind: 'text' },
+    })
+
+    await manager.cancel(flow.flowId)
+    await expect(manual).rejects.toMatchObject({ code: 'cancelled' })
+    await expect(manager.flow(flow.flowId)).resolves.toMatchObject({ status: 'cancelled', authorization: null })
+  })
 })
 
 describe('GMD-004/S1 R2 protected credential lifecycle', () => {

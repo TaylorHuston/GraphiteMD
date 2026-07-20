@@ -59,7 +59,7 @@ As the workspace owner, I want to connect and disconnect my Codex subscription, 
 
 The system SHALL let only the authenticated owner start, inspect, answer, cancel, and retry OpenAI Codex through normalized GraphiteMD contracts.
 
-- `R1-S1 Complete Codex OAuth`: normalized provider prompts/events reach the owner and successful completion reports connected state with protected machine-local credentials.
+- `R1-S1 Complete Codex OAuth`: normalized provider prompts/events, including a transient browser authorization link and manual fallback, reach the owner and successful completion reports connected state with protected machine-local credentials.
 - `R1-S2 Cancel Or Recover From Failed OAuth`: cancellation, invalid input, provider failure, flow conflicts, and Settings remounts during an active flow fail or recover honestly and permit safe retry.
 
 ##### Requirement R2: Protected Credential Lifecycle
@@ -203,7 +203,7 @@ Select Option 1.
 - Store Pi auth/model settings beneath `GRAPHITEMD_STATE_DIR/assistant/pi/`, never beneath `GRAPHITEMD_WORKSPACE_ROOT`.
 - Provision parent directories with owner-only permissions and verify the credential file is not group/world-readable after login and at startup.
 - Model the OAuth lifecycle as `awaiting_provider`, `awaiting_input`, `succeeded`, `failed`, or `cancelled`, with auth URL, device code, progress, selection/text/manual-code prompt, timestamps, and sanitized error.
-- Allow one active flow; flow IDs and request IDs are opaque. Expose that active normalized flow to the owner so a Settings remount can resume its prompt instead of offering a conflicting start. Preserve the provider-supplied opaque selection ID when answering a choice prompt; reject only stale or invalid selections, empty required values, and concurrent starts. Retain only a small bounded set of terminal flow summaries with no secrets.
+- Allow one active flow; flow IDs and request IDs are opaque. Expose that active normalized flow to the owner so a Settings remount can resume its prompt instead of offering a conflicting start. Preserve the provider-supplied opaque selection ID when answering a choice prompt; include the provider authorization URL only while that active flow needs browser completion and clear it from terminal summaries. Reject only stale or invalid selections, empty required values, and concurrent starts. Retain only a small bounded set of terminal flow summaries with no secrets.
 - Require the normal owner session on status/read routes and owner session plus XSRF on start/answer/cancel/disconnect mutations.
 
 ### Assistant Capability And Retrieval
@@ -234,7 +234,7 @@ Select Option 1.
 
 - Add runtime-validated contracts and authenticated routes for provider status, OAuth start/active/read/answer/cancel/disconnect, current conversation creation/read, and question submission.
 - The first question endpoint may return the terminal normalized turn as one bounded request/response; token streaming is deferred. The UI still provides an accessible busy state and prevents duplicate submissions.
-- Add an `Assistant` Settings area for provider status, connect flow, progress/input, retry, and disconnect.
+- Add an `Assistant` Settings area for provider status, connect flow, browser-login link, progress/input, retry, and disconnect.
 - Add an Assistant block to the existing Context panel/drawer with transcript, source list, prompt input, busy/error state, and a direct setup action when disconnected.
 - Preserve owner-session expiry handling and all existing workbench states when Assistant contracts are malformed or unavailable.
 
@@ -248,7 +248,7 @@ Select Option 1.
 ### User Flow And Information Architecture
 
 1. The owner opens Context. If disconnected, the Assistant explains that Codex setup is required and offers `Connect Codex`/`Open Assistant settings`.
-2. Settings > Assistant shows provider status and starts the normalized OAuth flow. External auth opens in a new browser tab/window; any required provider prompt remains in the GraphiteMD dialog.
+2. Settings > Assistant shows provider status and starts the normalized OAuth flow. When the provider supplies an authorization URL, GraphiteMD presents an explicit secure OpenAI login link that opens in a new browser tab/window; any required provider prompt remains in the GraphiteMD dialog.
 3. After connection, Context exposes one labeled multiline question input and submit action.
 4. During the request, the prompt remains visible but duplicate submit is disabled; a live status names search/read/model phases without leaking content.
 5. The completed answer appears with a separate `Sources used` list. Selecting a source may reuse the existing opaque note-open action when available; polished citation navigation is deferred.
@@ -276,7 +276,7 @@ Select Option 1.
 |---|---|---|---|---|
 | Context panel/drawer shell | existing application component | `apps/web/src/App.tsx` Context composition and `Drawer` | disconnected, ready, loading, answer, no evidence, error, long answer, long sources | Preserve existing focus and responsive behavior. |
 | Assistant conversation block | application-specific | New bundled Assistant view contribution rendered by the web adapter | empty, prompt retained, busy, completed, failed, unavailable, interrupted | Keep source evidence visually distinct from model text. |
-| Codex provider settings | application-specific refinement | Existing GraphiteMD Settings with Coordinator-Local OAuth states adapted | disconnected, starting, auth URL/device code, radio-card selection, manual input, failed, cancelled, connected, disconnecting | Preserve the current normalized flow; replace the native inline selection with a clear option/action hierarchy. |
+| Codex provider settings | application-specific refinement | Existing GraphiteMD Settings with Coordinator-Local OAuth states adapted | disconnected, starting, auth URL/device code, radio-card selection, manual input, failed, cancelled, connected, disconnecting | Present a visible browser-login link from the active normalized flow; replace the native inline selection with a clear option/action hierarchy. |
 | Source evidence list | application-specific | GraphiteMD opaque note identity/display path | one source, multiple sources, long path, truncated read, unavailable source | Source entries must come from service provenance. |
 | Settings tabs | existing application component | `apps/web/src/SettingsPanel.tsx` | desktop vertical, narrow horizontal, keyboard roving, long labels | Reconcile three-tab narrow layout. |
 
@@ -361,7 +361,7 @@ It produces the smallest slice that proves real product value and the critical t
   - Workspace Assistant capability covers eligible search/read, stale/unknown resource, `.graphitemd/` and legacy `.graphite/`, exclusions, symlink/root replacement, byte/result/context budgets, and prompt-injection text.
   - Conversation authority covers atomic create/update beneath `.graphitemd/`, interrupted turn, malformed state, workspace binding, no credentials, and derived-index independence.
   - Plugin conformance and import-boundary suites cover the Assistant's declared contributions/capabilities without privileged bypass.
-  - Browser components cover all provider, question, answer, source, error, focus, tab, and session-expiry states.
+- Browser components cover all provider, browser-login-link, question, answer, source, error, focus, tab, and session-expiry states.
 - Broad supporting gates: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm test:storybook`, `pnpm build-storybook`, `pnpm test:e2e`, and `pnpm audit --audit-level high`.
 - Deterministic E2E: use an injected fake OAuth/runtime boundary and a disposable workspace with uniquely identifiable notes; prove connect, ask, brokered read, visible sources, inspectable conversation file, disconnect, mobile drawer, and non-AI continuity through the production server/browser path.
 - Live-provider or external-service playtests: owner completes Codex OAuth and asks a question whose answer exists only in a disposable uniquely identifiable note; inspect answer, service-derived source, conversation file, and absence of credentials/content leakage in logs. Record this separately from deterministic proof.

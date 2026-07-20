@@ -59,7 +59,7 @@ describe('owner Settings', () => {
       input: {
         kind: 'selection', label: 'Select an authorization option', required: true,
         options: [{ id: 'browser', label: 'Browser login' }, { id: 'device', label: 'Use a device code' }],
-      }, error: null,
+      }, authorization: null, error: null,
     }
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       if (url === '/api/v1/plugins') return response(200, { plugins: [] })
@@ -96,7 +96,7 @@ describe('owner Settings', () => {
       input: {
         kind: 'selection', label: 'Select an authorization option', required: true,
         options: [{ id: 'browser', label: 'Browser login (default)' }],
-      }, error: null,
+      }, authorization: null, error: null,
     }
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/v1/plugins') return response(200, { plugins: [] })
@@ -114,6 +114,32 @@ describe('owner Settings', () => {
     expect(screen.getByRole('button', { name: 'Continue with Browser login (default)' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Connect Codex' })).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/assistant/oauth/active', expect.objectContaining({ credentials: 'same-origin' }))
+  })
+
+  it('GMD-004/S1 R1-S1 presents Pi’s browser authorization link before the manual fallback', async () => {
+    const flow = {
+      flowId: 'flow_browser', provider: 'openai-codex', status: 'awaiting_input',
+      createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z',
+      authorization: { url: 'https://auth.example.test/authorize', instructions: 'Complete login in your browser.' },
+      input: { kind: 'text', label: 'Authorization response', secret: true, required: true }, error: null,
+    }
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/v1/plugins') return response(200, { plugins: [] })
+      if (url === '/api/v1/assistant/provider') return response(200, { provider: 'openai-codex', status: 'connecting', model: null })
+      if (url === '/api/v1/assistant/oauth/active') return response(200, flow)
+      return response(404)
+    }))
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={vi.fn()} />)
+
+    await user.click(screen.getByRole('tab', { name: 'Assistant' }))
+
+    const login = await screen.findByRole('link', { name: 'Open secure OpenAI login' })
+    expect(login).toHaveAttribute('href', 'https://auth.example.test/authorize')
+    expect(login).toHaveAttribute('target', '_blank')
+    expect(screen.getByText('Complete login in your browser.')).toBeVisible()
+    expect(screen.getByLabelText('Authorization response')).toBeVisible()
+    expect(screen.getByText('Status: connecting.')).toBeVisible()
   })
 
   it('GMD-001/S2 R1 changes a confirmed password and returns to sign in', async () => {
