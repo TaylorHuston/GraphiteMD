@@ -487,6 +487,23 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(retried.note.revision).not.toBe(renamed.note.revision)
   })
 
+  it('GMD-002/S2/R3-S3 keeps a committed retry bound to its target when the source path is recreated', async () => {
+    const workspaceRoot = await createWorkspace()
+    await writeFile(join(workspaceRoot, 'Before.md'), '# Original\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+    const original = await authority.readNote(opened.notes[0]!.resourceId)
+    const renamed = await authority.renameNote(original.resourceId, original.revision, 'After.md')
+    await writeFile(join(workspaceRoot, 'Before.md'), '# Replacement\n', 'utf8')
+    await authority.refresh()
+
+    const retried = await authority.renameNote(original.resourceId, original.revision, 'After.md')
+
+    expect(retried.note.resourceId).toBe(renamed.note.resourceId)
+    expect(retried.note.source).toBe('# Original\n')
+    expect(await readFile(join(workspaceRoot, 'Before.md'), 'utf8')).toBe('# Replacement\n')
+  })
+
   it('GMD-002/S2/R3-S3 finishes a prepared native rename after restart', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Exact\n', 'utf8')

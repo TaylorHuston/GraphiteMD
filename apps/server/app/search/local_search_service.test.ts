@@ -66,6 +66,27 @@ describe('GMD-002/S3 local search', () => {
     expect(await service.search('newterm')).toEqual([])
   })
 
+  it('R1-S3 reports a recoverable index failure when a refreshed note disappears before reading', async () => {
+    const { root, authority } = await fixture()
+    const notePath = join(root, 'Transient.md')
+    await writeFile(notePath, '# Transient\nneedle\n')
+    await authority.openConfigured()
+    let removeBeforeRead = true
+    const unstableAuthority = {
+      refresh: () => authority.refresh(),
+      readNote: async (resourceId: string) => {
+        if (removeBeforeRead) {
+          removeBeforeRead = false
+          await rm(notePath)
+        }
+        return authority.readNote(resourceId)
+      },
+    } as unknown as ConfiguredWorkspaceAuthority
+    const service = new LocalSearchService(root, unstableAuthority)
+
+    await expect(service.rebuild()).rejects.toMatchObject({ name: 'LocalSearchUnavailableError' })
+  })
+
   it('R2-S3 never indexes .graphite Markdown state', async () => {
     const { root, authority, service } = await fixture()
     await mkdir(join(root, '.graphite'))

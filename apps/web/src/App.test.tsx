@@ -486,6 +486,34 @@ describe('GMD-002/S1 responsive browse shell', () => {
     expect(screen.queryByText('Reopen the renamed note before editing.')).not.toBeInTheDocument()
   })
 
+  it('S2/R3-S1 rebinds autosave after discarding a failed draft during rename', async () => {
+    const renamed = { resourceId: 'res_renamed', displayPath: 'Renamed.md', source: '# Alpha\n', revision: 'rev_renamed', yamlProperties: [], yamlParseError: null }
+    const renamedWorkspace = { ...workspace, notes: [{ kind: 'note', resourceId: 'res_renamed', displayPath: 'Renamed.md' }], inventory: [{ kind: 'note', resourceId: 'res_renamed', displayPath: 'Renamed.md' }] }
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
+      .mockImplementationOnce(() => response(200, workspace))
+      .mockImplementationOnce(() => response(200, { plugins: [] }))
+      .mockImplementationOnce(() => response(200, { resourceId: 'res_alpha', displayPath: 'Alpha.md', source: '# Alpha\n', revision: 'rev_alpha', yamlProperties: [], yamlParseError: null }))
+      .mockImplementationOnce(() => response(503, { error: { code: 'save_unavailable' } }))
+      .mockImplementationOnce(() => response(200, { note: renamed, workspace: renamedWorkspace }))
+      .mockImplementationOnce(() => response(200, { ...renamed, source: '# Edited\n', revision: 'rev_saved' }))
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup(); const view = render(<App />)
+    await user.click(await screen.findByRole('treeitem', { name: /Alpha/ }))
+    const editor = view.container.querySelector('.cm-content') as HTMLElement
+    await user.click(editor); await user.keyboard('{Control>}a{/Control}# Failed draft')
+    expect(await screen.findByText('Save failed', {}, { timeout: 2000 })).toBeVisible()
+
+    const filename = screen.getByRole('textbox', { name: 'Filename' })
+    await user.clear(filename); await user.type(filename, 'Renamed.md'); await user.click(screen.getByRole('button', { name: 'Rename' }))
+    await screen.findByRole('heading', { name: 'Renamed', level: 1 })
+    const reboundEditor = view.container.querySelector('.cm-content') as HTMLElement
+    await user.click(reboundEditor); await user.keyboard('{Control>}a{/Control}# Edited')
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/v1/notes/res_renamed', expect.objectContaining({ method: 'PUT' })), { timeout: 2000 })
+  })
+
   it('S2/R2-S3 exposes conflict discard and reload without overwriting the local draft', async () => {
     const fetchMock = vi.fn()
       .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))

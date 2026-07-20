@@ -459,7 +459,11 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
   const renameSelected = async (event: FormEvent) => {
     event.preventDefault(); setRenameError(null)
     if (!selected || !(await guardTransition())) return
-    const snapshot = autosave.snapshot()
+    let snapshot = autosave.snapshot()
+    if (!snapshot.revision) {
+      bindAutosave(selected)
+      snapshot = autosave.snapshot()
+    }
     if (!snapshot.revision) return
     try {
       const response = await requestJson(`/api/v1/notes/${encodeURIComponent(selected.resourceId)}/rename`, RenameNoteResponse, {

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { access, link, lstat, mkdir, open, readFile, readdir, realpath, rename, stat, unlink } from 'node:fs/promises'
 import { constants } from 'node:fs'
-import { basename, dirname, join, posix } from 'node:path'
+import { basename, dirname, join, posix, relative } from 'node:path'
 import type { WorkspaceId } from '@graphitemd/contracts'
 import { isMap, isScalar, parseDocument } from 'yaml'
 
@@ -368,17 +368,28 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
     const opened = this.#opened
     const note = currentWorkspace.notes.find((candidate) => candidate.resourceId === resourceId)
     if (!opened) throw new WorkspaceResourceUnavailableError()
-    if (!note) {
-      const pending = this.#pendingRenames.get(resourceId) ?? await this.#loadRenameReceipt(opened, resourceId)
-      if (!pending || pending.expectedRevision !== expectedRevision || basename(pending.targetPath) !== fileName) {
-        throw new WorkspaceResourceUnavailableError()
-      }
-      return withMutationLocks([pending.sourcePath, pending.targetPath], () => this.#reconcileCommittedRename(
+    const receipt = this.#pendingRenames.get(resourceId) ?? await this.#loadRenameReceipt(opened, resourceId)
+    if (receipt?.status === 'committed' && receipt.expectedRevision === expectedRevision &&
+        basename(receipt.targetPath) === fileName) {
+      return withMutationLocks([receipt.sourcePath, receipt.targetPath], () => this.#reconcileCommittedRename(
         resourceId,
         opened,
-        pending.sourcePath,
-        pending.targetPath,
-        pending.targetDisplayPath,
+        receipt.sourcePath,
+        receipt.targetPath,
+        receipt.targetDisplayPath,
+        expectedRevision,
+      ))
+    }
+    if (!note) {
+      if (!receipt || receipt.expectedRevision !== expectedRevision || basename(receipt.targetPath) !== fileName) {
+        throw new WorkspaceResourceUnavailableError()
+      }
+      return withMutationLocks([receipt.sourcePath, receipt.targetPath], () => this.#reconcileCommittedRename(
+        resourceId,
+        opened,
+        receipt.sourcePath,
+        receipt.targetPath,
+        receipt.targetDisplayPath,
         expectedRevision,
       ))
     }
@@ -443,7 +454,7 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
           throw new WorkspaceInvalidMutationError('indeterminate')
         }
       const result = await this.#issueRenamedResource(opened, targetDisplayPath, expectedRevision)
-      this.#pendingRenames.set(resourceId, { sourcePath, targetPath, targetDisplayPath, expectedRevision, result })
+      this.#pendingRenames.set(resourceId, { sourcePath, targetPath, targetDisplayPath, expectedRevision, status: 'committed', result })
       return result
     })
   }
@@ -558,13 +569,15 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
       pending.targetDisplayPath !== targetDisplayPath || pending.expectedRevision !== expectedRevision) {
       throw new WorkspaceResourceUnavailableError()
     }
-    try {
-      await lstat(sourcePath)
-      throw new WorkspaceInvalidMutationError('indeterminate')
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        if (error instanceof WorkspaceInvalidMutationError) throw error
+    if (pending.status !== 'committed') {
+      try {
+        await lstat(sourcePath)
         throw new WorkspaceInvalidMutationError('indeterminate')
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          if (error instanceof WorkspaceInvalidMutationError) throw error
+          throw new WorkspaceInvalidMutationError('indeterminate')
+        }
       }
     }
     let canonicalTarget: string
@@ -641,12 +654,12 @@ async function assertDirectoryIdentity(path: string, expected: FileIdentity): Pr
 }
 
 async function ensureConfinedDirectory(root: string, directory: string): Promise<void> {
-  const relativePath = directory.slice(root.length + 1)
-  if (!relativePath || directory === root || !directory.startsWith(`${root}/`)) {
+  const relativePath = relative(root, directory)
+  if (!relativePath || relativePath === '..' || relativePath.startsWith('../') || relativePath.startsWith('..\\')) {
     throw new WorkspaceInvalidMutationError('indeterminate')
   }
   let current = root
-  for (const segment of relativePath.split('/')) {
+  for (const segment of relativePath.split(/[\\/]/)) {
     const next = join(current, segment)
     try {
       await mkdir(next, { mode: 0o700 })

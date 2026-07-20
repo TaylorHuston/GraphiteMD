@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { lstat, mkdir, realpath, rename, rm, stat } from 'node:fs/promises'
 import { basename, join, relative } from 'node:path'
 import Database from 'better-sqlite3'
-import type { ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
+import { WorkspaceResourceUnavailableError, type ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
 
 export interface LocalSearchResult {
   resourceId: string
@@ -57,7 +57,13 @@ export class LocalSearchService {
       })
       const rows: Array<[string, string, string, string, string]> = []
       for (const item of snapshot.notes) {
-        const note = await this.workspace.readNote(item.resourceId)
+        let note
+        try {
+          note = await this.workspace.readNote(item.resourceId)
+        } catch (error) {
+          if (error instanceof WorkspaceResourceUnavailableError) throw new LocalSearchUnavailableError()
+          throw error
+        }
         rows.push([
           note.resourceId,
           basename(note.displayPath, '.md'),
