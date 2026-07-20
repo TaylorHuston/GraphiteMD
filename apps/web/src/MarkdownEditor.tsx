@@ -231,11 +231,17 @@ export function MarkdownEditor({ source, onChange, readOnly = false, ariaLabel =
 
   useEffect(() => {
     const editor = view.current
-    if (!editor || editor.state.doc.toString() === source) return
+    if (!editor) return
+    const normalized = createMarkdownDocument(source).toString()
+    if (editor.state.doc.toString() === normalized) {
+      exactSource.current = source
+      normalizedSource.current = normalized
+      return
+    }
     applyingExternalSource.current = true
     editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: source } })
     exactSource.current = source
-    normalizedSource.current = createMarkdownDocument(source).toString()
+    normalizedSource.current = normalized
     applyingExternalSource.current = false
   }, [source])
 

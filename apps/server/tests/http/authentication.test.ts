@@ -222,6 +222,23 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
 })
 
 describe('GMD-002/S1 R3 exact note reading', () => {
+  it('R1-S3 refreshes host-created and deleted Markdown on browser reconnect', async () => {
+    const authenticated = await loginOwner()
+    const external = join(workspaceRoot, 'Notes', 'External.md')
+    await writeFile(external, '# External\n', 'utf8')
+
+    const added = await (await fetch(`${origin}/api/v1/workspace`, {
+      headers: { cookie: authenticated.cookie },
+    })).json() as { notes: Array<{ displayPath: string }> }
+    expect(added.notes).toContainEqual(expect.objectContaining({ displayPath: 'Notes/External.md' }))
+
+    await rm(external)
+    const removed = await (await fetch(`${origin}/api/v1/workspace`, {
+      headers: { cookie: authenticated.cookie },
+    })).json() as { notes: Array<{ displayPath: string }> }
+    expect(removed.notes).not.toContainEqual(expect.objectContaining({ displayPath: 'Notes/External.md' }))
+  })
+
   it('R3-S1 returns exact source metadata only for an authenticated issued resource', async () => {
     await writeFile(
       join(workspaceRoot, 'Notes', 'Welcome.md'),
@@ -296,6 +313,29 @@ describe('GMD-002/S2 authenticated confined note mutations', () => {
     expect((await fetch(`${origin}/api/v1/notes/${item.resourceId}`, {
       method: 'PUT', headers: { 'content-type': 'application/json' }, body: '{}',
     })).status).toBe(403)
+  })
+
+  it('R2-S1 accepts every eligible note through the JSON save envelope', async () => {
+    await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# Small\n', 'utf8')
+    const authenticated = await loginOwner()
+    const workspace = await (await fetch(`${origin}/api/v1/workspace`, {
+      headers: { cookie: authenticated.cookie },
+    })).json() as { notes: Array<{ resourceId: string; displayPath: string }> }
+    const item = workspace.notes.find(({ displayPath }) => displayPath === 'Notes/Welcome.md')!
+    const opened = await (await fetch(`${origin}/api/v1/notes/${item.resourceId}`, {
+      headers: { cookie: authenticated.cookie },
+    })).json() as { revision: string }
+    const source = '\u0000'.repeat(1024 * 1024)
+
+    const saved = await fetch(`${origin}/api/v1/notes/${item.resourceId}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', cookie: authenticated.cookie, 'x-xsrf-token': authenticated.token },
+      body: JSON.stringify({ expectedRevision: opened.revision, source }),
+    })
+
+    expect(saved.status).toBe(200)
+    expect((await saved.json() as { source: string }).source).toHaveLength(1024 * 1024)
+    await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# Restored\n', 'utf8')
   })
 
   it('R2-S3 returns a recoverable conflict without canonical overwrite', async () => {

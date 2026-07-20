@@ -17,7 +17,7 @@ import {
   resolveSecurityStateDirectory,
 } from '../app/security/owner_setup_service.js'
 import { PluginRuntimeService } from '../app/plugins/plugin_runtime_service.js'
-import { LocalSearchService, LocalSearchUnavailableError } from '../app/search/local_search_service.js'
+import { LocalSearchService } from '../app/search/local_search_service.js'
 import { LoginAttemptLimiter } from '../app/security/login_attempt_limiter.js'
 
 const ownerSetup = new OwnerSetupService(resolveSecurityStateDirectory())
@@ -44,7 +44,7 @@ async function pluginRuntime(): Promise<PluginRuntimeService | undefined> {
 router.get('/api/v1/health', () => serviceDescriptor)
 
 router.post('/api/v1/auth/login', async ({ auth, request, response, session }) => {
-  const source = request.ip()
+  const source = `login:${request.ip()}`
   const attempt = loginAttempts.acquire(source)
   if (!attempt) {
     return response.tooManyRequests({ error: { code: 'invalid_credentials', message: 'Invalid credentials.' } })
@@ -112,17 +112,25 @@ router.put('/api/v1/auth/password', async ({ auth, request, response }) => {
     return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
   }
 
+  const attempt = loginAttempts.acquire(`password-change:${request.ip()}`)
+  if (!attempt) {
+    return response.tooManyRequests({ error: { code: 'invalid_credentials', message: 'Invalid credentials.' } })
+  }
   try {
     if (!(await ownerSetup.changePassword(currentPassword, replacementPassword))) {
+      attempt.failed()
       return response.unauthorized({ error: { code: 'invalid_credentials', message: 'Invalid credentials.' } })
     }
   } catch (error) {
     if (error instanceof PasswordPolicyError) {
+      attempt.cancelled()
       return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
     }
+    attempt.cancelled()
     throw error
   }
 
+  attempt.succeeded()
   await auth.use('web').logout()
   return response.noContent()
 })
@@ -136,7 +144,7 @@ router.get('/api/v1/workspace', async ({ auth, response }) => {
 
   try {
     const current = await workspace.current()
-    return current.available ? current : await workspace.openConfigured()
+    return current.available ? await workspace.refresh() : await workspace.openConfigured()
   } catch (error) {
     if (error instanceof WorkspaceUnavailableError) {
       return response.serviceUnavailable({ available: false, reason: error.reason })
@@ -221,8 +229,8 @@ router.get('/api/v1/search', async ({ auth, request, response }) => {
   try {
     return { results: await search.search(query) }
   } catch (error) {
-    if (error instanceof LocalSearchUnavailableError) {
-      return response.serviceUnavailable({ error: { code: 'search_unavailable', message: 'Local search is unavailable.' } })
+    if (error instanceof WorkspaceUnavailableError) {
+      return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The configured workspace is unavailable.' } })
     }
     return response.serviceUnavailable({ error: { code: 'search_unavailable', message: 'Local search is unavailable.' } })
   }
@@ -239,7 +247,10 @@ router.post('/api/v1/search/rebuild', async ({ auth, response }) => {
   }
   try {
     return await search.rebuild()
-  } catch {
+  } catch (error) {
+    if (error instanceof WorkspaceUnavailableError) {
+      return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The configured workspace is unavailable.' } })
+    }
     return response.serviceUnavailable({ error: { code: 'search_unavailable', message: 'Local search is unavailable.' } })
   }
 })

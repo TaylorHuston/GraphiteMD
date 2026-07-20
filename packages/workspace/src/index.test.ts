@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, readFile, rename, rm, stat, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -623,6 +623,46 @@ describe('ConfiguredWorkspaceAuthority', () => {
 
     await expect(authority.saveNote(note.resourceId, note.revision, '# Escaped\n')).rejects.toBeInstanceOf(Error)
     expect(await readFile(join(outsideRoot, 'Safe.md'), 'utf8')).toBe('# Outside\n')
+  })
+
+  it('GMD-002/S2/R4-S1 rejects a save when its parent is swapped before temporary creation', async () => {
+    const workspaceRoot = await createWorkspace()
+    const outsideRoot = await createWorkspace()
+    const notes = join(workspaceRoot, 'Notes')
+    const retained = join(workspaceRoot, 'Notes-retained')
+    await mkdir(notes)
+    await writeFile(join(notes, 'Safe.md'), '# Safe\n', 'utf8')
+    let swap = true
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot, {
+      beforeMutationCreate: async () => {
+        if (!swap) return
+        swap = false
+        await rename(notes, retained)
+        await symlink(outsideRoot, notes)
+      },
+    })
+    const opened = await authority.openConfigured()
+    const note = await authority.readNote(opened.notes[0]!.resourceId)
+
+    await expect(authority.saveNote(note.resourceId, note.revision, '# Escaped\n')).rejects.toBeInstanceOf(Error)
+    expect(await readdir(outsideRoot)).toEqual([])
+    expect(await readFile(join(retained, 'Safe.md'), 'utf8')).toBe('# Safe\n')
+  })
+
+  it('GMD-002/S2/R3-S3 refuses rename receipts through a symlinked operations ancestor', async () => {
+    const workspaceRoot = await createWorkspace()
+    const outsideRoot = await createWorkspace()
+    await writeFile(join(workspaceRoot, 'Before.md'), '# Safe\n', 'utf8')
+    const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
+    const opened = await authority.openConfigured()
+    const note = await authority.readNote(opened.notes[0]!.resourceId)
+    await symlink(outsideRoot, join(workspaceRoot, '.graphite', 'operations'))
+
+    await expect(authority.renameNote(note.resourceId, note.revision, 'After.md')).rejects.toMatchObject({
+      code: 'indeterminate',
+    })
+    await expect(stat(join(outsideRoot, 'renames'))).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(join(workspaceRoot, 'Before.md'), 'utf8')).toBe('# Safe\n')
   })
 
   it('GMD-002/S2/R3-S2 rejects rename after root replacement or resource symlink escape', async () => {

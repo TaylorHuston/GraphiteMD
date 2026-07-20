@@ -31,4 +31,13 @@ describe('GMD-002/S2/R1-S2 rendered Markdown presentation', () => {
     const source = '---\nstatus: open\n# no closing fence\n\n![[embed]] [[broken\n```dataview\n**owned**\n```'
     expect(ranges(source)).toEqual([])
   })
+
+  it('recognizes complete frontmatter across CRLF and CR line endings', () => {
+    for (const eol of ['\r\n', '\r']) {
+      const source = `---${eol}title: Hidden${eol}---${eol}# Visible${eol}`
+      expect(ranges(source)).toEqual([
+        expect.objectContaining({ kind: 'heading', source: '# ' }),
+      ])
+    }
+  })
 })

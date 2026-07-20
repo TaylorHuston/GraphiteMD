@@ -13,9 +13,10 @@ export type MarkdownPresentationRange = {
 const pluginFences = new Set(['dataview', 'dataviewjs', 'mermaid', 'tasks', 'query'])
 
 function completeFrontmatter(source: string) {
-  if (!source.startsWith('---\n')) return 0
-  const end = source.indexOf('\n---', 4)
-  return end < 0 ? -1 : end + 4
+  const opening = /^---[ \t]*(\r\n|\r|\n)/.exec(source)
+  if (!opening?.[1]) return 0
+  const end = source.indexOf(`${opening[1]}---`, opening[0].length)
+  return end < 0 ? -1 : end + opening[1].length + 3
 }
 
 function escaped(source: string, at: number) {

@@ -9,6 +9,10 @@ const exactSource = [
   '![[embed.png]]\n', '| A | B |\n| - | - |\n', '- [ ] task\n', '```ts\nconst x = 1\n```\n',
 ].join('')
 
+if (!Range.prototype.getClientRects) {
+  Range.prototype.getClientRects = () => ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }) as DOMRectList
+}
+
 afterEach(cleanup)
 
 describe('GMD-002/S2 source-preserving Markdown editor', () => {
@@ -23,6 +27,21 @@ describe('GMD-002/S2 source-preserving Markdown editor', () => {
     expect(onChange).not.toHaveBeenCalled()
     expect(preserveUneditedSource('one\r\ntwo\nthree\r\n', 'one\ntwo\nthree\n', 'one\nTWO\nthree\n'))
       .toBe('one\r\nTWO\nthree\r\n')
+  })
+
+  it('keeps the cursor and exact CRLF backing source when the parent echoes an edit', async () => {
+    const onChange = vi.fn()
+    const user = userEvent.setup()
+    const view = render(<MarkdownEditor source={'one\r\ntwo'} onChange={onChange} />)
+    const content = view.container.querySelector('.cm-content') as HTMLElement
+    await user.click(content)
+    await user.keyboard('!')
+    const echoed = onChange.mock.lastCall?.[0] as string
+    expect(echoed).toContain('\r\n')
+
+    view.rerender(<MarkdownEditor source={echoed} onChange={onChange} />)
+    await user.keyboard('?')
+    expect(onChange).toHaveBeenLastCalledWith(`${echoed.slice(0, 1)}?${echoed.slice(1)}`)
   })
 
   it('R1-S2 keeps supported syntax source-backed and reveals exact syntax on focus', async () => {

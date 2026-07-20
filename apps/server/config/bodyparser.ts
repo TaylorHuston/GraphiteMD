@@ -5,7 +5,8 @@ export default defineConfig({
   json: {
     convertEmptyStringsToNull: false,
     trimWhitespaces: false,
-    limit: '1mb',
+    // A valid 1 MiB UTF-8 note can expand substantially when JSON escapes control characters.
+    limit: '7mb',
     types: ['application/json'],
   },
 })

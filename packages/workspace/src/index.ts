@@ -112,9 +112,11 @@ export interface WorkspaceInventoryOptions {
   readonly beforeSourceUnlink?: () => Promise<void>
   /** Fault boundary used to prove ancestor confinement at the final filesystem commit. */
   readonly beforeMutationCommit?: (context: Readonly<{ operation: 'save' | 'rename' }>) => Promise<void>
+  /** Fault boundary used to prove save confinement immediately before temporary-file creation. */
+  readonly beforeMutationCreate?: (context: Readonly<{ operation: 'save' }>) => Promise<void>
 }
 
-type NormalizedWorkspaceInventoryOptions = Required<Omit<WorkspaceInventoryOptions, 'afterRenameCommit' | 'afterRenameLink' | 'beforeSourceUnlink' | 'beforeMutationCommit'>>
+type NormalizedWorkspaceInventoryOptions = Required<Omit<WorkspaceInventoryOptions, 'afterRenameCommit' | 'afterRenameLink' | 'beforeSourceUnlink' | 'beforeMutationCommit' | 'beforeMutationCreate'>>
 
 const DEFAULT_MAX_SOURCE_BYTES = 1024 * 1024
 const WORKSPACE_ID = /^wrk_[a-f0-9]{32}$/
@@ -165,6 +167,7 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
   readonly #afterRenameLink: (() => Promise<void>) | undefined
   readonly #beforeSourceUnlink: (() => Promise<void>) | undefined
   readonly #beforeMutationCommit: WorkspaceInventoryOptions['beforeMutationCommit']
+  readonly #beforeMutationCreate: WorkspaceInventoryOptions['beforeMutationCreate']
 
   constructor(
     private readonly configuredRoot: string | undefined,
@@ -178,6 +181,7 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
     this.#afterRenameLink = inventoryOptions.afterRenameLink
     this.#beforeSourceUnlink = inventoryOptions.beforeSourceUnlink
     this.#beforeMutationCommit = inventoryOptions.beforeMutationCommit
+    this.#beforeMutationCreate = inventoryOptions.beforeMutationCreate
   }
 
   async openConfigured(): Promise<WorkspaceSnapshot> {
@@ -315,6 +319,8 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
         const parentIdentity = await inspectDirectoryIdentity(dirname(expectedPath))
         let temporaryCreated = false
         try {
+          await this.#beforeMutationCreate?.({ operation: 'save' })
+          await assertDirectoryIdentity(dirname(expectedPath), parentIdentity)
           const temporary = await open(
             temporaryPath,
             constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW,
@@ -488,8 +494,7 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
   ): Promise<void> {
     if (!/^res_[a-f0-9]{64}$/.test(resourceId)) throw new WorkspaceResourceUnavailableError()
     const directory = join(opened.root, '.graphite', 'operations', 'renames')
-    await mkdir(directory, { recursive: true, mode: 0o700 })
-    if (await realpath(directory) !== directory) throw new WorkspaceInvalidMutationError('indeterminate')
+    await ensureConfinedDirectory(opened.root, directory)
     await atomicWorkspaceFile(join(directory, `${resourceId}.json`), `${JSON.stringify({
       schemaVersion: 1,
       resourceId,
@@ -632,6 +637,28 @@ async function assertDirectoryIdentity(path: string, expected: FileIdentity): Pr
   const actual = await inspectDirectoryIdentity(path)
   if (actual.device !== expected.device || actual.inode !== expected.inode) {
     throw new WorkspaceResourceUnavailableError()
+  }
+}
+
+async function ensureConfinedDirectory(root: string, directory: string): Promise<void> {
+  const relativePath = directory.slice(root.length + 1)
+  if (!relativePath || directory === root || !directory.startsWith(`${root}/`)) {
+    throw new WorkspaceInvalidMutationError('indeterminate')
+  }
+  let current = root
+  for (const segment of relativePath.split('/')) {
+    const next = join(current, segment)
+    try {
+      await mkdir(next, { mode: 0o700 })
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    }
+    try {
+      await inspectDirectoryIdentity(next)
+    } catch {
+      throw new WorkspaceInvalidMutationError('indeterminate')
+    }
+    current = next
   }
 }
 

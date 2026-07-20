@@ -432,24 +432,30 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
   }, [bindAutosave, guardTransition, onSessionExpired])
 
   useEffect(() => {
-    const restore = () => {
+    const restore = async () => {
       const resourceId = resourceFromLocation(workspaceRef.current)
       if (resourceId) {
         const displayedResource = selectedRef.current?.resourceId ?? null
-        void openNote(resourceId, 'restore').then(() => {
+        await openNote(resourceId, 'restore').then(() => {
           if (selectedRef.current?.resourceId !== resourceId) window.history.replaceState(null, '', noteLocation(displayedResource))
         })
       }
       else {
+        const displayedResource = selectedRef.current?.resourceId ?? null
+        if (displayedResource && !(await guardTransition())) {
+          window.history.replaceState(null, '', noteLocation(displayedResource))
+          return
+        }
         requestSequence.current += 1
         setSelected(null); setNoteStatus('idle')
         if (window.location.search) window.history.replaceState(null, '', window.location.pathname)
       }
     }
-    restore()
-    window.addEventListener('popstate', restore)
-    return () => window.removeEventListener('popstate', restore)
-  }, [openNote])
+    const onPopState = () => { void restore() }
+    void restore()
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [guardTransition, openNote])
   const renameSelected = async (event: FormEvent) => {
     event.preventDefault(); setRenameError(null)
     if (!selected || !(await guardTransition())) return

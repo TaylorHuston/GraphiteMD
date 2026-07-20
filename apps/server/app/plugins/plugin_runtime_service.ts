@@ -52,7 +52,7 @@ async function atomicJsonWrite(
   options: AtomicPluginWriteOptions = {},
 ): Promise<void> {
   await options.assertAuthority?.()
-  await mkdir(dirname(path), { recursive: true })
+  await ensureConfinedDirectory(workspaceRoot, dirname(path))
   const parent = await directoryIdentity(dirname(path), workspaceRoot)
   await options.beforeCreate?.()
   await options.assertAuthority?.()
@@ -94,6 +94,24 @@ async function atomicJsonWrite(
     }
   } finally {
     if (created) await rm(temporary, { force: true })
+  }
+}
+
+async function ensureConfinedDirectory(workspaceRoot: string, directory: string): Promise<void> {
+  const relativePath = relative(workspaceRoot, directory)
+  if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)) {
+    throw new Error('Plugin storage cannot escape the workspace.')
+  }
+  let current = workspaceRoot
+  for (const segment of relativePath.split(/[\\/]/)) {
+    const next = join(current, segment)
+    try {
+      await mkdir(next, { mode: 0o700 })
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    }
+    await directoryIdentity(next, workspaceRoot)
+    current = next
   }
 }
 

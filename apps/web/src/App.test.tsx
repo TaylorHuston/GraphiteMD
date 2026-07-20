@@ -29,6 +29,7 @@ function response(status: number, body: unknown) {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   window.history.replaceState(null, '', '/')
 })
 
@@ -274,6 +275,36 @@ describe('GMD-002/S1 responsive browse shell', () => {
     window.dispatchEvent(new PopStateEvent('popstate'))
     expect(await screen.findByRole('heading', { name: 'Roadmap', level: 1 })).toBeVisible()
     expect(screen.getByText('# Roadmap')).toBeVisible()
+  })
+
+  it('R3-S2 keeps a failed draft visible when Back targets the empty workspace route', async () => {
+    window.history.replaceState(null, '', '/?resource=res_alpha')
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
+      .mockImplementationOnce(() => response(200, workspace))
+      .mockImplementationOnce(() => response(200, { plugins: [] }))
+      .mockImplementationOnce(() => response(200, {
+        resourceId: 'res_alpha', displayPath: 'Alpha.md', source: '# Alpha\n',
+        revision: 'rev_alpha', yamlProperties: [], yamlParseError: null,
+      }))
+      .mockImplementationOnce(() => response(500, { error: { code: 'save_failed' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const user = userEvent.setup()
+    const view = render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Alpha', level: 1 })).toBeVisible()
+    const editor = view.container.querySelector('.cm-content') as HTMLElement
+    await user.click(editor)
+    await user.keyboard('{Control>}a{/Control}# Local draft')
+    expect(await screen.findByRole('button', { name: 'Retry save' }, { timeout: 2000 })).toBeVisible()
+
+    window.history.replaceState(null, '', '/')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+
+    await waitFor(() => expect(window.location.search).toBe('?resource=res_alpha'))
+    expect(screen.getByRole('heading', { name: 'Alpha', level: 1 })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Retry save' })).toBeVisible()
+    expect(window.confirm).toHaveBeenCalledOnce()
   })
 
   it('R3-S2 fails closed for an invalid history resource and retains the shell', async () => {

@@ -140,6 +140,27 @@ describe('GMD-001/S2 R1 in-app password change', () => {
     expect((await login('replacement password')).response.status).toBe(200)
     expect((await login('unwanted password')).response.status).toBe(401)
   })
+
+  it('R1-S2 rate-limits repeated current-password guesses from one source', async () => {
+    const authenticated = await login('replacement password')
+    expect(authenticated.response.status).toBe(200)
+
+    const statuses: number[] = []
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const response = await fetch(`${origin}/api/v1/auth/password`, {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          cookie: authenticated.cookie,
+          'x-xsrf-token': authenticated.token,
+        },
+        body: JSON.stringify({ currentPassword: `wrong-${attempt}`, password: 'unwanted password' }),
+      })
+      statuses.push(response.status)
+    }
+    expect(statuses).toEqual([401, 401, 401, 401, 429, 429])
+    expect((await fetch(`${origin}/api/v1/auth/current`, { headers: { cookie: authenticated.cookie } })).status).toBe(200)
+  })
 })
 
 describe('GMD-001/S2 R2 host-local password reset', () => {
