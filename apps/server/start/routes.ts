@@ -17,7 +17,7 @@ import {
   resolveSecurityStateDirectory,
 } from '../app/security/owner_setup_service.js'
 import { PluginRuntimeService } from '../app/plugins/plugin_runtime_service.js'
-import { LocalSearchService } from '../app/search/local_search_service.js'
+import { LocalSearchService, LocalSearchUnavailableError } from '../app/search/local_search_service.js'
 import { LoginAttemptLimiter } from '../app/security/login_attempt_limiter.js'
 
 const ownerSetup = new OwnerSetupService(resolveSecurityStateDirectory())
@@ -232,7 +232,10 @@ router.get('/api/v1/search', async ({ auth, request, response }) => {
     if (error instanceof WorkspaceUnavailableError) {
       return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The configured workspace is unavailable.' } })
     }
-    return response.serviceUnavailable({ error: { code: 'search_unavailable', message: 'Local search is unavailable.' } })
+    if (error instanceof LocalSearchUnavailableError) {
+      return response.serviceUnavailable({ error: { code: 'search_unavailable', message: 'Local search is unavailable.' } })
+    }
+    throw error
   }
 })
 
@@ -251,7 +254,10 @@ router.post('/api/v1/search/rebuild', async ({ auth, response }) => {
     if (error instanceof WorkspaceUnavailableError) {
       return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The configured workspace is unavailable.' } })
     }
-    return response.serviceUnavailable({ error: { code: 'search_unavailable', message: 'Local search is unavailable.' } })
+    if (error instanceof LocalSearchUnavailableError) {
+      return response.serviceUnavailable({ error: { code: 'search_unavailable', message: 'Local search is unavailable.' } })
+    }
+    throw error
   }
 })
 

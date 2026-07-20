@@ -438,6 +438,24 @@ describe('GMD-002/S3 authenticated local search', () => {
     expect(rebuilt.status).toBe(200)
     expect(await rebuilt.json()).toMatchObject({ indexed: expect.any(Number) })
   })
+
+  it('R2-S1 reports a recoverable local-index failure without misclassifying workspace authority', async () => {
+    const authenticated = await loginOwner()
+    const databasePath = join(workspaceRoot, '.graphite', 'cache', 'search.sqlite')
+    await rm(databasePath, { force: true })
+    await mkdir(databasePath)
+    try {
+      const response = await fetch(`${origin}/api/v1/search?q=localneedle`, {
+        headers: { cookie: authenticated.cookie },
+      })
+      expect(response.status).toBe(503)
+      expect(await response.json()).toEqual({
+        error: { code: 'search_unavailable', message: 'Local search is unavailable.' },
+      })
+    } finally {
+      await rm(databasePath, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('GMD-003/S1 production plugin host', () => {
