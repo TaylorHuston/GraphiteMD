@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: in_review
 ---
 # Tasks: LLM Assistant Integration
 
@@ -124,6 +124,7 @@ status: in_progress
 | 2026-07-20 | GMD-004/S1 R1-S2c provider selection-ID bridge | main | Pi OAuth callback adapter and OAuth manager tests | Mapped the Pi provider's `id` option shape through the normalized selection prompt, so the chosen `browser` or `device_code` value reaches Pi instead of being rejected as stale. | `6c3274e` |
 | 2026-07-20 | GMD-004/S1 R1-S1a browser-login link | main | OAuth contract/manager and Settings component tests | Retained Pi’s transient authorization URL only on the active normalized flow, rendered a secure browser-login link, and cleared it from terminal summaries. | `1f86f4d` |
 | 2026-07-20 | GMD-004/S2 bundled Assistant Context | main + bounded SDK/plugin worker; Context7 Pi API check | contracts, plugin SDK/host, `plugins/assistant`, Pi model-session broker, authenticated route, Context browser adapter | The bundle owns the grounded prompt, search/read declaration, and Context descriptor; the host allows one declared handler, while the service owns Pi, workspace enforcement, provenance, persistence, and credentials. | `097e180` |
+| 2026-07-20 | Independent-review Assistant boundary remediation | main + independent local review | plugin SDK/host, Assistant bundle, conversation store/question service, Context UI/tests | Model execution is now request-scoped to a single dispatched handler and exact registered policy; activation-time/direct model calls and fabricated turns fail closed. Follow-up turns append atomically to canonical conversation files after retained in-progress turns are recovered. Busy state has an announced status and recoverable failures expose a named retry action. | `8990b64` |
 | YYYY-MM-DD | GMD-004/S1 R1-R2 | main | Codex provider/OAuth, credential lifecycle, browser Settings | pending | pending |
 | YYYY-MM-DD | GMD-004/S2 R1-R2 | main | Assistant loop, brokered search/read, provenance | pending | pending |
 | YYYY-MM-DD | GMD-004/S2 R3 | main | canonical conversation authority | pending | pending |
@@ -148,6 +149,7 @@ status: in_progress
 | 2026-07-20 | contracts/SDK/server/web focused suites; package typechecks and lint | focused automated test / supporting gate | `GMD-004/S1/R1-S1a`: a provider authorization URL is delivered only to the active flow, rendered as a safe new-tab browser-login link beside the manual fallback, and cleared when cancelled. | passing: contracts 10, SDK 14, server 88, web 58 tests |
 | 2026-07-20 | Browser preview with mock normalized owner/workspace/OAuth responses at `1440x900` and `390x844` | rendered UI verification | `GMD-004/S1/R1-S2a`: direct inspection confirms selected radio cards, an explicit primary continuation action, secondary cancellation, no narrow overflow, no error overlay, and no console errors. | passing for the pending-selection state; remaining OAuth states still pending |
 | 2026-07-20 | contracts (11), plugin SDK (16), Assistant plugin (2), server (89), web (60), package typechecks/lints, bundled-import boundary, production build | focused automated / supporting gate | `GMD-004/S2/R1-S1-S3`, `R4-S1-S3`, and plugin boundary: policy is bundle-owned, the host dispatches the sole active handler, service persistence/provenance remains authoritative, and the composer preserves its prompt while preventing duplicate runs. | passing; direct connected Pi session and production fake-runtime E2E remain pending |
+| 2026-07-20 | plugin SDK (15), Assistant plugin (2), server (90), web (61), repository typecheck and lint | focused automated test / supporting gate | Independent-review remediation: model work cannot start during activation, only the registered policy may execute once per dispatched question, fabricated handler turns fail closed, canonical follow-ups append/recover safely, and busy/retry UI is announced and operable. | passing; route/Pi deterministic integration and live/narrow browser evidence remain pending |
 | 2026-07-20 | authenticated disposable workspace in Vite dev server, Context drawer, agent-browser | rendered UI verification | Active System Status and Assistant descriptor contributions render together; disconnected Codex gives a clear Settings handoff; no blank page, overlay, or console error. | passing for authenticated desktop disconnected state |
 | YYYY-MM-DD | Production fake-provider browser journey | deterministic E2E | Connect, ask, brokered read, service-derived sources, persistence, disconnect, desktop/mobile continuity | pending |
 | YYYY-MM-DD | Rendered Context/Settings matrix | rendered UI verification | GMD-004/S2 R4 responsive states, interaction, accessibility, and visual containment | pending |
@@ -239,7 +241,9 @@ status: in_progress
 |---|---|---|
 | Pattern parity | `system-status` remains a declared Context renderer; the browser maps renderer descriptors rather than plugin IDs. | `App.test.tsx` verifies active/disabled contribution removal; passing. |
 | Plugin lifecycle | Assistant enabled → handler registered → question dispatch; Assistant disabled → handler unavailable and Context descriptor absent. | plugin SDK and `plugin_runtime_service.test.ts` passing. |
-| Question lifecycle | idle → asking → terminal turn or recoverable error; prompt remains visible while in flight and duplicate submit is disabled. | `AssistantContext.test.tsx` passing. |
+| Question lifecycle | idle → asking → terminal turn or recoverable error; prompt remains visible while in flight, busy is announced, duplicate submit is disabled, and recoverable errors expose a named retry. | `AssistantContext.test.tsx` passing. |
+| Model-session boundary | inactive plugin → no runner; dispatched handler → one exact-policy model runner → terminal service turn; activation-time/direct calls and fabricated turns fail closed. | `packages/plugin-sdk/src/index.test.ts` passing. |
+| Conversation lifecycle | first turn creates canonical record; follow-up appends a new in-progress turn; retained in-progress turns recover before append. | `question_service.test.ts` passing. |
 | Provider lifecycle | disconnected → Settings handoff; connected → composer. | direct rendered disconnected state passing; connected real-provider playtest remains owner work. |
 
 ## Decision Fan-Out Check
@@ -265,7 +269,7 @@ status: in_progress
 
 ## Closeout
 
-- Change status: in progress; the bundled Assistant implementation is landed and awaits independent review plus explicit remaining verification.
+- Change status: in review; the bundled Assistant implementation and independent-review remediation are landed, with explicit remaining verification still open.
 - Epic files updated: `GMD-004` maps the implemented bundled policy, broker, Context adapter, and remaining verification gaps.
 - Story labels/references and Requirement/Scenario IDs current: yes for `S1` onboarding and `S2` Q&A scope.
 - Implemented By maps current: bundled policy, host dispatch, Pi broker, persistence/provenance, and Context adapters reconciled.
@@ -273,9 +277,9 @@ status: in_progress
 - Superseded earlier Epic truth reconciled: no superseded behavior; `GMD-003` boundary retained.
 - ADR status: `docs/adrs/2026-07-19-pi-backed-assistant-runtime.md` Proposed.
 - Release communication current: README and user-facing changelog now describe the shipped bounded Assistant surface.
-- `sdd-review` verdict: not run.
-- Review record: none.
-- `review.md` findings resolved: not applicable yet.
+- `sdd-review` verdict: pending final review record after remediation verification.
+- Review record: pending.
+- `review.md` findings resolved: request-scoped model execution, exact policy/descriptor enforcement, follow-up persistence, busy announcement, and retry affordance remediated; external route/Pi/mobile evidence remains open.
 - Planning updates resolved: 2026-07-20 split workspace-vault/machine-vault topology implemented and reconciled.
 - Manual UI confirmation status: pending user after implementation.
 - Rendered UI verification status: desktop authenticated disconnected Context inspected; narrow and connected live states remain pending.
