@@ -62,7 +62,7 @@ An authenticated owner will be able to:
 ## Change Folder
 
 - Planned location: promoted; private draft removed
-- Active location: `docs/changes/2026-07-18-foundation-workspace-slice/`
+- Active location: None; implementation and review are complete.
 - Closed location: `docs/changes/closed/2026-07-18-foundation-workspace-slice/`
 
 ## Impact

@@ -6,9 +6,9 @@ status: in_review
 ## Resume Here
 
 - Last completed action: The user explicitly authorized merge-and-close and accepted the remaining terminal, real-device, and screen-reader confirmation as a documented gap.
-- Next action: Close this Change, merge the reviewed source into `develop`, and reconcile the final merge record.
+- Next action: Commit the closed artifact move, merge the reviewed source into `develop`, and reconcile the final merge record.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: Review/status reconciliation only until the review record is committed.
+- Expected dirty files: Closed Change artifact move only until committed.
 - Known blockers: None. Manual terminal, real-device, and screen-reader confirmation is an accepted gap, not claimed as completed evidence.
 
 ## Task Checklist
@@ -235,10 +235,10 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 - ADR status: Four Accepted ADRs remain linked; runtime contracts and the accepted trusted-first-party bundled-plugin boundary are implemented, while untrusted community isolation remains deferred.
 - Release communication current: README and public-safe `CHANGELOG.md` describe the implemented foundation and operator boundary.
 - `sdd-review` verdict: `ready` against implementation commit `357537cd463f2e56f3b1fad4fe198ffd1d73d35a` and target `develop@15901773ce4565c4facfc7c50d1835463ef808c8`; the user accepted remaining manual gaps when authorizing merge-and-close.
-- Review record: `docs/changes/2026-07-18-foundation-workspace-slice/review.md`.
+- Review record: `docs/changes/closed/2026-07-18-foundation-workspace-slice/review.md`.
 - `review.md` findings resolved: Yes in the immutable implementation commit; accepted workspace identity and plugin lifecycle remain fail-closed, and the current shell passes direct rendered inspection.
 - Planning updates resolved: Yes for the accepted Change scope; accepted manual gaps and deferred product scope remain explicit.
 - Manual UI confirmation status: accepted gap; deterministic desktop/narrow browser evidence passes, while terminal, real-device, and screen-reader checks remain unperformed.
 - PR / merge state: Local merge into `develop` and Change closeout explicitly authorized on 2026-07-19; pending execution. No remote, PR, push, deployment, or branch deletion.
 - Deferred scope accepted: Recorded in proposal/design/Epics.
-- Change moved to `docs/changes/closed/`: No; active repository Change.
+- Change moved to `docs/changes/closed/`: Yes; closed through `sdd change close` under explicit user authorization.
