@@ -156,6 +156,15 @@ router.post('/api/v1/assistant/oauth', async ({ auth, response }) => {
   }
 })
 
+router.get('/api/v1/assistant/oauth/active', async ({ auth, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).activeFlow()
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
 router.get('/api/v1/assistant/oauth/:flowId', async ({ auth, params, response }) => {
   if (!(await requireOwner(auth, response))) return
   try {

@@ -345,6 +345,11 @@ export class AssistantOAuthFlowManager {
     return record.snapshot
   }
 
+  async activeFlow(): Promise<AssistantOAuthFlow | null> {
+    if (!this.#activeFlowId) return null
+    return this.#flows.get(this.#activeFlowId)?.snapshot ?? null
+  }
+
   async listTerminal(): Promise<readonly AssistantOAuthFlow[]> {
     return this.#terminalOrder
       .map((flowId) => this.#flows.get(flowId)?.snapshot)

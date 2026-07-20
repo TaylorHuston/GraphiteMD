@@ -5,7 +5,7 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: refined the Settings OAuth choice into clear radio cards with an explicit continuation action and secondary cancellation.
+- Last completed action: restored the active OAuth flow after Settings remount so an owner does not receive a conflicting second start.
 - Next action: replan the Assistant policy/retrieval ownership boundary before Context or bundled-plugin work.
 - Active branch/ref: `change/llm-assistant-integration` at storage checkpoint `35d3aa0`.
 - Expected dirty files: bundled Assistant plugin/conformance, Context browser components/tests, deterministic fake-runtime E2E, and this ledger.
@@ -53,6 +53,7 @@ status: in_progress
   - [ ] `R1-S1`: complete normalized Codex OAuth through Assistant Settings and persist owner-only machine-local credentials.
   - [ ] `R1-S2`: cover accessible cancel/input/progress/error states, invalid/stale input, provider failure, bounded terminal retention, retry, and concurrent-flow conflict.
   - [x] `R1-S2a`: refine the pending selection UI into a labelled radio-card group, a choice-specific primary continuation action, and a quiet secondary cancellation action without changing OAuth behavior or provider options.
+  - [x] `R1-S2b`: recover the active normalized OAuth prompt after Settings remount instead of offering a conflicting second start.
 - [ ] 4.3 Implement `GMD-004/S1/R2 Protected Credential Lifecycle`.
   - [ ] `R2-S1`: keep credentials/callback material out of workspace, browser, conversations, and logs while exposing sanitized status in Settings.
   - [ ] `R2-S2`: disconnect through Settings without changing workspace or canonical conversation content.
@@ -116,6 +117,7 @@ status: in_progress
 | 2026-07-20 | GMD-004/S2 R1 deterministic question orchestration | main | `apps/server/app/assistant/question_service.*`, GMD-004 Epic | Normalized owner questions have one in-flight slot, a persisted in-progress/terminal record, explicit unavailable/invalid/no-evidence outcomes, and sources only from brokered reads. Pi/HTTP/UI adapters remain the next phase. | `d6edd59` |
 | 2026-07-20 | GMD-004/S2 R1 Pi/HTTP adapter | main + Context7 Pi SDK documentation | Pi adapter, assistant question route, server dependency graph | The production adapter exposes only custom `workspace_search` and `workspace_read` tools to a no-builtins Pi session and routes authenticated normalized questions through the service. Direct adapter/HTTP fake-runtime evidence remains pending. | `71cfacf` |
 | 2026-07-20 | GMD-004/S1 R1-S2a OAuth selection hierarchy | main | `apps/web/src/SettingsPanel.tsx`, `AssistantSettings.css`, Settings component tests | Replaced the ambiguous native inline select with a radio-card choice group, a selected-choice primary action, and a quiet cancellation action; the dynamic provider options and normalized answer/cancel contracts are unchanged. | `b2f46f9` |
+| 2026-07-20 | GMD-004/S1 R1-S2b active OAuth recovery | main | OAuth manager, active-flow contract/route, Settings component tests | The owner can remount Settings during an active Codex flow and recover the same normalized prompt rather than attempt a conflicting second start. | commit pending |
 | YYYY-MM-DD | GMD-004/S1 R1-R2 | main | Codex provider/OAuth, credential lifecycle, browser Settings | pending | pending |
 | YYYY-MM-DD | GMD-004/S2 R1-R2 | main | Assistant loop, brokered search/read, provenance | pending | pending |
 | YYYY-MM-DD | GMD-004/S2 R3 | main | canonical conversation authority | pending | pending |
@@ -134,6 +136,7 @@ status: in_progress
 | 2026-07-20 | `pnpm --filter @graphitemd/server test -- question_service.test.ts` plus retrieval/conversation suites; server typecheck/lint | focused automated test | `GMD-004/S2/R1-S2-S3`: no-evidence, disconnected, empty, and duplicate questions terminate specifically; a completed answer can only carry brokered-read sources. | passing |
 | 2026-07-20 | `pnpm --filter @graphitemd/workspace test`; `pnpm --filter @graphitemd/plugin-sdk test`; focused server workspace/state/search/plugin/conversation/authentication suites; workspace/plugin-sdk/server lint and typecheck | focused automated test / supporting gate | `GMD-004/S1/R2-S1` and `GMD-004/S2/R2-S1,R3-S1`: safe legacy state migrates atomically to `.graphitemd`, conflicts and symlinks fail closed, retrieval/state consumers use the canonical namespace, and machine secret state defaults outside the workspace. | passing: 38 workspace, 14 SDK, and 64 focused server tests |
 | 2026-07-20 | `pnpm --filter @graphitemd/web test -- SettingsPanel.test.tsx`; web lint and typecheck | focused automated test | `GMD-004/S1/R1-S2a`: the default provider choice is a labelled checked radio, choosing another option changes the specific continuation label and submitted value, and cancellation remains separately available. | passing: 6 files, 56 tests |
+| 2026-07-20 | `pnpm --filter @graphitemd/server test -- oauth_flow_manager.test.ts`; `pnpm --filter @graphitemd/web test -- SettingsPanel.test.tsx`; contracts/server/web typechecks; `pnpm build` | focused automated test / supporting gate | `GMD-004/S1/R1-S2b`: an active flow remains available while running, terminal cancellation clears it, and Settings restores a provider-supplied choice after remount rather than posting a conflicting start. | passing: server 86, web 57, contracts 10 tests; all focused typechecks and production build passed |
 | 2026-07-20 | Browser preview with mock normalized owner/workspace/OAuth responses at `1440x900` and `390x844` | rendered UI verification | `GMD-004/S1/R1-S2a`: direct inspection confirms selected radio cards, an explicit primary continuation action, secondary cancellation, no narrow overflow, no error overlay, and no console errors. | passing for the pending-selection state; remaining OAuth states still pending |
 | YYYY-MM-DD | Production fake-provider browser journey | deterministic E2E | Connect, ask, brokered read, service-derived sources, persistence, disconnect, desktop/mobile continuity | pending |
 | YYYY-MM-DD | Rendered Context/Settings matrix | rendered UI verification | GMD-004/S2 R4 responsive states, interaction, accessibility, and visual containment | pending |
@@ -145,6 +148,7 @@ status: in_progress
 | Date | Feedback | Classification | Action / Artifact Updates | Status |
 |---|---|---|---|---|
 | YYYY-MM-DD | Owner tests Codex connection and asks a known vault question. | verification gap / defect / requirement refinement | Update code, GMD-004 evidence/gaps, review, and this ledger as appropriate. | pending |
+| 2026-07-20 | Settings showed `connecting` and a generic start error after the active OAuth flow was no longer held in the remounted browser component. | defect | Added an owner-authenticated active-flow route and Settings recovery; retained one-flow conflict enforcement. | fixed; live owner OAuth remains pending |
 
 ## Planning Updates
 
@@ -176,6 +180,7 @@ status: in_progress
 | Question state and no-evidence | One active run is permitted; replies without successful brokered reads fail closed and persist a terminal result. | `question_service.test.ts`; passing |
 | Workspace namespace migration | Existing `.graphite/` moves only by safe atomic rename; conflict, symlink, escape, or partial layout stops without merge or deletion. | `packages/workspace` 38-test suite passing |
 | Secret-vault boundary | Unset state defaults to `~/.graphitemd/`; configured state cannot resolve inside the workspace and remains owner-only. | focused `owner_setup_service` test passing |
+| OAuth remount recovery | Browser reacquires the sole active normalized flow before rendering another connect action; terminal flows clear it. | OAuth manager and Settings component focused tests passing |
 
 ## Verification Environment
 

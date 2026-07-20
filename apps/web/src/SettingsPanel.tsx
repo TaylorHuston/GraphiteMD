@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import {
+  ActiveAssistantOAuthFlow,
   AssistantOAuthFlow,
   AssistantProviderStatus,
   PluginResponse,
@@ -40,6 +41,11 @@ function AssistantSettings({ onSessionExpired }: { onSessionExpired: () => void 
       if (response.status === 401) { onSessionExpired(); return }
       if (!response.ok) { setError('Codex authorization is unavailable.'); return }
       setProvider(response.data)
+      if (response.data.status !== 'connecting') return
+      const activeFlow = await requestJson('/api/v1/assistant/oauth/active', ActiveAssistantOAuthFlow)
+      if (activeFlow.status === 401) { onSessionExpired(); return }
+      if (activeFlow.ok) setFlow(activeFlow.data)
+      else setError('The existing Codex authorization flow could not be restored.')
     } catch { setError('Codex authorization is unavailable.') }
   }
   useEffect(() => { void loadProvider() }, [onSessionExpired])

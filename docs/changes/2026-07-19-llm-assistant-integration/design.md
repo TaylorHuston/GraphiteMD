@@ -60,7 +60,7 @@ As the workspace owner, I want to connect and disconnect my Codex subscription, 
 The system SHALL let only the authenticated owner start, inspect, answer, cancel, and retry OpenAI Codex through normalized GraphiteMD contracts.
 
 - `R1-S1 Complete Codex OAuth`: normalized provider prompts/events reach the owner and successful completion reports connected state with protected machine-local credentials.
-- `R1-S2 Cancel Or Recover From Failed OAuth`: cancellation, invalid input, provider failure, and flow conflicts fail honestly and permit safe retry.
+- `R1-S2 Cancel Or Recover From Failed OAuth`: cancellation, invalid input, provider failure, flow conflicts, and Settings remounts during an active flow fail or recover honestly and permit safe retry.
 
 ##### Requirement R2: Protected Credential Lifecycle
 
@@ -203,7 +203,7 @@ Select Option 1.
 - Store Pi auth/model settings beneath `GRAPHITEMD_STATE_DIR/assistant/pi/`, never beneath `GRAPHITEMD_WORKSPACE_ROOT`.
 - Provision parent directories with owner-only permissions and verify the credential file is not group/world-readable after login and at startup.
 - Model the OAuth lifecycle as `awaiting_provider`, `awaiting_input`, `succeeded`, `failed`, or `cancelled`, with auth URL, device code, progress, selection/text/manual-code prompt, timestamps, and sanitized error.
-- Allow one active flow; flow IDs and request IDs are opaque. Reject stale answers, invalid selections, empty required values, and concurrent starts. Retain only a small bounded set of terminal flow summaries with no secrets.
+- Allow one active flow; flow IDs and request IDs are opaque. Expose that active normalized flow to the owner so a Settings remount can resume its prompt instead of offering a conflicting start. Reject stale answers, invalid selections, empty required values, and concurrent starts. Retain only a small bounded set of terminal flow summaries with no secrets.
 - Require the normal owner session on status/read routes and owner session plus XSRF on start/answer/cancel/disconnect mutations.
 
 ### Assistant Capability And Retrieval
@@ -232,7 +232,7 @@ Select Option 1.
 
 ### HTTP And Browser Integration
 
-- Add runtime-validated contracts and authenticated routes for provider status, OAuth start/read/answer/cancel/disconnect, current conversation creation/read, and question submission.
+- Add runtime-validated contracts and authenticated routes for provider status, OAuth start/active/read/answer/cancel/disconnect, current conversation creation/read, and question submission.
 - The first question endpoint may return the terminal normalized turn as one bounded request/response; token streaming is deferred. The UI still provides an accessible busy state and prevents duplicate submissions.
 - Add an `Assistant` Settings area for provider status, connect flow, progress/input, retry, and disconnect.
 - Add an Assistant block to the existing Context panel/drawer with transcript, source list, prompt input, busy/error state, and a direct setup action when disconnected.
@@ -260,7 +260,7 @@ Select Option 1.
 - Replace the browser-native inline `<select>` with a labelled radio-card group. Each provider-supplied option remains available, while the selected option has a distinct border, surface, and checked control. The provider contract remains dynamic: the browser must not hard-code a fixed option set.
 - Put one filled primary action directly beneath the selected option. Its label includes the current choice (for example, `Continue with Browser login`) so the next step is unambiguous.
 - Keep `Cancel connection` available as a quiet secondary action below the primary action. It must not visually compete with or dominate the continuation action.
-- Preserve the existing normalized OAuth flow, polling, error/retry/cancel semantics, owner-session checks, and provider API contracts. This refinement changes only the browser presentation and interaction hierarchy.
+- Preserve the existing normalized OAuth flow, polling, error/retry/cancel semantics, owner-session checks, and provider API contracts. On Settings remount, restore an active normalized flow before offering another connection start. This refinement changes only the browser presentation and interaction hierarchy.
 
 ### Responsive Composition
 
@@ -309,7 +309,7 @@ Select Option 1.
 - API or typed contract: TypeBox schemas in the shared contracts package; HTTP under `/api/v1/assistant/**`; plugin capability contracts remain framework-neutral.
 - OpenAPI plan, if HTTP-facing: not required in this Change because the repository does not yet maintain OpenAPI; shared runtime schemas are authoritative and must be exercised against real HTTP.
 - Backend platform exposed directly to clients?: no. AdonisJS, Pi, provider credentials, filesystem paths, and plugin internals stay behind normalized contracts.
-- Client-specific presentation or local state: modal/drawer visibility, draft question, focus, scroll, and transient polling/input state only.
+- Client-specific presentation or local state: modal/drawer visibility, draft question, focus, scroll, and transient polling/input state only. The browser reacquires an active OAuth flow from the service after a Settings remount.
 - Rationale: service authority protects credentials, workspace scope, canonical conversation state, provenance, and future clients from browser-specific behavior.
 
 ## Alternatives Considered

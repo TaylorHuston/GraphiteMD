@@ -188,6 +188,9 @@ export const AssistantOAuthFlow = Type.Object({
 }, { additionalProperties: false })
 export type AssistantOAuthFlow = Static<typeof AssistantOAuthFlow>
 
+export const ActiveAssistantOAuthFlow = Type.Union([AssistantOAuthFlow, Type.Null()])
+export type ActiveAssistantOAuthFlow = Static<typeof ActiveAssistantOAuthFlow>
+
 export const AssistantQuestion = Type.Object({
   conversationId: Type.Optional(ConversationId),
   question: Type.String({ minLength: 1 }),

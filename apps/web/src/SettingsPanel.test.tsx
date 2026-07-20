@@ -89,6 +89,33 @@ describe('owner Settings', () => {
     }))
   })
 
+  it('GMD-004/S1 R1-S2 restores an active OAuth choice after Settings remounts', async () => {
+    const flow = {
+      flowId: 'flow_recover', provider: 'openai-codex', status: 'awaiting_input',
+      createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z',
+      input: {
+        kind: 'selection', label: 'Select an authorization option', required: true,
+        options: [{ id: 'browser', label: 'Browser login (default)' }],
+      }, error: null,
+    }
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/v1/plugins') return response(200, { plugins: [] })
+      if (url === '/api/v1/assistant/provider') return response(200, { provider: 'openai-codex', status: 'connecting', model: null })
+      if (url === '/api/v1/assistant/oauth/active') return response(200, flow)
+      return response(404)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={vi.fn()} />)
+
+    await user.click(screen.getByRole('tab', { name: 'Assistant' }))
+
+    expect(await screen.findByRole('group', { name: 'Choose how to connect' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Continue with Browser login (default)' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Connect Codex' })).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/assistant/oauth/active', expect.objectContaining({ credentials: 'same-origin' }))
+  })
+
   it('GMD-001/S2 R1 changes a confirmed password and returns to sign in', async () => {
     document.cookie = 'XSRF-TOKEN=settings-token'
     const fetchMock = vi.fn()

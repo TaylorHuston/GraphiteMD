@@ -63,11 +63,13 @@ describe('GMD-004/S1 R1 GraphiteMD-owned Codex OAuth', () => {
 
     const first = await manager.start()
     await Promise.resolve()
+    await expect(manager.activeFlow()).resolves.toMatchObject({ flowId: first.flowId, status: 'awaiting_provider' })
     const pendingInput = runtime.callbacks!.onPrompt({ message: 'Paste authorization code' })
     await expect(manager.start()).rejects.toMatchObject({ code: 'flow_conflict' })
     await expect(manager.answer('flow_missing', 'ignored')).rejects.toMatchObject({ code: 'invalid_input' })
 
     await expect(manager.cancel(first.flowId)).resolves.toMatchObject({ status: 'cancelled', input: null })
+    await expect(manager.activeFlow()).resolves.toBeNull()
     await expect(pendingInput).rejects.toMatchObject({ code: 'cancelled' })
     await expect(manager.flow(first.flowId)).resolves.toMatchObject({ status: 'cancelled', error: { code: 'cancelled' } })
 

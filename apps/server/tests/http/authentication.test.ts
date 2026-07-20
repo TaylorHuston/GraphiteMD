@@ -111,6 +111,7 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
       fetch(`${origin}/api/v1/assistant/oauth`, {
         method: 'POST', headers: { cookie: anonymous.cookie, 'x-xsrf-token': anonymous.token },
       }),
+      fetch(`${origin}/api/v1/assistant/oauth/active`, { headers: { cookie: anonymous.cookie } }),
       fetch(`${origin}/api/v1/assistant/oauth/flow_unknown/cancel`, {
         method: 'POST', headers: { cookie: anonymous.cookie, 'x-xsrf-token': anonymous.token },
       }),
@@ -118,8 +119,9 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
         method: 'POST', headers: { cookie: anonymous.cookie, 'x-xsrf-token': anonymous.token },
       }),
     ])
-    expect(requests.map((response) => response.status)).toEqual([401, 401, 401, 401])
+    expect(requests.map((response) => response.status)).toEqual([401, 401, 401, 401, 401])
     expect(await Promise.all(requests.map((response) => response.json()))).toEqual([
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
       { error: { code: 'unauthenticated', message: 'Authentication required.' } },
       { error: { code: 'unauthenticated', message: 'Authentication required.' } },
       { error: { code: 'unauthenticated', message: 'Authentication required.' } },
