@@ -162,8 +162,8 @@ None for the accepted bundled System Status scope. Broader resource providers be
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
-| S1/R1-S1, S1/R1-S2 | `packages/plugin-sdk/src/index.test.ts` — `GMD-003/S1 R1 manifest validation`, lifecycle invalid/dependency tests | Valid manifests activate; malformed, incompatible, duplicate, and unresolved/version-mismatched dependencies fail closed without contributions. | passing |
-| S1/R2-S1, S1/R2-S2 | `packages/plugin-sdk/src/index.test.ts` — `GMD-003/S1 R2 plugin lifecycle` | Injected persisted disablement is applied before activation and disable disposes runtime work and removes contributions. | passing (headless) |
+| S1/R1-S1, S1/R1-S2 | `packages/plugin-sdk/src/index.test.ts` — `GMD-003/S1 R1 manifest validation`, caret-boundary, duplicate, failed-activation, dependency-order, and cycle cases | Valid manifests activate; caret lower/upper bounds are enforced, and malformed, incompatible, duplicate, unresolved, cyclic, version-mismatched, or failed dependencies fail closed without contributions. | passing 2026-07-19 |
+| S1/R2-S1, S1/R2-S2 | `packages/plugin-sdk/src/index.test.ts` — `GMD-003/S1 R2 plugin lifecycle` | Injected persisted disablement is applied before activation; dependencies activate first; disabling a dependency tears down active dependents first and removes all contributions. | passing (headless) 2026-07-19 |
 | S1/R3-S1, S1/R3-S2 | `packages/plugin-sdk/src/index.test.ts` — `GMD-003/S1 R3 capability mediation` | Declared opaque operations succeed; undeclared and raw-path operations receive normalized denials. | passing |
 | S1/R4-S1, S1/R4-S2 | `packages/plugin-sdk/src/index.test.ts` — `GMD-003/S1 R4 namespaced state` | Plugin-bound namespaces, versioned transactional backend calls, isolation, and recovery status contract. | passing (backend contract) |
 | S1/R4-S3 | `plugins/system-status/src/index.test.ts` — shared `runPluginConformance` assertion | The real System Status plugin passes production SDK lifecycle, denial, state, recovery, and headless contract checks. | passing |

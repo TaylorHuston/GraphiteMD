@@ -292,16 +292,16 @@ Use `/api/v1` routes and keep Adonis request/response types out of product packa
 
 1. An unauthenticated browser sees only login and service availability.
 2. After login, the app restores the current workspace and last safe note route or shows the file/search empty state.
-3. Files and search share the navigation region. Selecting either opens the same guarded note transition.
+3. An always-present Search field and Files tree share the navigation region. Enter submits search and selecting a result uses the same guarded note transition as the tree.
 4. The document region contains the title/relative path, Source/Rendered control, restrained save state, and editor.
-5. Context exposes generic properties and settings. Plugin settings show System Status and enablement.
-6. Password change, logout, index rebuild, and plugin settings live in Settings rather than the editing toolbar.
+5. Context exposes generic properties and active plugin contributions. Settings is a fixed-size modal with area navigation and an independently scrolling content region.
+6. Password change, logout, and plugin controls live in Settings; search-index recovery remains beside Search rather than in the editing toolbar.
 
 ### Responsive Composition
 
-- Desktop: three regions with resizable/collapsible navigation and context; the centered document measure remains stable.
-- Mobile: one primary document surface with touch-safe Files/Search and Context/Settings drawers; no attempt to reproduce simultaneous desktop panes.
-- Intermediate widths: overlays or collapsible regions preserve both side surfaces without shrinking the editor below a usable measure.
+- Desktop: a fixed application rail plus balanced collapsible navigation and context regions; the document stays centered on the physical viewport and is constrained to the safe lane between open panes.
+- Mobile: the compact side rail remains a touch-safe switcher for Files, Search, Context, and Settings; full-screen drawers/modal keep the document primary and respect safe-area insets.
+- Intermediate widths: the document remains physically centered while its maximum measure contracts enough to keep both persistent side regions from covering the title or editor.
 
 ### Component And State Contract
 
@@ -314,8 +314,8 @@ Use `/api/v1` routes and keep Adonis request/response types out of product packa
 | Files tree and note history | adopted reference | Coordinator manifest tree/history; Dashboard general-note tree | nested, empty, unavailable, selected, collapsed, stale route | Replace SDD owner concepts with workspace resources. |
 | Search surface | adopted reference | Dashboard indexed search | idle, loading, results, no results, error, long path, mobile | Adapt to opaque resource contract. |
 | Login and password forms | application-specific | GraphiteMD | setup-required, idle, invalid, pending, session-expired, reset-complete | Follow existing form primitives and generic errors. |
-| Workbench shell | adopted reference | Dashboard minimal PKM composition with Coordinator primitives | desktop, mobile, empty, service unavailable, dirty note, drawer open | Remove spike product names and specialized panels. |
-| Plugin settings and System Status | application-specific | GraphiteMD plugin SDK | enabled, disabled, incompatible, denied, failed activation, recovery | Becomes reference for later bundled plugins. |
+| Workbench shell and application rail | adopted reference | Dashboard minimal PKM composition with Coordinator/49th Floor rail primitives | desktop, intermediate, mobile, empty, service unavailable, dirty note, drawer open | The rail is the future plugin switcher; current Files/Search/Context/Settings actions share the real responsive drawer path. |
+| Settings modal, plugin settings, and System Status | application-specific | GraphiteMD plugin SDK and app modal language | account, plugins, long content, enabled, disabled, incompatible, failed activation, recovery | Keep modal dimensions stable, navigation persistent, content scrollable, and plugin contributions consistent across desktop and mobile Context. |
 
 Preview reconciliation: `idle`, `invalid`, `pending`, and `session-expired` are browser login previews; `setup-required` and `reset-complete` are host-command states proved through command/HTTP evidence rather than browser-rendered forms. Plugin inventory previews cover enabled, disabled, incompatible, failed-activation, and recoverable workbench states. Denied capability is operation-level headless evidence, not an inventory lifecycle screen; failed activation is the user-visible recovery preview for this bundled-plugin slice.
 
@@ -328,7 +328,7 @@ Preview reconciliation: `idle`, `invalid`, `pending`, and `session-expired` are 
 
 ### Visual Direction
 
-- Dark-mode-first, utilitarian, quiet structural surfaces, one restrained action color, conventional semantic status colors, and locally bundled Geist typography.
+- Apply the shared Graphite theme: dark-mode-first graphite surfaces, restrained purple action/focus accents, flatter boundary treatment, conventional semantic status colors, and locally bundled Geist typography.
 - Avoid oversized cards, decorative gradients, marketing composition, and generic AI chrome.
 - GraphiteMD's final brand identity remains open, so this Change establishes a neutral product shell rather than a permanent launch brand system.
 

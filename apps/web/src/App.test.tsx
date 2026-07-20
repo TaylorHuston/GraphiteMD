@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -165,29 +165,26 @@ describe('GMD-002/S1 responsive browse shell', () => {
     expect(within(tree).getAllByRole('treeitem').filter((item) => item.tabIndex === 0)).toHaveLength(1)
   })
 
-  it('bounds, collapses, and reopens both desktop side panes', async () => {
+  it('keeps search and settings in the file sidebar and uses a single collapse control', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
       .mockImplementationOnce(() => response(200, workspace)))
     const user = userEvent.setup()
     render(<App />)
-    const workbench = (await screen.findByRole('tree', { name: 'Workspace files' })).closest('main')!
+    const tree = await screen.findByRole('tree', { name: 'Workspace files' })
+    const workbench = tree.closest('main')!
+    const navigation = screen.getByRole('complementary', { name: 'Workspace navigation' })
 
-    const widerFiles = screen.getByRole('button', { name: 'Make Files pane wider' })
-    for (let index = 0; index < 8; index += 1) await user.click(widerFiles)
-    expect(workbench.getAttribute('style')).toContain('--navigation-width: 28rem')
-    await user.click(screen.getByRole('button', { name: 'Collapse Files pane' }))
+    expect(within(navigation).getByRole('searchbox', { name: 'Search notes' })).toBeVisible()
+    expect(within(navigation).getByRole('tree', { name: 'Workspace files' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Files' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('navigation', { name: 'App switcher' })).toContainElement(screen.getByRole('button', { name: 'Settings' }))
+    expect(screen.queryByRole('button', { name: /Make (Files|Context) pane/ })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Collapse navigation' }))
     expect(workbench).toHaveClass('navigation-collapsed')
-    await user.click(screen.getByRole('button', { name: 'Show Files' }))
+    await user.click(screen.getByRole('button', { name: 'Expand navigation' }))
     expect(workbench).not.toHaveClass('navigation-collapsed')
-
-    const narrowerContext = screen.getByRole('button', { name: 'Make Context pane narrower' })
-    for (let index = 0; index < 5; index += 1) await user.click(narrowerContext)
-    expect(workbench.getAttribute('style')).toContain('--context-width: 13rem')
-    await user.click(screen.getByRole('button', { name: 'Collapse Context pane' }))
-    expect(workbench).toHaveClass('context-collapsed')
-    await user.click(screen.getByRole('button', { name: 'Show Context' }))
-    expect(workbench).not.toHaveClass('context-collapsed')
   })
 
   it('guards logout with a dirty draft and sends the XSRF token after confirmation', async () => {
@@ -216,6 +213,38 @@ describe('GMD-002/S1 responsive browse shell', () => {
     expect(fetchMock).toHaveBeenLastCalledWith('/api/v1/auth/logout', expect.objectContaining({
       method: 'POST', headers: expect.objectContaining({ 'x-xsrf-token': 'logout-token' }),
     }))
+  })
+
+  it('presents Settings as a modal dialog and restores focus when it closes', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
+      .mockImplementationOnce(() => response(200, workspace))
+      .mockImplementationOnce(() => response(200, { plugins: [] })))
+    const user = userEvent.setup()
+    render(<App />)
+    const opener = await screen.findByRole('button', { name: 'Settings' })
+    await user.click(opener)
+    const modal = screen.getByRole('dialog', { name: 'Settings' })
+    expect(modal).toHaveClass('modal-dialog')
+    const close = within(modal).getByRole('button', { name: 'Close Settings' })
+    expect(close).toHaveFocus()
+    expect(document.body.style.overflow).toBe('hidden')
+    expect((screen.getByRole('navigation', { name: 'App switcher' }) as HTMLElement).inert).toBe(true)
+    const last = within(modal).getByLabelText('Confirm new password')
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true })
+    expect(last).toHaveFocus()
+    fireEvent.keyDown(last, { key: 'Tab' })
+    expect(close).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument()
+    expect(document.body.style.overflow).toBe('')
+    expect(opener).toHaveFocus()
+
+    await user.click(opener)
+    const reopened = screen.getByRole('dialog', { name: 'Settings' })
+    fireEvent.mouseDown(reopened.parentElement!)
+    expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument()
+    expect(opener).toHaveFocus()
   })
 
   it('R3-S2 restores valid reload and Back navigation through the note API', async () => {
@@ -306,9 +335,8 @@ describe('GMD-002/S1 responsive browse shell', () => {
     const user = userEvent.setup()
     render(<App />)
     const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
-    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
     await user.type(within(navigation).getByRole('searchbox', { name: 'Search notes' }), 'launch')
-    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await user.keyboard('{Enter}')
     await user.click(await within(navigation).findByRole('button', { name: /Roadmap/ }))
     expect(await screen.findByRole('heading', { name: 'Roadmap', level: 1 })).toBeVisible()
     expect(window.location.search).toBe('?resource=res_roadmap')
@@ -325,13 +353,12 @@ describe('GMD-002/S1 responsive browse shell', () => {
     const user = userEvent.setup()
     render(<App />)
     const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
-    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
     const searchbox = within(navigation).getByRole('searchbox', { name: 'Search notes' })
     await user.type(searchbox, 'missing')
-    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await user.keyboard('{Enter}')
     expect(await within(navigation).findByText('No notes match “missing”.')).toBeVisible()
     await user.clear(searchbox); await user.type(searchbox, 'broken')
-    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await user.keyboard('{Enter}')
     expect(await within(navigation).findByRole('button', { name: 'Rebuild index' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Your workspace', level: 1 })).toBeVisible()
   })
@@ -346,17 +373,15 @@ describe('GMD-002/S1 responsive browse shell', () => {
     vi.stubGlobal('fetch', fetchMock)
     const user = userEvent.setup(); render(<App />)
     const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
-    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
     await user.type(within(navigation).getByRole('searchbox'), 'external')
-    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await user.keyboard('{Enter}')
     await user.click(await within(navigation).findByRole('button', { name: /External/ }))
     expect(await screen.findByRole('heading', { name: 'External', level: 1 })).toBeVisible()
-    await user.click(within(navigation).getByRole('button', { name: 'Files' }))
     await waitFor(() => expect(within(navigation).getByRole('treeitem', { name: /External/ })).toHaveAttribute('aria-selected', 'true'))
     expect(window.location.search).toBe('?resource=res_external')
   })
 
-  it('keeps desktop search persistent and preserves its query while switching back to Files', async () => {
+  it('keeps desktop search and files simultaneously present while preserving the query', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
       .mockImplementationOnce(() => response(200, workspace))
@@ -364,14 +389,10 @@ describe('GMD-002/S1 responsive browse shell', () => {
     const user = userEvent.setup(); render(<App />)
     const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
 
-    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
     const searchbox = within(navigation).getByRole('searchbox', { name: 'Search notes' })
     await user.type(searchbox, 'kept query')
     expect(screen.queryByRole('dialog', { name: 'Search' })).not.toBeInTheDocument()
-
-    await user.click(within(navigation).getByRole('button', { name: 'Files' }))
     expect(within(navigation).getByRole('tree', { name: 'Workspace files' })).toBeVisible()
-    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
     expect(within(navigation).getByRole('searchbox', { name: 'Search notes' })).toHaveValue('kept query')
   })
 
@@ -383,9 +404,8 @@ describe('GMD-002/S1 responsive browse shell', () => {
       .mockImplementationOnce(() => response(200, { results: [{ resourceId: 'res_alpha', title: 'Alpha' }] })))
     const user = userEvent.setup(); render(<App />)
     const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
-    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
     await user.type(within(navigation).getByRole('searchbox'), 'alpha')
-    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await user.keyboard('{Enter}')
 
     expect(await within(navigation).findByRole('button', { name: 'Rebuild index' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Your workspace', level: 1 })).toBeVisible()
@@ -507,14 +527,13 @@ describe('GMD-002/S1 responsive browse shell', () => {
     vi.stubGlobal('fetch', fetchMock)
     const user = userEvent.setup(); render(<App />)
     const navigation = await screen.findByRole('complementary', { name: 'Workspace navigation' })
-    await user.click(within(navigation).getByRole('button', { name: 'Search' }))
     const searchbox = within(navigation).getByRole('searchbox')
     await user.type(searchbox, 'roadmap')
-    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await user.keyboard('{Enter}')
     expect(await within(navigation).findByRole('button', { name: /Roadmap/ })).toBeVisible()
 
     await user.clear(searchbox); await user.type(searchbox, 'broken')
-    await user.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await user.keyboard('{Enter}')
     expect(await within(navigation).findByRole('button', { name: 'Rebuild index' })).toBeVisible()
     expect(within(navigation).queryByRole('button', { name: /Roadmap/ })).not.toBeInTheDocument()
 
@@ -537,7 +556,12 @@ describe('GMD-002/S1 responsive browse shell', () => {
     vi.stubGlobal('fetch', fetchMock); document.cookie = 'XSRF-TOKEN=plugin-token'
     const user = userEvent.setup(); render(<App />)
     expect(await screen.findByRole('heading', { name: 'Service connected' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Context' }))
+    const context = screen.getByRole('dialog', { name: 'Context' })
+    expect(within(context).getByRole('heading', { name: 'Service connected' })).toBeVisible()
+    await user.click(within(context).getByRole('button', { name: 'Close Context' }))
     await user.click(screen.getAllByRole('button', { name: 'Settings' })[0]!)
+    await user.click(screen.getByRole('tab', { name: 'Plugins' }))
     await user.click(await screen.findByRole('button', { name: 'Disable System Status' }))
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Service connected' })).not.toBeInTheDocument())
   })

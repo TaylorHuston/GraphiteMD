@@ -5,10 +5,10 @@ status: in_review
 
 ## Resume Here
 
-- Last completed action: The `--until-ready` review cycle committed workspace-identity remediation as `7e74a6f`; full verification and independent code/security, verification/integration, and artifact regression rereviews are clean.
-- Next action: Complete the documented user manual terminal, visual/device, and screen-reader confirmation; then recheck review staleness before merge/closeout.
+- Last completed action: The current review remediated the accepted shell feedback, stale E2E path, plugin compatibility/dependency defects, responsive containment, accessibility semantics, and evidence gaps; final full verification is in progress.
+- Next action: Record the immutable review watermark, then complete the documented user terminal, visual/device, and screen-reader confirmation before any integration or closeout.
 - Active branch/ref: `change/foundation-workspace-slice` from `develop`; baseline commit `1590177` exists on `main` and `develop`.
-- Expected dirty files: Final review/status reconciliation only until committed.
+- Expected dirty files: Current UI batch, focused review remediation, and artifact reconciliation until the review commits are created.
 - Known blockers: None for technical rereview. Manual terminal, visual/device, and screen-reader confirmation remains pending user and is not claimed by automated evidence.
 
 ## Task Checklist
@@ -113,6 +113,15 @@ status: in_review
 - [x] 8.7 Complete accepted desktop Search, intermediate responsive/touch behavior, and the required Storybook state matrix.
 - [x] 8.8 Reconcile affected Epics/docs, run changed-surface reverse traceability and the full verification/self-check union, then return to `in_review` only if clean.
 
+### 9. 2026-07-19 Shell Experience Rereview
+
+- [x] 9.1 Reconcile the fixed application rail, collapse-only pane controls, always-present Search, Graphite theme, and fixed scrolling Settings modal with the accepted user feedback.
+- [x] 9.2 Keep the document physically centered and unobscured at desktop and intermediate widths while preserving stable pane-collapse behavior.
+- [x] 9.3 Carry active plugin contributions into mobile Context, align responsive tab semantics, and keep mobile controls touch/safe-area aware.
+- [x] 9.4 Correct fail-closed caret compatibility and dependency lifecycle ordering, including duplicate, activation-failed, cyclic, and disable-cascade cases.
+- [x] 9.5 Update the production E2E owner path for Enter-driven Search and Settings area navigation; add focused modal, settings-keyboard, and mobile-contribution evidence.
+- [ ] 9.6 Run the final root, Storybook, production E2E, dependency, validation, reverse-traceability, rendered-UI, and diff-hygiene gates; record the immutable review watermark.
+
 ## Implementation Ledger
 
 Record one row per meaningful transplant or Requirement slice. Include both the reference source and the GraphiteMD target so reuse remains auditable.
@@ -144,6 +153,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-18 | Consolidated review remediation | Delegated TDD slices plus fresh combined-tree security, coverage/UI, and artifact self-checks | Auth issuance/revocation and bounded limiter; persisted workspace identity/selective ignores/durable rename receipts; workspace/plugin confinement; logout/accessibility/responsive panes; 18 Storybook states; README/CHANGELOG/design/Epics | Blocking credential race and required restart, confinement, throttling, browser, accessibility, responsive, preview, and documentation findings remediated; self-check edge cases folded into the same wave | `949dd77` |
 | 2026-07-19 | Fresh rereview remediation | `/sdd-apply`; delegated TDD; Adonis Session guidance; component and Web Interface Guidelines | Generation-bound sessions; workspace/plugin/search/rename authority; TypeBox contracts/browser adapter; desktop Search; responsive/touch and 30 Storybook states; README/ADR/Epics | Two blocking and seven implementation/artifact findings remediated without expanding scope; trusted bundled-plugin claims now distinguish accidental bypass enforcement from malicious containment | `0ee35bf` |
 | 2026-07-19 | Apply self-check regression wave | Fresh delegated code/security, artifact/traceability, and UI/coverage passes | Plugin cold start/retry; autosave response binding; search state announcements; semantic table rendering; production E2E | Self-check findings reproduced red, remediated, and folded into the final verification union | `0ee35bf` |
+| 2026-07-19 | Accepted shell refinement and rereview remediation | User feedback; Coordinator/49th Floor interaction references; shared Graphite theme; TDD and rendered-UI review | App rail, centered responsive shell, Search, Settings modal, plugin lifecycle, focused component/E2E tests, design and Epic evidence | Current shell direction implemented; stale E2E and fail-open plugin edge cases corrected; desktop/intermediate/mobile rendered states reconciled without expanding product scope | pending review commit |
 
 ## Verification Ledger
 
@@ -177,11 +187,13 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 | 2026-07-19 | Root lint/typecheck/test/build; Storybook 30/30; Playwright 2/2; production dependency audit; diff check | broad, component/accessibility, production E2E, dependency, and hygiene gates | Final combined review remediation plus self-check regressions compile and pass across contracts 6, domain 4, plugin SDK 7, workspace 30, web 44, System Status 1, and server 60 tests. | Passing; existing 812 KB chunk and Node deprecation warnings remain non-blocking follow-up |
 | 2026-07-19 | Per-Epic `sdd-orphan-audit --changed-from develop` | changed-surface reverse-traceability inventory | 113 candidates classify across GMD-001/GMD-002/GMD-003 or shared support; every referenced implementation and verification path resolves. | Passing; zero missing implementation or verification references |
 | 2026-07-19 | Workspace 31 and server 63 focused tests; root lint/typecheck/test/build; Storybook 30/30; Playwright 2/2; production dependency audit | focused authority/security evidence plus broad, component/accessibility, and production E2E gates | Process-lifetime accepted workspace identity remains fail-closed after replacement across direct reopen/refresh, authenticated workspace retrieval, search rebuild, and first plugin startup; replacement roots receive no `.graphite` state. | Passing; manual terminal, visual/device, and screen-reader confirmation remains pending |
+| 2026-07-19 | Shell rereview focused suites and rendered viewport matrix | focused plugin/component evidence plus direct Chromium inspection | Plugin SDK caret/dependency lifecycle, Settings keyboard/modal semantics, mobile Context contribution parity, fixed modal scrolling, and physically centered unobscured content at 1440x900, 1280x800, and 390x844. | Focused tests and rendered inspection passing; final full verification pending |
 
 ## Manual Feedback
 
 | Date | Feedback | Classification | Action / Artifact Updates | Status |
 |---|---|---|---|---|
+| 2026-07-19 | Simplify the shell: use a fixed plugin rail, Coordinator-style collapse controls, flatter surfaces, top Search, Lucide file icons, bottom Settings, centered document, balanced panes, Graphite theme, and a fixed-size navigable scrolling Settings modal. | accepted in-scope experience refinement | Updated the web shell, responsive composition, Settings behavior, previews/tests, design record, GMD-002 mapping, walkthrough, and review evidence. | implemented; user acceptance pending |
 
 ## Planning Updates
 
@@ -192,6 +204,7 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 
 | Date | Feedback / Discovery | Classification | Reference / Target | Preserve / Change / Non-Goals | Artifact Updates | Next Apply Starting Point |
 |---|---|---|---|---|---|---|
+| 2026-07-19 | The accepted shell refinement removed resize controls and introduced the application rail, Graphite theme, and modal settings navigation. | post-review design reconciliation | Coordinator/49th Floor interaction primitives plus shared Graphite UI Foundations | Preserve centered editing and responsive browser access; change shell controls/composition; keep plugin marketplace and native mobile deferred. | `design.md`, GMD-002, component/E2E evidence, and this ledger now describe current behavior. | Finish immutable review verification, then user walkthrough. |
 
 ## Manual UI Confirmation
 
@@ -199,8 +212,8 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 - App URL / route: `http://127.0.0.1:3333/` with the disposable setup below running.
 - Required setup or test data: From the repository root, create a disposable directory with `mktemp -d`, record the printed path, and create `workspace/Projects` plus `state` beneath it. Add `Welcome.md` and `Projects/Plan.md` containing non-sensitive test Markdown. Export absolute `GRAPHITEMD_WORKSPACE_ROOT` and `GRAPHITEMD_STATE_DIR` paths, `GRAPHITEMD_ALLOWED_ORIGINS=http://127.0.0.1:3333`, and a newly generated throwaway `APP_KEY` of at least 32 characters.
 - Host setup: Run `pnpm --filter @graphitemd/server exec node ace owner:setup`; confirm both password prompts mask input and no credential/hash is printed. Run `pnpm build && pnpm start`, keeping the terminal open. After browser testing, stop the service before running `pnpm --filter @graphitemd/server exec node ace owner:reset`; confirm its password prompts are masked, restart the service, and verify the prior browser session and credential are rejected.
-- Browser steps: After implementation rereview passes, log in from a fresh browser and confirm it does not claim an earlier session expired. Open a second private/browser-profile session with the same owner credential and keep it active for revocation testing. Inspect the desktop regions and collapse/resize controls; browse/search/open a nested note; exercise Source and Rendered modes; edit without waiting for save, attempt navigation, cancel it, and confirm the draft and URL remain; then save. In another terminal, append a line to the open test note, edit again in the browser, and confirm the conflict preserves the draft and offers recovery. Rename the note, reload its URL, and restart the service to confirm the same note URL remains valid. Inspect Settings; disable/re-enable System Status; log out with a clean draft; sign in again; change the password; and confirm the second session is revoked.
-- Narrow-browser steps: At approximately 390x844, confirm Files/Search/Context/Settings remain reachable, drawers contain and restore keyboard focus, tree Arrow/Home/End navigation works, controls are touch-sized, safe areas do not hide controls, and the page has no horizontal overflow.
+- Browser steps: After implementation rereview passes, log in from a fresh browser and confirm it does not claim an earlier session expired. Open a second private/browser-profile session with the same owner credential and keep it active for revocation testing. Inspect the fixed rail, balanced side regions, stable collapse controls, centered unobscured document, and always-present Search; browse/search/open a nested note; exercise Source and Rendered modes; edit without waiting for save, attempt navigation, cancel it, and confirm the draft and URL remain; then save. In another terminal, append a line to the open test note, edit again in the browser, and confirm the conflict preserves the draft and offers recovery. Rename the note, reload its URL, and restart the service to confirm the same note URL remains valid. Inspect the fixed-size Settings modal at both Account and Plugins, confirm its navigation/header stay fixed while long content scrolls, disable/re-enable System Status, log out with a clean draft, sign in again, change the password, and confirm the second session is revoked.
+- Narrow-browser steps: At approximately 390x844, confirm the compact side rail keeps Files/Search/Context/Settings reachable; full-screen drawers contain and restore keyboard focus; Context includes active System Status; Settings navigation is horizontal and its content scrolls independently; tree Arrow/Home/End navigation works; controls are touch-sized; safe areas do not hide controls; and the page has no horizontal overflow.
 - Screen-reader steps: With VoiceOver, confirm the login form, Files tree selection/expansion, drawer name and close control, editor identity, save-state announcements, search result/recovery state, Settings/plugin status, and logout/password errors are announced in a usable order without relying on color.
 - Expected result: The complete foundation path is usable without copying workspace files to the browser, unsafe writes, external search, or plugin privilege bypass.
 - Feedback that would change artifacts: Authentication or host-recovery friction, unusable mobile composition, source loss, confusing conflict/rename recovery, unacceptable plugin UX, or a request to expand the first Change into Assistant behavior.

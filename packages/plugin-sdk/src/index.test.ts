@@ -50,6 +50,15 @@ describe('GMD-003/S1 R1 manifest validation', () => {
     expect(validatePluginManifest({ id: 'missing-fields' }, '1.0.0')).toEqual(expect.objectContaining({ ok: false, code: 'invalid_manifest' }))
     expect(validatePluginManifest({ ...manifest, contributions: { commands: [{ id: '../escape', title: '' }] } }, '1.0.0')).toEqual(expect.objectContaining({ ok: false, code: 'invalid_manifest' }))
   })
+
+  it('enforces caret lower bounds and zero-major compatibility boundaries', () => {
+    expect(validatePluginManifest({ ...manifest, compatibility: { host: '^1.2.3' } }, '1.2.0')).toEqual(expect.objectContaining({ ok: false, code: 'incompatible_host' }))
+    expect(validatePluginManifest({ ...manifest, compatibility: { host: '^1.2.3' } }, '1.2.3')).toEqual(expect.objectContaining({ ok: true }))
+    expect(validatePluginManifest({ ...manifest, compatibility: { host: '^1.2.3' } }, '1.9.0')).toEqual(expect.objectContaining({ ok: true }))
+    expect(validatePluginManifest({ ...manifest, compatibility: { host: '^1.2.3' } }, '2.0.0')).toEqual(expect.objectContaining({ ok: false, code: 'incompatible_host' }))
+    expect(validatePluginManifest({ ...manifest, compatibility: { host: '^0.1.2' } }, '0.2.0')).toEqual(expect.objectContaining({ ok: false, code: 'incompatible_host' }))
+    expect(validatePluginManifest({ ...manifest, compatibility: { host: '^0.0.3' } }, '0.0.4')).toEqual(expect.objectContaining({ ok: false, code: 'incompatible_host' }))
+  })
 })
 
 describe('GMD-003/S1 R2 plugin lifecycle', () => {
@@ -86,6 +95,66 @@ describe('GMD-003/S1 R2 plugin lifecycle', () => {
     const host = new PluginHost({ hostVersion: '1.0.0', enabled: {}, provider: { async perform() {} }, stateBackend: memoryState() })
     await host.load([dependency, dependent])
     expect(host.list().find((item) => item.id === 'dependent')?.status).toBe('dependency_missing')
+  })
+
+  it('does not activate a dependent when its dependency identity is duplicated', async () => {
+    const dependency: GraphitePlugin = { manifest: { ...manifest, id: 'dependency' }, async activate() {} }
+    let dependentActivated = false
+    const dependent: GraphitePlugin = {
+      manifest: { ...manifest, id: 'dependent', dependencies: [{ id: 'dependency', version: '^1.0.0' }] },
+      async activate() { dependentActivated = true },
+    }
+    const host = new PluginHost({ hostVersion: '1.0.0', enabled: {}, provider: { async perform() {} }, stateBackend: memoryState() })
+    await host.load([dependency, dependency, dependent])
+
+    expect(dependentActivated).toBe(false)
+    expect(host.list().find((item) => item.id === 'dependent')?.status).toBe('dependency_missing')
+  })
+
+  it('activates dependencies before dependents and fails closed when dependency activation fails', async () => {
+    const activationOrder: string[] = []
+    const dependency: GraphitePlugin = { manifest: { ...manifest, id: 'dependency' }, async activate() { activationOrder.push('dependency'); throw new Error('Dependency failed.') } }
+    const dependent: GraphitePlugin = {
+      manifest: { ...manifest, id: 'dependent', dependencies: [{ id: 'dependency', version: '^1.0.0' }] },
+      async activate() { activationOrder.push('dependent') },
+    }
+    const host = new PluginHost({ hostVersion: '1.0.0', enabled: {}, provider: { async perform() {} }, stateBackend: memoryState() })
+    await host.load([dependent, dependency])
+
+    expect(activationOrder).toEqual(['dependency'])
+    expect(host.list().find((item) => item.id === 'dependency')?.status).toBe('activation_failed')
+    expect(host.list().find((item) => item.id === 'dependent')?.status).toBe('dependency_missing')
+  })
+
+  it('fails a dependency cycle closed without activating either plugin', async () => {
+    let activations = 0
+    const first: GraphitePlugin = { manifest: { ...manifest, id: 'first', dependencies: [{ id: 'second', version: '^1.0.0' }] }, async activate() { activations++ } }
+    const second: GraphitePlugin = { manifest: { ...manifest, id: 'second', dependencies: [{ id: 'first', version: '^1.0.0' }] }, async activate() { activations++ } }
+    const host = new PluginHost({ hostVersion: '1.0.0', enabled: {}, provider: { async perform() {} }, stateBackend: memoryState() })
+    await host.load([first, second])
+
+    expect(activations).toBe(0)
+    expect(host.list().map((item) => item.status)).toEqual(['dependency_missing', 'dependency_missing'])
+  })
+
+  it('disables active dependents before their dependency', async () => {
+    const disposalOrder: string[] = []
+    const dependency: GraphitePlugin = {
+      manifest: { ...manifest, id: 'dependency' },
+      async activate() { return () => { disposalOrder.push('dependency') } },
+    }
+    const dependent: GraphitePlugin = {
+      manifest: { ...manifest, id: 'dependent', dependencies: [{ id: 'dependency', version: '^1.0.0' }] },
+      async activate() { return () => { disposalOrder.push('dependent') } },
+    }
+    const host = new PluginHost({ hostVersion: '1.0.0', enabled: {}, provider: { async perform() {} }, stateBackend: memoryState() })
+    await host.load([dependent, dependency])
+
+    await host.disable('dependency')
+
+    expect(disposalOrder).toEqual(['dependent', 'dependency'])
+    expect(host.list().find((item) => item.id === 'dependent')?.status).toBe('disabled')
+    expect(host.list().find((item) => item.id === 'dependency')?.status).toBe('disabled')
   })
 })
 

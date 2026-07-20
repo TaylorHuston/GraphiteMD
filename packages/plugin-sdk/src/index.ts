@@ -35,12 +35,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function hostCompatible(range: string, hostVersion: string): boolean {
-  const host = SEMVER.exec(hostVersion)
-  const minimum = SEMVER.exec(range.startsWith('^') ? range.slice(1) : range)
-  if (!host || !minimum) return false
-  return range.startsWith('^')
-    ? host[1] === minimum[1] && Number(host[2]) >= Number(minimum[2])
-    : hostVersion === range
+  if (!range.startsWith('^')) return hostVersion === range
+  const hostMatch = SEMVER.exec(hostVersion)
+  const minimumMatch = SEMVER.exec(range.slice(1))
+  if (!hostMatch || !minimumMatch) return false
+  const host = hostMatch.slice(1).map(Number) as [number, number, number]
+  const minimum = minimumMatch.slice(1).map(Number) as [number, number, number]
+  const upper: [number, number, number] = minimum[0] > 0
+    ? [minimum[0] + 1, 0, 0]
+    : minimum[1] > 0
+      ? [0, minimum[1] + 1, 0]
+      : [0, 0, minimum[2] + 1]
+  const compare = (left: [number, number, number], right: [number, number, number]) =>
+    left[0] - right[0] || left[1] - right[1] || left[2] - right[2]
+  return compare(host, minimum) >= 0 && compare(host, upper) < 0
 }
 
 export function validatePluginManifest(value: unknown, hostVersion: string): ManifestValidation {
@@ -147,6 +155,7 @@ export class PluginHost {
 
   async load(candidates: readonly unknown[]): Promise<void> {
     const identities = candidates.map((candidate) => isRecord(candidate) && isRecord(candidate.manifest) && typeof candidate.manifest.id === 'string' ? candidate.manifest.id : 'unknown')
+    const pending = new Set<string>()
     for (const candidate of candidates) {
       const raw = isRecord(candidate) ? candidate.manifest : undefined
       const id = isRecord(raw) && typeof raw.id === 'string' ? raw.id : 'unknown'
@@ -161,19 +170,36 @@ export class PluginHost {
       }
       const plugin = candidate as unknown as GraphitePlugin
       this.#plugins.set(id, plugin)
-      const missing = validation.manifest.dependencies.find((dependency) => !candidates.some((other) =>
-        isRecord(other) && isRecord(other.manifest) && other.manifest.id === dependency.id &&
-        validatePluginManifest(other.manifest, this.options.hostVersion).ok &&
-        typeof other.manifest.version === 'string' && hostCompatible(dependency.version, other.manifest.version),
-      ))
-      if (missing) {
-        this.#inventory.set(id, { id, manifest: validation.manifest, status: 'dependency_missing', message: `Missing dependency ${missing.id}.`, contributions: {} })
-      } else if (this.options.enabled[id] === false) {
-        this.#inventory.set(id, { id, manifest: validation.manifest, status: 'disabled', contributions: {} })
-      } else {
-        this.#inventory.set(id, { id, manifest: validation.manifest, status: 'disabled', contributions: {} })
+      this.#inventory.set(id, { id, manifest: validation.manifest, status: 'disabled', contributions: {} })
+      if (this.options.enabled[id] !== false) pending.add(id)
+    }
+
+    while (pending.size > 0) {
+      let progressed = false
+      for (const id of pending) {
+        const plugin = this.#plugins.get(id)!
+        const unavailable = plugin.manifest.dependencies.find((dependency) => {
+          const item = this.#inventory.get(dependency.id)
+          const candidate = this.#plugins.get(dependency.id)
+          return !item || !candidate || !hostCompatible(dependency.version, candidate.manifest.version) ||
+            this.options.enabled[dependency.id] === false ||
+            ['duplicate', 'invalid', 'incompatible', 'activation_failed', 'dependency_missing'].includes(item.status)
+        })
+        if (unavailable) {
+          this.#inventory.set(id, { id, manifest: plugin.manifest, status: 'dependency_missing', message: `Missing or inactive dependency ${unavailable.id}.`, contributions: {} })
+          pending.delete(id); progressed = true
+          continue
+        }
+        if (plugin.manifest.dependencies.some((dependency) => this.#inventory.get(dependency.id)?.status !== 'active')) continue
         await this.enable(id)
+        pending.delete(id); progressed = true
       }
+      if (progressed) continue
+      for (const id of pending) {
+        const plugin = this.#plugins.get(id)!
+        this.#inventory.set(id, { id, manifest: plugin.manifest, status: 'dependency_missing', message: 'Plugin dependency cycle detected.', contributions: {} })
+      }
+      pending.clear()
     }
   }
 
@@ -182,7 +208,15 @@ export class PluginHost {
   async enable(id: string): Promise<void> {
     const plugin = this.#plugins.get(id)
     const current = this.#inventory.get(id)
-    if (!plugin || !current || current.status !== 'disabled') return
+    if (!plugin || !current || (current.status !== 'disabled' && current.status !== 'dependency_missing')) return
+    const unavailable = plugin.manifest.dependencies.find((dependency) => {
+      const candidate = this.#plugins.get(dependency.id)
+      return !candidate || !hostCompatible(dependency.version, candidate.manifest.version) || this.#inventory.get(dependency.id)?.status !== 'active'
+    })
+    if (unavailable) {
+      this.#inventory.set(id, { id, manifest: plugin.manifest, status: 'dependency_missing', message: `Missing or inactive dependency ${unavailable.id}.`, contributions: {} })
+      return
+    }
     try {
       const dispose = await plugin.activate({
         capabilities: createCapabilityBroker(plugin.manifest, this.options.provider),
@@ -196,6 +230,11 @@ export class PluginHost {
   }
 
   async disable(id: string): Promise<void> {
+    for (const [dependentId, plugin] of this.#plugins) {
+      if (this.#inventory.get(dependentId)?.status === 'active' && plugin.manifest.dependencies.some((dependency) => dependency.id === id)) {
+        await this.disable(dependentId)
+      }
+    }
     await this.#disposers.get(id)?.()
     this.#disposers.delete(id)
     const plugin = this.#plugins.get(id)

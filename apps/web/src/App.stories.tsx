@@ -223,10 +223,9 @@ export const SearchResults: Story = {
   parameters: { msw: { handlers: handlers() } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
     const navigation = await canvas.findByRole('complementary', { name: 'Workspace navigation' })
     await userEvent.type(within(navigation).getByRole('searchbox'), 'foundation')
-    await userEvent.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await userEvent.keyboard('{Enter}')
     await expect(await within(navigation).findByRole('button', { name: /Plan/ })).toBeVisible()
   },
 }
@@ -235,10 +234,9 @@ export const SearchError: Story = {
   parameters: { msw: { handlers: handlers({ searchError: true }) } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
     const navigation = await canvas.findByRole('complementary', { name: 'Workspace navigation' })
     await userEvent.type(within(navigation).getByRole('searchbox'), 'broken')
-    await userEvent.click(within(navigation).getByRole('button', { name: 'Run search' }))
+    await userEvent.keyboard('{Enter}')
     await expect(await within(navigation).findByRole('alert')).toBeVisible()
   },
 }
@@ -247,7 +245,6 @@ export const SearchIdle: Story = {
   parameters: { msw: { handlers: handlers() } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
     await expect(await canvas.findByRole('searchbox', { name: 'Search notes' })).toHaveValue('')
     await expect(canvasElement.querySelector('.search-panel')).toHaveAttribute('aria-busy', 'false')
   },
@@ -257,9 +254,8 @@ export const SearchLoading: Story = {
   parameters: { msw: { handlers: handlers({ searchPending: true }) } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
     await userEvent.type(await canvas.findByRole('searchbox'), 'pending')
-    await userEvent.click(canvas.getByRole('button', { name: 'Run search' }))
+    await userEvent.keyboard('{Enter}')
     await expect(await canvas.findByText('Searching locally…')).toBeVisible()
   },
 }
@@ -268,9 +264,8 @@ export const SearchNoResults: Story = {
   parameters: { msw: { handlers: handlers({ searchResults: [] }) } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
     await userEvent.type(await canvas.findByRole('searchbox'), 'missing')
-    await userEvent.click(canvas.getByRole('button', { name: 'Run search' }))
+    await userEvent.keyboard('{Enter}')
     const navigation = await canvas.findByRole('complementary', { name: 'Workspace navigation' })
     await expect(await within(navigation).findByRole('status')).toHaveTextContent('No notes match “missing”.')
   },
@@ -284,9 +279,8 @@ export const SearchLongPath: Story = {
     }] }) } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Search' }))
     await userEvent.type(await canvas.findByRole('searchbox'), 'plan')
-    await userEvent.click(canvas.getByRole('button', { name: 'Run search' }))
+    await userEvent.keyboard('{Enter}')
     await expect(await canvas.findByText(/Very-Long-Planning-Document/)).toBeVisible()
   },
 }
@@ -295,11 +289,11 @@ export const MobileSearch: Story = {
   parameters: { viewport: { defaultViewport: 'mobile1' }, msw: { handlers: handlers() } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const tools = await canvas.findByRole('navigation', { name: 'Workspace tools' })
+    const tools = await canvas.findByRole('navigation', { name: 'App switcher' })
     await userEvent.click(within(tools).getByRole('button', { name: 'Search' }))
     const dialog = await canvas.findByRole('dialog', { name: 'Search' })
     await userEvent.type(within(dialog).getByRole('searchbox'), 'foundation')
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Run search' }))
+    await userEvent.keyboard('{Enter}')
     await expect(await within(dialog).findByRole('button', { name: /Plan/ })).toBeVisible()
   },
 }
@@ -311,6 +305,7 @@ export const SettingsAndPluginLifecycle: Story = {
     await userEvent.click(await canvas.findByRole('button', { name: 'Settings' }))
     const dialog = await canvas.findByRole('dialog', { name: 'Settings' })
     await expect(await within(dialog).findByRole('heading', { name: 'Change password' })).toBeVisible()
+    await userEvent.click(within(dialog).getByRole('tab', { name: 'Plugins' }))
     await expect(await within(dialog).findByRole('article', { name: 'System Status plugin' })).toBeVisible()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Disable System Status' }))
     await expect(await within(dialog).findByText('Disabled')).toBeVisible()
@@ -325,6 +320,7 @@ export const PluginValidationFailure: Story = {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('button', { name: 'Settings' }))
     const dialog = await canvas.findByRole('dialog', { name: 'Settings' })
+    await userEvent.click(within(dialog).getByRole('tab', { name: 'Plugins' }))
     await expect(await within(dialog).findByText('Manifest validation failed.')).toBeVisible()
     await expect(within(dialog).getByText('Invalid')).toBeVisible()
   },
@@ -339,6 +335,7 @@ export const PluginActivationRecovery: Story = {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('button', { name: 'Settings' }))
     const dialog = await canvas.findByRole('dialog', { name: 'Settings' })
+    await userEvent.click(within(dialog).getByRole('tab', { name: 'Plugins' }))
     await expect(await within(dialog).findByText(/Activation failed/)).toBeVisible()
     await expect(within(dialog).getByText('Activation Failed')).toBeVisible()
   },
@@ -353,6 +350,7 @@ export const PluginIncompatible: Story = {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('button', { name: 'Settings' }))
     const dialog = await canvas.findByRole('dialog', { name: 'Settings' })
+    await userEvent.click(within(dialog).getByRole('tab', { name: 'Plugins' }))
     await expect(await within(dialog).findByText('Incompatible')).toBeVisible()
     await expect(within(dialog).getByText('Plugin requires host ^2.0.0.')).toBeVisible()
     await expect(within(dialog).queryByRole('button', { name: /Future Plugin/ })).toBeNull()

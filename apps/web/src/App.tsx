@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
+import { FileText, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, X } from 'lucide-react'
 import {
   MarkdownNoteResponse as MarkdownNoteSchema,
   OwnerResponse,
@@ -13,6 +14,7 @@ import {
   type WorkspaceResponse as Workspace,
 } from '@graphitemd/contracts'
 import { MarkdownEditor } from './MarkdownEditor.js'
+import { AppRail } from './AppRail.js'
 import { SettingsPanel } from './SettingsPanel.js'
 import { AutosaveCoordinator, prepareAutosaveTransition, type AutosaveSnapshot } from './autosave.js'
 import { InvalidApiResponseError, request, requestJson } from './api.js'
@@ -131,7 +133,9 @@ function FileTree({ inventory, selected, onSelect }: {
           if (next.has(node.path)) next.delete(node.path); else next.add(node.path)
           return next
         })}
-      ><span aria-hidden="true">{collapsed.has(node.path) ? '›' : '⌄'}</span>{node.name}</button>
+      >{collapsed.has(node.path)
+        ? <Folder size={14} strokeWidth={1.75} aria-hidden="true" focusable="false" />
+        : <FolderOpen size={14} strokeWidth={1.75} aria-hidden="true" focusable="false" />}{node.name}</button>
       {!collapsed.has(node.path) && <ul role="group">{renderNodes(node.children, level + 1)}</ul>}
     </li>
   ) : (
@@ -147,7 +151,7 @@ function FileTree({ inventory, selected, onSelect }: {
         onFocus={() => setFocusPath(node.path)}
         onKeyDown={(event) => onTreeKeyDown(event, node)}
         onClick={() => onSelect({ kind: 'note', resourceId: node.resourceId, displayPath: node.path })}
-      ><span aria-hidden="true">◇</span>{node.name}</button>
+      ><FileText size={14} strokeWidth={1.75} aria-hidden="true" focusable="false" />{node.name}</button>
     </li>
   ))
 
@@ -192,6 +196,7 @@ function Login({ expired, initialError, onAuthenticated }: {
 type DrawerName = 'Files' | 'Search' | 'Context' | 'Settings'
 
 function Drawer({ name, onClose, children }: { name: DrawerName; onClose: () => void; children: ReactNode }) {
+  const modal = name === 'Settings'
   const drawerRef = useRef<HTMLElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
   useEffect(() => {
@@ -220,9 +225,9 @@ function Drawer({ name, onClose, children }: { name: DrawerName; onClose: () => 
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
   }
-  return <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <section ref={drawerRef} className="drawer" role="dialog" aria-modal="true" aria-label={name} onKeyDown={onKeyDown}>
-      <header className="drawer-header"><h2>{name}</h2><button className="icon-button" type="button" aria-label={`Close ${name}`} onClick={onClose}>×</button></header>
+  return <div className={modal ? 'modal-layer' : 'drawer-layer'} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section ref={drawerRef} className={modal ? 'modal-dialog' : 'drawer'} role="dialog" aria-modal="true" aria-label={name} onKeyDown={onKeyDown}>
+      <header className={modal ? 'modal-header' : 'drawer-header'}><h2>{name}</h2><button className="icon-button" type="button" aria-label={`Close ${name}`} onClick={onClose}><X size={19} strokeWidth={1.75} aria-hidden="true" /></button></header>
       {children}
     </section>
   </div>
@@ -259,7 +264,7 @@ function SearchPanel({ onSelect, onSessionExpired }: { onSelect: (resourceId: st
     } catch { setStatus('error') }
   }
   const busy = status === 'searching' || status === 'rebuilding'
-  return <div className="search-panel" aria-busy={busy}><form name="workspace-search" onSubmit={(event) => void submit(event)}><label htmlFor={searchId}>Search notes</label><div className="search-controls"><input id={searchId} name="query" type="search" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Title, path, properties, or body" /><button type="submit" aria-label="Run search" disabled={busy}>Search</button></div></form>
+  return <div className="search-panel" aria-busy={busy}><form name="workspace-search" onSubmit={(event) => void submit(event)}><label htmlFor={searchId}>Search notes</label><div className="search-controls"><input id={searchId} name="query" type="search" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notes" disabled={busy} /></div></form>
     {status === 'searching' && <p aria-live="polite">Searching locally…</p>}
     {status === 'rebuilding' && <p aria-live="polite">Rebuilding local index…</p>}
     {status === 'rebuilt' && indexedNotes !== null && <p role="status" aria-label="Search index status" aria-live="polite">Index rebuilt. {indexedNotes} {indexedNotes === 1 ? 'note' : 'notes'} indexed.</p>}
@@ -317,7 +322,6 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
   const selectedRef = useRef<Note | null>(null)
   const [noteStatus, setNoteStatus] = useState<'idle' | 'loading' | 'unavailable'>('idle')
   const [drawer, setDrawer] = useState<DrawerName | null>(null)
-  const [navigationView, setNavigationView] = useState<'files' | 'search'>('files')
   const requestSequence = useRef(0)
   const autosave = useMemo(() => new AutosaveCoordinator(750), [])
   const [save, setSave] = useState<AutosaveSnapshot>(() => autosave.snapshot())
@@ -326,8 +330,6 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
   const [plugins, setPlugins] = useState<PluginInventoryItem[]>([])
   const [navigationOpen, setNavigationOpen] = useState(true)
   const [contextOpen, setContextOpen] = useState(true)
-  const [navigationWidth, setNavigationWidth] = useState(18)
-  const [contextWidth, setContextWidth] = useState(17)
   const closeDrawer = useCallback(() => setDrawer(null), [])
 
   useEffect(() => autosave.subscribe(setSave), [autosave])
@@ -471,33 +473,24 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
   }
   const systemStatusMounted = plugins?.some((plugin) => plugin.id === 'system-status' && plugin.status === 'active'
     && plugin.contributions.views?.some((view) => view.id === 'system-status'))
+  const contextPanel = () => <><ContextPlaceholder note={selected} />{systemStatusMounted && <section className="system-status-contribution" aria-label="System Status"><p className="panel-label">System Status</p><h2>Service connected</h2><dl><div><dt>Workspace</dt><dd>Available</dd></div><div><dt>Markdown notes</dt><dd>{workspaceState.notes.length}</dd></div></dl></section>}</>
   const filesPanel = workspaceState.inventory.length
     ? <FileTree inventory={workspaceState.inventory} selected={selected?.resourceId ?? null} onSelect={(note) => { void openNote(note.resourceId, 'push'); setDrawer(null) }} />
     : <p className="panel-empty">No Markdown notes</p>
   const navigation = <>
-    <div className="panel-switcher" aria-label="Navigation view">
-      <button type="button" aria-pressed={navigationView === 'files'} aria-controls="desktop-files-panel" onClick={() => setNavigationView('files')}>Files</button>
-      <button type="button" aria-pressed={navigationView === 'search'} aria-controls="desktop-search-panel" onClick={() => setNavigationView('search')}>Search</button>
-    </div>
-    <div id="desktop-files-panel" hidden={navigationView !== 'files'}>{filesPanel}</div>
-    <div id="desktop-search-panel" hidden={navigationView !== 'search'}><SearchPanel onSessionExpired={onSessionExpired} onSelect={(resourceId) => void openNote(resourceId, 'push', true)} /></div>
+    <SearchPanel onSessionExpired={onSessionExpired} onSelect={(resourceId) => void openNote(resourceId, 'push', true)} />
+    <div className="files-panel">{filesPanel}</div>
   </>
 
-  const paneStyle = { '--navigation-width': `${navigationWidth}rem`, '--context-width': `${contextWidth}rem` } as CSSProperties
-  return <main className={`workbench ${navigationOpen ? '' : 'navigation-collapsed'} ${contextOpen ? '' : 'context-collapsed'}`} style={paneStyle}>
-    <header className="mobile-bar"><span className="wordmark">GraphiteMD</span><nav aria-label="Workspace tools">
-      <button data-testid="mobile-files" type="button" onClick={() => setDrawer('Files')}>Files</button>
-      <button type="button" onClick={() => setDrawer('Search')}>Search</button>
-      <button type="button" onClick={() => setDrawer('Context')}>Context</button>
-      <button type="button" onClick={() => setDrawer('Settings')}>Settings</button>
-    </nav></header>
-    <aside className="navigation-panel" aria-label="Workspace navigation"><div className="panel-brand"><span className="brand-mark small" aria-hidden="true">G</span><span>GraphiteMD</span><div className="pane-controls"><button type="button" aria-label="Make Files pane narrower" onClick={() => setNavigationWidth((value) => Math.max(14, value - 2))}>−</button><button type="button" aria-label="Make Files pane wider" onClick={() => setNavigationWidth((value) => Math.min(28, value + 2))}>+</button><button type="button" aria-label="Collapse Files pane" onClick={() => setNavigationOpen(false)}>‹</button></div></div>{navigation}</aside>
+  return <main className={`workbench ${navigationOpen ? '' : 'navigation-collapsed'} ${contextOpen ? '' : 'context-collapsed'}`}>
+    <AppRail onOpenFiles={() => setDrawer('Files')} onOpenSearch={() => setDrawer('Search')} onOpenContext={() => setDrawer('Context')} onOpenSettings={() => setDrawer('Settings')} />
+    <aside className="navigation-panel" aria-label="Workspace navigation">{navigation}</aside>
     <article className="document-region">
-      <header className="document-header"><div className="collapsed-pane-controls">{!navigationOpen && <button type="button" onClick={() => setNavigationOpen(true)}>Show Files</button>}{!contextOpen && <button type="button" onClick={() => setContextOpen(true)}>Show Context</button>}</div><div><p className="document-path">{selected?.displayPath ?? 'Workspace'}</p><h1>{selected ? selected.displayPath.split('/').at(-1)?.replace(/\.md$/i, '') : 'Your workspace'}</h1></div><span className="status-chip" role="status" aria-live="polite">{save.phase === 'saving' || save.phase === 'scheduled' ? 'Saving…' : save.phase === 'conflict' ? 'Conflict' : save.phase === 'error' ? 'Save failed' : save.dirty ? 'Unsaved' : 'Saved'}</span></header>
+      <header className="document-header"><button className="edge-toggle edge-toggle-left" type="button" aria-label={navigationOpen ? 'Collapse navigation' : 'Expand navigation'} onClick={() => setNavigationOpen((open) => !open)}>{navigationOpen ? <PanelLeftClose size={18} strokeWidth={1.75} aria-hidden="true" /> : <PanelLeftOpen size={18} strokeWidth={1.75} aria-hidden="true" />}</button><div><p className="document-path">{selected?.displayPath ?? 'Workspace'}</p><h1>{selected ? selected.displayPath.split('/').at(-1)?.replace(/\.md$/i, '') : 'Your workspace'}</h1></div><span className="status-chip" role="status" aria-live="polite">{save.phase === 'saving' || save.phase === 'scheduled' ? 'Saving…' : save.phase === 'conflict' ? 'Conflict' : save.phase === 'error' ? 'Save failed' : save.dirty ? 'Unsaved' : 'Saved'}</span><button className="edge-toggle edge-toggle-right" type="button" aria-label={contextOpen ? 'Collapse context' : 'Expand context'} onClick={() => setContextOpen((open) => !open)}>{contextOpen ? <PanelRightClose size={18} strokeWidth={1.75} aria-hidden="true" /> : <PanelRightOpen size={18} strokeWidth={1.75} aria-hidden="true" />}</button></header>
       <div className="document-body">{workspaceState.inventory.length === 0 ? <EmptyState /> : noteStatus === 'loading' ? <div className="empty-state" aria-live="polite"><h2>Opening note…</h2></div> : selected ? <>{(save.phase === 'error' || save.phase === 'conflict') && <div className="save-recovery" role="alert"><p>{save.phase === 'conflict' ? 'This note changed on the host. Your local draft has not been overwritten.' : 'GraphiteMD could not save this draft.'}</p>{save.phase === 'error' ? <button type="button" onClick={() => void autosave.retry()}>Retry save</button> : <button type="button" onClick={() => { autosave.discard(); void openNote(selected.resourceId, 'restore') }}>Discard draft and reload</button>}</div>}<form name="rename-note" className="rename-note" onSubmit={(event) => void renameSelected(event)}><label htmlFor="note-filename">Filename</label><input id="note-filename" name="filename" autoComplete="off" value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} disabled={save.pending} /><button type="submit" disabled={save.pending}>Rename</button>{renameError && <p role="alert">{renameError}</p>}</form><MarkdownEditor key={selected.resourceId} source={save.resourceId === selected.resourceId ? save.draft : selected.source} onChange={(source) => autosave.edit(source)} /></> : noteStatus === 'unavailable' ? <div className="empty-state" role="alert"><h2>Note unavailable</h2><p>The requested note could not be opened. Select another note from Files.</p></div> : <div className="empty-state"><div className="empty-mark" aria-hidden="true">◇</div><h2>Select a note</h2><p>Choose a Markdown file from Files to open it here.</p></div>}</div>
     </article>
-    <aside className="context-panel" aria-label="Note context"><div className="pane-controls context-pane-controls"><button type="button" aria-label="Make Context pane narrower" onClick={() => setContextWidth((value) => Math.max(13, value - 2))}>−</button><button type="button" aria-label="Make Context pane wider" onClick={() => setContextWidth((value) => Math.min(26, value + 2))}>+</button><button type="button" aria-label="Collapse Context pane" onClick={() => setContextOpen(false)}>›</button></div><ContextPlaceholder note={selected} />{systemStatusMounted && <section className="system-status-contribution" aria-labelledby="system-status-title"><p className="panel-label">System Status</p><h2 id="system-status-title">Service connected</h2><dl><div><dt>Workspace</dt><dd>Available</dd></div><div><dt>Markdown notes</dt><dd>{workspaceState.notes.length}</dd></div></dl></section>}<div className="context-actions"><button type="button" onClick={() => setDrawer('Settings')}>Settings</button></div></aside>
-    {drawer && <Drawer name={drawer} onClose={closeDrawer}>{drawer === 'Files' ? filesPanel : drawer === 'Search' ? <SearchPanel onSessionExpired={onSessionExpired} onSelect={(resourceId) => { void openNote(resourceId, 'push', true); setDrawer(null) }} /> : drawer === 'Context' ? <ContextPlaceholder note={selected} /> : <SettingsPanel onSessionExpired={onSessionExpired} onPluginsChanged={refreshPlugins} onLogout={() => void logout()} />}</Drawer>}
+    <aside className="context-panel" aria-label="Note context">{contextPanel()}</aside>
+    {drawer && <Drawer name={drawer} onClose={closeDrawer}>{drawer === 'Files' ? filesPanel : drawer === 'Search' ? <SearchPanel onSessionExpired={onSessionExpired} onSelect={(resourceId) => { void openNote(resourceId, 'push', true); setDrawer(null) }} /> : drawer === 'Context' ? contextPanel() : <SettingsPanel onSessionExpired={onSessionExpired} onPluginsChanged={refreshPlugins} onLogout={() => void logout()} />}</Drawer>}
   </main>
 }
 

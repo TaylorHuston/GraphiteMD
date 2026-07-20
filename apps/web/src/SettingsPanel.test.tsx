@@ -14,6 +14,41 @@ function response(status: number, body?: unknown) {
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('owner Settings', () => {
+  it('navigates between settings areas without leaving the modal content', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementationOnce(() => response(200, { plugins: [] })))
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={vi.fn()} />)
+
+    const areas = screen.getByRole('tablist', { name: 'Settings areas' })
+    expect(within(areas).getByRole('tab', { name: 'Account' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('heading', { name: 'Change password' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Bundled plugins' })).not.toBeInTheDocument()
+
+    await user.click(within(areas).getByRole('tab', { name: 'Plugins' }))
+    expect(screen.getByRole('heading', { name: 'Bundled plugins' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Change password' })).not.toBeInTheDocument()
+
+    await user.keyboard('{Home}')
+    expect(within(areas).getByRole('tab', { name: 'Account' })).toHaveFocus()
+    expect(within(areas).getByRole('tab', { name: 'Account' })).toHaveAttribute('aria-selected', 'true')
+    await user.keyboard('{ArrowRight}')
+    expect(within(areas).getByRole('tab', { name: 'Plugins' })).toHaveFocus()
+    expect(within(areas).getByRole('tab', { name: 'Plugins' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('announces horizontal settings navigation in the narrow layout', () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+    vi.stubGlobal('fetch', vi.fn().mockImplementationOnce(() => response(200, { plugins: [] })))
+
+    render(<SettingsPanel onSessionExpired={vi.fn()} />)
+
+    expect(screen.getByRole('tablist', { name: 'Settings areas' })).toHaveAttribute('aria-orientation', 'horizontal')
+  })
+
   it('GMD-001/S2 R1 changes a confirmed password and returns to sign in', async () => {
     document.cookie = 'XSRF-TOKEN=settings-token'
     const fetchMock = vi.fn()
@@ -42,7 +77,7 @@ describe('owner Settings', () => {
     vi.stubGlobal('fetch', fetchMock)
     const user = userEvent.setup()
     render(<SettingsPanel onSessionExpired={vi.fn()} />)
-    await screen.findByText('No bundled plugins are available.')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
 
     await user.type(screen.getByLabelText('Current password'), 'old')
     await user.type(screen.getByLabelText('New password'), 'first')
@@ -59,7 +94,9 @@ describe('owner Settings', () => {
       manifest: { name: 'System Status', version: '0.1.0', permissions: ['workspace:read'] },
       contributions: { views: [{ id: 'status', title: 'System status' }], commands: [{ id: 'refresh', title: 'Refresh status' }] },
     }] })))
+    const user = userEvent.setup()
     render(<SettingsPanel onSessionExpired={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Plugins' }))
 
     const plugin = await screen.findByRole('article', { name: 'System Status plugin' })
     expect(within(plugin).getByText('Active')).toBeVisible()
@@ -74,10 +111,12 @@ describe('owner Settings', () => {
       plugins: [{ id: 'system-status', status: 'future-state', contributions: {} }],
     })))
 
+    const user = userEvent.setup()
     render(<SettingsPanel onSessionExpired={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Plugins' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Plugin status is unavailable.')
-    expect(screen.getByRole('heading', { name: 'Change password' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Bundled plugins' })).toBeVisible()
   })
 
   it('persists enablement, reflects removed contributions, and handles an expired session', async () => {
@@ -90,6 +129,7 @@ describe('owner Settings', () => {
     const expired = vi.fn()
     const user = userEvent.setup()
     render(<SettingsPanel onSessionExpired={expired} />)
+    await user.click(screen.getByRole('tab', { name: 'Plugins' }))
 
     await user.click(await screen.findByRole('button', { name: 'Disable System Status' }))
     expect(await screen.findByText('Disabled')).toBeVisible()

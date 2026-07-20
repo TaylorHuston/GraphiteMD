@@ -36,10 +36,9 @@ test('foundation owner path works on desktop and a narrow mobile browser', async
   await expect(page.getByRole('heading', { name: 'Welcome', level: 1 })).toBeVisible()
   await expect(page).toHaveURL(/resource=res_[a-z0-9]+/)
 
-  await page.getByRole('button', { name: 'Search' }).first().click()
   const search = page.getByRole('complementary', { name: 'Workspace navigation' })
   await search.getByRole('searchbox').fill('silver graphite')
-  await search.getByRole('button', { name: 'Run search' }).click()
+  await search.getByRole('searchbox').press('Enter')
   await search.getByRole('button', { name: /Plan/ }).click()
   await expect(page.getByRole('heading', { name: 'Plan', level: 1 })).toBeVisible()
 
@@ -58,10 +57,9 @@ test('foundation owner path works on desktop and a narrow mobile browser', async
   await page.getByRole('button', { name: 'Discard draft and reload' }).click()
   await expect(page.getByText('Saved', { exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Search' }).first().click()
   const refreshedSearch = page.getByRole('complementary', { name: 'Workspace navigation' })
   await refreshedSearch.getByRole('searchbox').fill('External host edit')
-  await refreshedSearch.getByRole('button', { name: 'Run search' }).click()
+  await refreshedSearch.getByRole('searchbox').press('Enter')
   await expect(refreshedSearch.getByRole('button', { name: /Plan/ })).toBeVisible()
 
   await page.getByLabel('Filename').fill('Roadmap.md')
@@ -76,11 +74,13 @@ test('foundation owner path works on desktop and a narrow mobile browser', async
 
   await page.getByRole('button', { name: 'Settings' }).last().click()
   const settings = page.getByRole('dialog', { name: 'Settings' })
+  await settings.getByRole('tab', { name: 'Plugins' }).click()
   await expect(settings.getByRole('article', { name: 'System Status plugin' })).toBeVisible()
   await settings.getByRole('button', { name: 'Disable System Status' }).click()
   await expect(settings.getByText('Disabled')).toBeVisible()
   await settings.getByRole('button', { name: 'Enable System Status' }).click()
   await expect(settings.getByText('Active', { exact: true })).toBeVisible()
+  await settings.getByRole('tab', { name: 'Account' }).click()
   await settings.getByLabel('Current password').fill(initialPassword)
   await settings.getByLabel('New password', { exact: true }).fill(replacementPassword)
   await settings.getByLabel('Confirm new password').fill(replacementPassword)

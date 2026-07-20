@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import {
   PluginResponse,
   PluginsResponse,
@@ -8,6 +8,7 @@ import {
 import { readApiError, request, requestJson } from './api.js'
 
 export type { Plugin }
+type SettingsArea = 'account' | 'plugins'
 
 function xsrfToken(): string {
   const value = document.cookie.split('; ').find((cookie) => cookie.startsWith('XSRF-TOKEN='))?.slice('XSRF-TOKEN='.length)
@@ -23,6 +24,7 @@ function statusLabel(status: Plugin['status']) {
 }
 
 export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: { onSessionExpired: () => void; onPluginsChanged?: () => void; onLogout?: () => void }) {
+  const [area, setArea] = useState<SettingsArea>('account')
   const [plugins, setPlugins] = useState<Plugin[] | null>(null)
   const [pluginError, setPluginError] = useState<string | null>(null)
   const [changingPlugin, setChangingPlugin] = useState<string | null>(null)
@@ -31,6 +33,16 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
   const [confirmation, setConfirmation] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [changingPassword, setChangingPassword] = useState(false)
+  const [horizontalTabs, setHorizontalTabs] = useState(false)
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const media = window.matchMedia('(max-width: 60rem)')
+    const update = () => setHorizontalTabs(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -84,8 +96,27 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
     finally { setChangingPlugin(null) }
   }
 
+  function navigateAreas(event: KeyboardEvent<HTMLButtonElement>, current: SettingsArea) {
+    const areas: SettingsArea[] = ['account', 'plugins']
+    const index = areas.indexOf(current)
+    let next: SettingsArea | undefined
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') next = areas[(index + 1) % areas.length]
+    else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') next = areas[(index - 1 + areas.length) % areas.length]
+    else if (event.key === 'Home') next = areas[0]
+    else if (event.key === 'End') next = areas.at(-1)
+    if (!next) return
+    event.preventDefault()
+    setArea(next)
+    queueMicrotask(() => document.getElementById(`settings-tab-${next}`)?.focus())
+  }
+
   return <div className="settings-panel">
-    <section aria-labelledby="account-settings"><p className="panel-label">Account</p><h2 id="account-settings">Change password</h2>
+    <nav className="settings-navigation" aria-label="Settings areas" role="tablist" aria-orientation={horizontalTabs ? 'horizontal' : 'vertical'}>
+      <button id="settings-tab-account" type="button" role="tab" aria-selected={area === 'account'} aria-controls="settings-panel-account" tabIndex={area === 'account' ? 0 : -1} onClick={() => setArea('account')} onKeyDown={(event) => navigateAreas(event, 'account')}>Account</button>
+      <button id="settings-tab-plugins" type="button" role="tab" aria-selected={area === 'plugins'} aria-controls="settings-panel-plugins" tabIndex={area === 'plugins' ? 0 : -1} onClick={() => setArea('plugins')} onKeyDown={(event) => navigateAreas(event, 'plugins')}>Plugins</button>
+    </nav>
+    <div className="settings-content">
+    {area === 'account' && <section id="settings-panel-account" role="tabpanel" aria-labelledby="settings-tab-account"><p className="panel-label">Account</p><h2 id="account-settings">Change password</h2>
       <p>Changing the owner password signs out every browser session.</p>
       <form name="change-password" className="settings-form" onSubmit={(event) => void changePassword(event)}>
         <label htmlFor="current-password">Current password</label><input id="current-password" name="current-password" type="password" autoComplete="current-password" required value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
@@ -96,8 +127,8 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
         <button className="primary-button" type="submit" disabled={changingPassword}>{changingPassword ? 'Changing password…' : 'Change password'}</button>
       </form>
       {onLogout && <button className="secondary-button" type="button" onClick={onLogout}>Log out</button>}
-    </section>
-    <section aria-labelledby="plugin-settings"><p className="panel-label">Extensions</p><h2 id="plugin-settings">Bundled plugins</h2>
+    </section>}
+    {area === 'plugins' && <section id="settings-panel-plugins" role="tabpanel" aria-labelledby="settings-tab-plugins"><p className="panel-label">Extensions</p><h2 id="plugin-settings">Bundled plugins</h2>
       <p>Inspect what each plugin can access and which contributions are currently active.</p>
       {pluginError && <p className="form-error" role="alert">{pluginError}</p>}
       {plugins === null && !pluginError ? <p aria-live="polite">Loading plugins…</p> : plugins?.length === 0 ? <p>No bundled plugins are available.</p> : <div className="plugin-list">{plugins?.map((plugin) => {
@@ -112,6 +143,7 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
           {controllable && <button type="button" disabled={changingPlugin === plugin.id} onClick={() => void setEnabled(plugin, plugin.status === 'disabled')}>{changingPlugin === plugin.id ? 'Updating…' : `${plugin.status === 'active' ? 'Disable' : 'Enable'} ${name}`}</button>}
         </article>
       })}</div>}
-    </section>
+    </section>}
+    </div>
   </div>
 }
