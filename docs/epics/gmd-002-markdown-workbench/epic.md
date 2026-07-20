@@ -308,7 +308,7 @@ The system SHALL confine every direct owner write to an authenticated, authorize
 | S2/R3 | `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority.renameNote` | primary | Current-folder filename validation, collision-safe link/unlink rename, revision protection, platform-neutral confined operation receipts, write blocking under stale identity, and restart-safe revision-matched reconciliation that keeps committed retries bound to their original target even if the source path is later reused. |
 | S2/R2, S2/R3 | `apps/server/start/routes.ts#mutationErrorResponse` | adapter | Authenticated XSRF-protected direct-owner save and rename routes with normalized recoverable errors. |
 | S2/R1, S2/R2, S2/R3 | `apps/web/src/App.tsx#Workbench` | presentation | Editor/autosave binding, save status, guarded note transitions and unload, rename control, tree selection, and opaque history reconciliation. |
-| S2/R2, S2/R3 | `apps/web/src/App.tsx#bindAutosave` | presentation | Reusable resource-bound save authority after open, successful rename, or a discarded failed/conflicted rename attempt; recoverable retry/conflict reload controls; and displayed-resource URL restoration when a guarded history transition is cancelled. |
+| S2/R2, S2/R3 | `apps/web/src/App.tsx#bindAutosave` | presentation | Reusable resource-bound save authority after open, successful rename, or a discarded failed rename attempt; conflicted rename attempts reload authoritative source before proceeding; recoverable retry/conflict controls and displayed-resource URL restoration remain available. |
 
 #### Implementation Gaps
 
@@ -329,7 +329,7 @@ None.
 | S2/R4-S2 | `apps/server/tests/http/authentication.test.ts` — authenticated exact owner save route | The ordinary owner session and XSRF proof directly authorize revision-protected writes without any agent grant. | Passing 2026-07-18. |
 | S2/R1, S2/R2, S2/R3, S2/R4 | `tests/e2e/foundation.spec.ts` — edit/conflict/recovery/rename path | Deterministic real-browser evidence proves rendered/source editing, autosave, external-edit conflict recovery, rename, post-rename reload, and continued service-owned access. | Passing 2026-07-18. |
 | S2/R1 | `apps/web/src/App.stories.tsx` — populated editor preview; `apps/web/src/MarkdownEditor.stories.tsx` — active syntax, wide table overflow, and read-only note states | Storybook browser evidence renders the source-backed editor in the complete workbench plus accepted editor edge states with interaction and accessibility checks. | Passing 2026-07-19. |
-| S2/R2-S3, S2/R2-S4, S2/R3-S1 | `apps/web/src/App.test.tsx` — save recovery, failed-draft empty-history guard, guarded popstate, post-rename edit, and discarded-failed-draft rename cases | Retry and explicit conflict recovery are reachable, cancelled note-to-note or note-to-empty history restores the displayed URL and draft, and autosave remains bound after both successful rename and a rename that proceeds by discarding a failed draft. | Passing 2026-07-19. |
+| S2/R2-S3, S2/R2-S4, S2/R3-S1 | `apps/web/src/App.test.tsx` — save recovery, failed-draft empty-history guard, guarded popstate, post-rename edit, and discarded failed/conflicted-draft rename cases | Retry and explicit conflict recovery are reachable, cancelled history restores the displayed URL and draft, failed-draft rename rebinds autosave, and conflicted-draft rename reloads authoritative source/revision before renaming and continuing autosave. | Passing 2026-07-19. |
 
 #### Verification Gaps
 

@@ -458,15 +458,24 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
   }, [guardTransition, openNote])
   const renameSelected = async (event: FormEvent) => {
     event.preventDefault(); setRenameError(null)
+    const beforeTransition = autosave.snapshot()
     if (!selected || !(await guardTransition())) return
+    let renameSource = selected
     let snapshot = autosave.snapshot()
     if (!snapshot.revision) {
-      bindAutosave(selected)
+      if (beforeTransition.phase === 'conflict') {
+        await openNote(selected.resourceId, 'restore')
+        const refreshed = selectedRef.current
+        if (!refreshed || refreshed.resourceId !== selected.resourceId) return
+        renameSource = refreshed
+      } else {
+        bindAutosave(selected)
+      }
       snapshot = autosave.snapshot()
     }
     if (!snapshot.revision) return
     try {
-      const response = await requestJson(`/api/v1/notes/${encodeURIComponent(selected.resourceId)}/rename`, RenameNoteResponse, {
+      const response = await requestJson(`/api/v1/notes/${encodeURIComponent(renameSource.resourceId)}/rename`, RenameNoteResponse, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() },
         body: JSON.stringify({ expectedRevision: snapshot.revision, fileName: renameDraft }),
