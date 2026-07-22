@@ -3,7 +3,7 @@ schema: sdd-epic-v2
 id: GMD-001
 status: draft
 created: 2026-07-18
-modified: 2026-07-19
+modified: 2026-07-22
 last_verified: 2026-07-19
 stories:
   - S1
@@ -59,7 +59,7 @@ A self-hosting owner will be able to establish one local GraphiteMD account, sig
 Implementation: implemented
 Verification: partial
 Created: 2026-07-18
-Modified: 2026-07-19
+Modified: 2026-07-22
 Last verified: 2026-07-19
 
 As a self-hosting owner, I want to establish one account and sign in from my browser, so that my workspace is protected even on a private network.
@@ -121,60 +121,30 @@ The system SHALL accept credentialed browser requests only from configured exact
 - THEN the service rejects it without granting cross-origin access
 - AND wildcard credentialed CORS is never used.
 
-#### Prior Detailed Implementation Map (reconciled 2026-07-22)
-
-| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
-|---|---|---|---|
-| S1/R1 | `apps/server/app/security/owner_setup_service.ts#OwnerSetupService` | primary | Owns singleton owner creation, shared bounded UTF-8 password policy, Scrypt hashing, machine-local SQLite persistence, and overwrite refusal. |
-| S1/R1, S1/R2 | `packages/domain/src/index.ts#acceptsPasswordInput` | primary | Owns the runtime-neutral UTF-8 byte policy shared by host commands and HTTP authentication before hashing. |
-| S1/R1-S1 | `apps/server/commands/setup_owner.ts#runOwnerSetup` | adapter | Collects password and confirmation through secure prompt callbacks and emits credential-free operator messages. |
-| S1/R1-S1 | `apps/server/commands/setup_owner.ts#SetupOwner` | adapter | Exposes the host-local `owner:setup` Ace command and resolves `GRAPHITEMD_STATE_DIR`. |
-| S1/R2 | `apps/server/app/security/owner_setup_service.ts#OwnerSetupService.authenticate` | primary | Serializes password verification and immediate session persistence with in-process credential mutations, binds the issued session to the current revocation generation, and installs database write guards that reject stale-generation session inserts or updates. |
-| S1/R2 | `apps/server/app/middleware/session_generation_middleware.ts#SessionGenerationMiddleware` | primary | Validates the generation bound to every persisted authenticated session before the Auth guard loads it and invalidates missing or stale-generation authority. |
-| S1/R2 | `apps/server/start/routes.ts#ownerSetup` | primary | The owner-authentication routes reject out-of-policy inputs before hashing, validate the singleton credential generically, acquire an atomic attempt lease, and use the official AdonisJS Auth session guard for regenerated login, current-owner checks, and server-side logout. |
-| S1/R2 | `apps/server/app/security/login_attempt_limiter.ts#LoginAttemptLimiter.acquire` | support | Atomically reserves in-flight attempts per source, applies the quiet period, expires idle sources, and bounds storage with non-in-flight LRU eviction without changing generic credential failures. |
-| S1/R2 | `apps/server/config/auth.ts`; `apps/server/config/session.ts`; `apps/server/config/database.ts` | configuration | Configures the official session guard and persistent database session store in machine-local `security.sqlite` with HTTP-only SameSite cookies. |
-| S1/R2 | `apps/server/config/encryption.ts#appKey` | configuration | Requires an operator-provided `APP_KEY` outside the explicit test environment; no known development fallback can start production encryption. |
-| S1/R3-S1 | `apps/server/config/shield.ts#defineConfig` | primary | Enables official Shield CSRF enforcement for state-changing methods and its encrypted SPA XSRF cookie proof flow. |
-| S1/R3-S2 | `apps/server/config/cors.ts#defineConfig` | primary | Restricts credentialed cross-origin responses to the exact origins supplied through `GRAPHITEMD_ALLOWED_ORIGINS`; never configures reflection or wildcard access. |
-
 #### Implemented By
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
-| S1/R1 | `apps/server/app/security/owner_setup_service.ts#OwnerSetupService` | primary | Governs singleton owner setup and password hashing. |
-| S1/R2 | `apps/server/start/routes.ts#ownerSetup` | primary | Governs authenticated owner session issuance and logout. |
-| S1/R3 | `apps/server/config/shield.ts#defineConfig` | primary | Governs XSRF protection for browser mutations. |
+| S1/R1 | `apps/server/app/security/owner_setup_service.ts#createOwner` | primary | Creates the single owner credential. |
+| S1/R2 | `apps/server/app/security/owner_setup_service.ts#authenticate` | primary | Authenticates owner credentials and session revocation generation. |
+| S1/R3-S1 | `apps/server/config/shield.ts#csrf` | primary | Governs CSRF protection. |
+| S1/R3-S2 | `apps/server/config/cors.ts#configuredOrigins` | primary | Governs exact credentialed origins. |
 
 #### Implementation Gaps
 
 - None.
 
-#### Prior Detailed Verification Map (reconciled 2026-07-22)
-
-| Requirement / Scenario | Evidence | Proves | Status |
-|---|---|---|---|
-| `S1/R1-S1` | `apps/server/tests/security/owner_setup_service.test.ts`; `apps/server/tests/commands/setup_owner.test.ts` | Focused automated evidence proves the first owner is stored only as a verifiable Scrypt hash in permission-restricted `security.sqlite`, and the command adapter uses secure prompts without printing the password or hash. | Passing |
-| `S1/R1-S2` | `apps/server/tests/security/owner_setup_service.test.ts`; `apps/server/tests/commands/setup_owner.test.ts` | Focused automated evidence proves an existing owner is preserved, setup refuses before prompting, and the operator is directed to explicit reset. | Passing |
-| `S1/R2-S1` | `apps/server/tests/http/authentication.test.ts` — `R2-S1 establishes an official server-owned session and protects workspace delivery` | Real HTTP evidence proves login replaces an anonymous session identifier, returns only the public owner identity, and the resulting cookie reaches protected current-owner and workspace routes. | Passing 2026-07-18. |
-| `S1/R2-S1` | `apps/server/tests/http/authentication.test.ts` — stale session commit and bound-generation rejection cases | Real HTTP evidence forces credential rotation at the session-store write boundary, proves the stale write cannot authenticate or persist, and proves a previously persisted generation-mismatched session is rejected on replay. | Passing 2026-07-19. |
-| `S1/R2-S2` | `apps/server/tests/http/authentication.test.ts` — `R2-S2 returns the same generic response and no authenticated session for unknown and incorrect credentials` | Real HTTP evidence proves unknown-account and incorrect-password attempts return the same generic 401 body and cannot access the protected workspace route. | Passing 2026-07-18. |
-| `S1/R2-S1` | `apps/server/tests/security/owner_setup_service.test.ts` — serialized authentication and host-reset generation-change cases | Focused automated evidence proves an old-password login cannot survive an overlapping in-process password mutation and a session issued across an external generation change is rejected and cleaned up. | Passing 2026-07-18. |
-| `S1/R2-S2` | `apps/server/tests/security/login_attempt_limiter.test.ts` — parallel reservation and bounded-LRU cases | Focused automated evidence proves parallel attempts cannot bypass the threshold and idle source tracking expires or evicts without displacing in-flight reservations. | Passing 2026-07-18. |
-| `S1/R1-S1`, `S1/R2-S2` | `apps/server/tests/security/owner_setup_service.test.ts` — `applies one UTF-8 byte policy`; `apps/server/tests/security/login_attempt_limiter.test.ts` | Focused automated evidence proves setup/change/reset share one 12–1024-byte policy, login rejects oversized input before Scrypt, and repeated failures are bounded per source with success/quiet-period recovery. | Passing 2026-07-18. |
-| `S1/R2-S1` | Production build import check with `APP_KEY` unset and `NODE_ENV=production`; production build inventory assertion | Deterministic command evidence proves encryption configuration fails closed without `APP_KEY` and server test sources are absent from production output. | Passing 2026-07-18. |
-| `S1/R2-S3` | `apps/server/tests/http/authentication.test.ts` — `R2-S3 destroys the server-side session so replaying its cookie remains unauthorized` | Real HTTP evidence proves logout destroys the persisted server session and replaying its old cookie cannot reach current-owner or workspace routes. | Passing 2026-07-18. |
-| `S1/R3-S1` | `apps/server/tests/http/authentication.test.ts` — `R3-S1 rejects a state-changing authenticated request without XSRF proof and accepts valid proof` | Real HTTP evidence proves missing and invalid XSRF proof reject logout without invalidating the session, while the official cookie/header proof permits the same mutation. | Passing 2026-07-18. |
-| `S1/R3-S2` | `apps/server/tests/http/authentication.test.ts` — `R3-S2 grants credentialed CORS only to an exact configured origin` | Real HTTP evidence proves an exact configured origin receives its own ACAO value plus credential permission, while a near-match untrusted credentialed origin receives no ACAO and wildcard access is absent. | Passing 2026-07-18. |
-| `S1/R2`, `S1/R3` | `tests/e2e/foundation.spec.ts` — desktop owner path | Deterministic real-browser evidence proves XSRF-protected login establishes the service session and reaches the protected workspace through the Vite/Adonis production path. | Passing 2026-07-18. |
-
 #### Verified By
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
-| S1/R1-S1, S1/R1-S2 | `apps/server/tests/security/owner_setup_service.test.ts#it(` | Owner creation and existing-owner refusal remain secure. | passing |
-| S1/R2-S1, S1/R2-S2, S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#it(` | Session, generic failure, and logout replay behavior. | passing |
-| S1/R3-S1, S1/R3-S2 | `apps/server/tests/http/authentication.test.ts#it(` | XSRF and exact-origin CORS behavior. | passing |
+| S1/R1-S1 | `apps/server/tests/security/owner_setup_service.test.ts#R1-S1 stores only a password hash in machine-local security state` | Initial owner storage. | passing |
+| S1/R1-S2 | `apps/server/tests/security/owner_setup_service.test.ts#R1-S2 refuses to overwrite an existing owner` | Existing owner preservation. | passing |
+| S1/R2-S1 | `apps/server/tests/http/authentication.test.ts#R2-S1 establishes an official server-owned session and protects workspace delivery` | Valid login. | passing |
+| S1/R2-S2 | `apps/server/tests/http/authentication.test.ts#R2-S2 returns the same generic response and no authenticated session for unknown and incorrect credentials` | Generic failed login. | passing |
+| S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#R2-S3 destroys the server-side session so replaying its cookie remains unauthorized` | Logout invalidation. | passing |
+| S1/R3-S1 | `apps/server/tests/http/authentication.test.ts#R3-S1 rejects a state-changing authenticated request without XSRF proof and accepts valid proof` | CSRF enforcement. | passing |
+| S1/R3-S2 | `apps/server/tests/http/authentication.test.ts#R3-S2 grants credentialed CORS only to an exact configured origin` | Exact CORS enforcement. | passing |
 
 #### Verification Gaps
 
@@ -190,7 +160,7 @@ The system SHALL accept credentialed browser requests only from configured exact
 Implementation: implemented
 Verification: partial
 Created: 2026-07-18
-Modified: 2026-07-19
+Modified: 2026-07-22
 Last verified: 2026-07-19
 
 As the workspace owner, I want to change or recover my password and reconnect safely, so that losing a credential or closing a browser does not require replacing my workspace.
@@ -247,56 +217,29 @@ The system SHALL restore an authenticated browser from valid service-owned sessi
 - THEN protected APIs reject the session
 - AND the browser returns to the login experience without exposing prior workspace content.
 
-#### Prior Detailed Implementation Map (reconciled 2026-07-22)
-
-| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
-|---|---|---|---|
-| S2/R1 | `apps/server/app/security/owner_setup_service.ts#changePassword` | primary | Proves the current credential, atomically swaps the hash and revocation generation, deletes all persisted sessions, and forces the caller to sign in again. |
-| S2/R1-S2 | `apps/server/app/security/login_attempt_limiter.ts#LoginAttemptLimiter.acquire`; `apps/server/start/routes.ts#password-change` | support | Applies a generic per-source failure threshold to current-password proof without coupling it to ordinary login success or exposing credential validity. |
-| S2/R1, S2/R3-S2 | `apps/web/src/SettingsPanel.tsx#SettingsPanel` | presentation | Collects the current and confirmed replacement credentials, submits them with CSRF protection, offers XSRF-protected logout, and delegates both exits through the workbench draft/in-flight transition guard before returning to sign-in. |
-| S2/R1, S2/R3 | `packages/contracts/src/index.ts`; `apps/web/src/api.ts#requestJson` | support | Runtime-validates successful owner and error response envelopes before authentication or Settings state changes. |
-| S2/R1, S2/R2 | `apps/server/app/security/owner_setup_service.ts#OwnerSetupService.authenticate` | support | Commits generation-bound session issuance before releasing credential coordination and rejects stale-generation session writes even when host reset runs in another process. |
-| S2/R1, S2/R2, S2/R3 | `apps/server/app/middleware/session_generation_middleware.ts#SessionGenerationMiddleware` | primary | Rechecks persisted session generation on every authenticated request so password change/reset authority survives process and middleware timing boundaries. |
-| S2/R2 | `apps/server/app/security/owner_setup_service.ts#OwnerSetupService.resetPassword` | primary | Atomically replaces the host-owned credential and invalidates all persisted sessions with rollback on failure. |
-| S2/R2 | `apps/server/commands/reset_owner.ts#runOwnerReset`; `apps/server/commands/reset_owner.ts#ResetOwner` | adapter | Exposes explicit confirmation and secure matching prompts through the host-local `owner:reset` Ace command without logging credential material. |
-| S2/R3 | `apps/server/start/routes.ts#ownerSetup` | primary | The current-owner route restores valid service-owned sessions and normalizes rejected reconnects into the login experience without making browser state authoritative. |
-
 #### Implemented By
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
-| S2/R1 | `apps/server/app/security/owner_setup_service.ts#changePassword` | primary | Governs password rotation and session revocation. |
-| S2/R2 | `apps/server/app/security/owner_setup_service.ts#resetPassword` | primary | Governs host-local reset and rollback. |
-| S2/R3 | `apps/server/app/middleware/session_generation_middleware.ts#SessionGenerationMiddleware` | primary | Governs reconnect validity after revocation. |
+| S2/R1 | `apps/server/app/security/owner_setup_service.ts#changePassword` | primary | Replaces a proven credential and revokes sessions. |
+| S2/R2 | `apps/server/app/security/owner_setup_service.ts#resetPassword` | primary | Performs host-local recovery. |
+| S2/R3-S1 | `apps/server/app/middleware/session_generation_middleware.ts#handle` | primary | Rejects stale persisted sessions. |
+| S2/R3-S2 | `apps/web/src/App.tsx#App` | primary | Returns invalidated browser sessions to login. |
 
 #### Implementation Gaps
 
 - None for the currently accepted S2 behavior.
 
-#### Prior Detailed Verification Map (reconciled 2026-07-22)
-
-| Requirement / Scenario | Evidence | Proves | Status |
-|---|---|---|---|
-| `S2/R1-S1` | `apps/server/tests/security/owner_setup_service.test.ts`; `apps/server/tests/http/access_maintenance.test.ts` — `R1-S1 requires the replacement password and invalidates every existing session` | Focused service and disposable real-HTTP evidence proves atomic hash replacement, global persisted-session invalidation, forced re-login, rejection of the old credential, and acceptance of the replacement. | Passing 2026-07-18. |
-| `S2/R1-S2` | `apps/server/tests/http/access_maintenance.test.ts` — incorrect-current-password and repeated-guess rate-limit cases | Disposable real-HTTP evidence proves generic rejection leaves the established session and prior credential valid, does not accept the proposed replacement, and rate-limits repeated proof attempts from one source. | Passing 2026-07-19. |
-| `S2/R1-S1`, `S2/R1-S2` | `apps/web/src/SettingsPanel.test.tsx` — `GMD-001/S2 R1 changes a confirmed password and returns to sign in`; `rejects mismatched confirmation locally without transmitting credentials` | Browser-component evidence proves the Settings form submits only a confirmed replacement with the CSRF token, avoids transmitting a mismatched confirmation, and returns to sign-in after successful global invalidation. | Passing 2026-07-18. |
-| `S2/R1-S1`, `S2/R3-S2` | `apps/web/src/SettingsPanel.test.tsx` — malformed password-change/logout response cases; `apps/web/src/api.test.ts` | Browser evidence proves malformed successful owner responses fail closed with recoverable feedback while logout network failure remains visible without discarding the workbench. | Passing 2026-07-19. |
-| `S2/R3-S2` | `apps/web/src/App.test.tsx` — initial-versus-expired authentication and guarded logout cases; `tests/e2e/foundation.spec.ts` — narrow Settings logout | Component and production-browser evidence prove a fresh unauthenticated browser gets an honest login prompt, later invalidation is labeled expired, and logout uses XSRF only after dirty/in-flight transition approval. | Passing 2026-07-18. |
-| `S2/R1-S1`, `S2/R2-S1` | `apps/server/tests/security/owner_setup_service.test.ts` — serialized authentication and host-reset generation-change cases | Focused automated evidence proves overlapping password mutation prevents old-password session survival and an external reset generation change rejects and cleans up a just-issued session. | Passing 2026-07-18. |
-| `S2/R1-S1`, `S2/R2-S1`, `S2/R3-S2` | `apps/server/tests/http/authentication.test.ts` — stale session commit and bound-generation rejection cases; `apps/server/tests/security/owner_setup_service.test.ts` — legacy security database migration | Real HTTP and compatibility evidence proves deferred/cross-process persistence cannot resurrect a revoked session, replayed stale generations fail closed, and existing owner/session tables gain the generation column plus write guards without losing access. | Passing 2026-07-19. |
-| `S2/R2-S1` | `apps/server/tests/commands/reset_owner.test.ts`; `apps/server/tests/http/access_maintenance.test.ts` — `R2-S1 resets the credential and invalidates every persisted session` | Command-adapter and disposable real-HTTP evidence proves explicit host confirmation, matching secure prompts, atomic reset, global invalidation, and next login with only the recovered credential. | Passing 2026-07-18. |
-| `S2/R2-S2` | `apps/server/tests/commands/reset_owner.test.ts`; `apps/server/tests/security/owner_setup_service.test.ts` — `R2-S2 rolls back the credential when session invalidation fails before commit` | Focused evidence proves cancel and confirmation mismatch perform no write, while an injected failure during session revocation rolls back the credential replacement. | Passing 2026-07-18. |
-| `S2/R3-S1` | `apps/server/tests/http/authentication.test.ts` — `R2-S1 establishes an official server-owned session and protects workspace delivery` | Disposable real-HTTP evidence proves the same persisted cookie reconnects to current-owner and workspace APIs while the response omits the host workspace path. | Passing 2026-07-18. |
-| `S2/R3-S2` | `apps/server/tests/http/authentication.test.ts`; `apps/server/tests/http/access_maintenance.test.ts`; `apps/web/src/App.test.tsx` — `distinguishes an initial unauthenticated browser from an expired session`; `returns a note-read 401 to the expired-session login state` | HTTP evidence proves logout, password change, and host reset reject replayed cookies generically; browser-component evidence distinguishes a fresh login from later invalidation and returns rejected note reads to login without prior workspace content. | Passing with gap 2026-07-18. |
-| `S2/R1`, `S2/R3` | `tests/e2e/foundation.spec.ts` — password rotation and second-session invalidation | Deterministic real-browser evidence proves an owner changes the credential, all existing sessions are invalidated, and only the replacement credential reconnects. | Passing 2026-07-18. |
-
 #### Verified By
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
-| S2/R1-S1, S2/R1-S2 | `apps/server/tests/http/access_maintenance.test.ts#it(` | Password rotation and generic denial preserve the security boundary. | passing |
-| S2/R2-S1, S2/R2-S2 | `apps/server/tests/commands/reset_owner.test.ts#it(` | Reset success and rollback behavior. | passing |
-| S2/R3-S1, S2/R3-S2 | `apps/server/tests/http/authentication.test.ts#it(` | Reconnect and invalidated-session rejection. | passing |
+| S2/R1-S1 | `apps/server/tests/http/access_maintenance.test.ts#R1-S1 requires the replacement password and invalidates every existing session` | Password change. | passing |
+| S2/R1-S2 | `apps/server/tests/http/access_maintenance.test.ts#R1-S2 rejects an incorrect current password without changing credentials or sessions` | Incorrect-password preservation. | passing |
+| S2/R2-S1 | `apps/server/tests/commands/reset_owner.test.ts#R2-S1 requires explicit confirmation and matching secure password prompts` | Confirmed reset. | passing |
+| S2/R2-S2 | `apps/server/tests/security/owner_setup_service.test.ts#R2-S2 rolls back the credential when session invalidation fails before commit` | Interrupted reset rollback. | passing |
+| S2/R3-S1 | `apps/server/tests/http/authentication.test.ts#R2-S1 rejects a persisted session whose bound credential generation is no longer current` | Valid-session reconnection. | passing |
+| S2/R3-S2 | `apps/web/src/App.test.tsx#distinguishes an initial unauthenticated browser from an expired session` | Expired browser session state. | passing |
 
 #### Verification Gaps
 

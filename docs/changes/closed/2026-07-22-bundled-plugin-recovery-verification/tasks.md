@@ -5,10 +5,10 @@ status: in_review
 
 ## Resume Here
 
-- Last completed action: independent review completed ready after remediation commit `96aed1d`.
-- Next action: await user authorization to merge and close, or further direction.
-- Active branch/ref: `change/bundled-plugin-recovery-verification`.
-- Expected dirty files: review-ledger finalization only.
+- Last completed action: owner-authorized local merge into `develop` and Change closeout.
+- Next action: closed; retain the Epic verification report as the current follow-up record.
+- Integration ref: `develop` at merge commit `9c05ec5`.
+- Expected dirty files: none.
 - Known blockers: none.
 
 ## Task Checklist
@@ -70,8 +70,8 @@ status: in_review
 - [x] 6.7 Confirm machine-readable Change status agrees with Resume Here, checklist, review, manual confirmation, release communication, ADR, PR/merge, deferred-gap, and folder-location claims.
 - [x] 6.8 Keep `status: in_review` while independent review and closeout gates are underway.
 - [x] 6.9 Before `in_review`, record an immutable candidate commit, confirm intended implementation is committed, pass commit-sensitive contract/diff checks, and leave no required risk, fan-out, environment, or verification obligation silently pending.
-- [ ] 6.10 Create a PR or merge only after `sdd-review` is ready and the app branch policy plus user authorization allow it.
-- [ ] 6.11 After review/PR/merge/acceptance is complete and `status: in_review` remains accurate, run `sdd change close` for this Space and Change instead of writing a `closed` status.
+- [x] 6.10 Merged locally into `develop` after `sdd-review` was ready and the owner authorized integration; no PR or push was required by branch policy.
+- [x] 6.11 Ran `sdd change close` after merge and review acceptance; folder location under `docs/changes/closed/` is the authoritative closed state.
 
 ## Implementation Ledger
 
@@ -198,6 +198,6 @@ Required for UI-bearing changes. If not applicable, record why.
 - Immutable review handoff candidate: `96aed1d` (review remediation; implementation baseline `ae3891f`).
 - Manual UI confirmation status: not applicable; no UI change.
 - Rendered UI verification status: not applicable; no UI change.
-- PR / merge state: not created; no user authorization to push or merge.
+- PR / merge state: owner-authorized local merge into `develop` at `9c05ec5`; no PR or push was required.
 - Deferred scope accepted: R4-S2 process-kill durability and pathname race remain documented platform limits.
-- Change moved to `docs/changes/closed/`: no; review and user-authorized merge/closeout remain.
+- Change moved to `docs/changes/closed/`: yes, after the local merge and closeout.

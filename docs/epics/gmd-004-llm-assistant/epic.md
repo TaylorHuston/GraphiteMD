@@ -113,43 +113,27 @@ The system SHALL keep the Codex credential in protected machine-local state, exp
 - THEN GraphiteMD rejects the request without changing provider state
 - AND returns no provider secret or interaction payload.
 
-#### Prior Detailed Implementation Map (reconciled 2026-07-22)
-
-| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
-|---|---|---|---|
-| S1/R1 | `apps/server/app/assistant/index.ts#AssistantOAuthFlowManager` | primary | Owns normalized Codex OAuth flow state, including transient browser authorization links, provider-supplied opaque selection IDs, cancellation, retry, and sanitized provider status. |
-| S1/R1-S2 | `apps/server/start/routes.ts#oauthManager` and `/api/v1/assistant/oauth/active` | supporting route | Restricts OAuth mutations and active-flow recovery to the owner session. |
-| S1/R1 | `apps/web/src/SettingsPanel.tsx#AssistantSettings` and `apps/web/src/AssistantSettings.css` | browser adapter | Presents the active provider browser-login link, restores an active OAuth prompt after Settings remount, presents provider-supplied choices as labelled radio cards, names the selected continuation action, and retains independent cancellation. |
-| S1/R2-S1 | `apps/server/app/security/owner_setup_service.ts#resolveSecurityStateDirectory` and `#assertMachineLocalStateDirectory` | primary | Defaults secrets to the machine vault and rejects workspace-contained or symlinked overrides. |
-| S1/R2-S1 | `apps/server/app/assistant/index.ts#PiRuntimeBoundary.create` | supporting runtime | Keeps Pi credentials and scratch in owner-only machine-local state. |
-| S1/R2-S2, S1/R2-S3 | `apps/server/start/routes.ts#assistantOAuthErrorResponse` | primary | Exposes only sanitized status and owner-authorized disconnect/error behavior. |
-
 #### Implemented By
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
-| S1/R1 | `apps/server/app/assistant/index.ts#AssistantOAuthFlowManager` | primary | Governs normalized Codex OAuth lifecycle. |
-| S1/R2 | `apps/server/app/security/owner_setup_service.ts#resolveSecurityStateDirectory` | primary | Governs the machine-local credential boundary. |
+| S1/R1 | `apps/server/app/assistant/index.ts#AssistantOAuthFlowManager` | primary | Governs normalized OAuth flow state. |
+| S1/R2 | `apps/server/app/security/owner_setup_service.ts#resolveSecurityStateDirectory` | primary | Governs machine-local secret state. |
+| S1/R2-S2 | `apps/server/start/routes.ts#/api/v1/assistant/disconnect` | primary | Governs owner-only disconnect dispatch. |
 
 #### Implementation Gaps
 
 None for the accepted Codex onboarding scope.
 
-#### Prior Detailed Verification Map (reconciled 2026-07-22)
-
-| Requirement / Scenario | Evidence | Proves | Status |
-|---|---|---|---|
-| S1/R1-S1, S1/R1-S2, S1/R2-S2, S1/R2-S3 | `apps/server/tests/assistant/oauth_flow_manager.test.ts` and authenticated HTTP tests | Normalized OAuth lifecycle, active-only browser-link delivery, provider selection-ID preservation, active-flow recovery, cancellation/retry, sanitized state, and owner-only mutation behavior. | focused automated passing |
-| S1/R1-S1, S1/R1-S2 | `apps/web/src/SettingsPanel.test.tsx` and direct Vite-browser inspection at 1440x900 and 390x844 | Browser authorization link is explicit and opens safely; an active OAuth choice is restored after Settings remount; choice radios use the selected/default answer value, continuation names that choice, cancellation remains available, and the pending-selection control is visually contained without console errors. | focused automated and rendered pending-selection state passing |
-| S1/R2-S1 | `apps/server/tests/security/owner_setup_service.test.ts` | Default machine-vault state and direct/symlinked workspace override refusal. | focused automated passing |
-
 #### Verified By
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
-| S1/R1-S1, S1/R1-S2 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#it(` | OAuth success, cancellation, recovery, and retry. | passing |
-| S1/R2-S1 | `apps/server/tests/security/owner_setup_service.test.ts#it(` | Credentials cannot use workspace-local state. | passing |
-| S1/R2-S2, S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#it(` | Disconnect and unauthenticated mutation denial. | passing |
+| S1/R1-S1 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#R1-S1 exposes the transient browser authorization link alongside the manual fallback` | Browser login and fallback. | passing |
+| S1/R1-S2 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#R1-S2 rejects concurrent and stale input, safely cancels, and retains bounded sanitized terminal summaries` | Cancellation and recovery. | passing |
+| S1/R2-S1 | `apps/server/tests/security/owner_setup_service.test.ts#GMD-004/S1 R2-S1 defaults secret state to the machine vault and rejects workspace-local overrides` | Machine-local credential state. | passing |
+| S1/R2-S2 | `apps/server/app/assistant/question_service.test.ts#R1-S3 rejects disconnected, empty, and concurrent questions without starting ambiguous work` | Disconnected provider rejects new questions. | passing |
+| S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#GMD-004/S1 R2-S3 rejects unauthenticated Codex reads and mutations without exposing flow state` | Owner-only provider mutation. | passing |
 
 #### Verification Gaps
 
@@ -253,56 +237,34 @@ The system SHALL provide a responsive, keyboard-accessible Assistant question fl
 - WHEN a question is in progress, cancelled, fails, or the owner session expires
 - THEN duplicate actions are disabled, status and errors are announced accessibly, secrets are never rendered, and session expiry returns to owner login.
 
-#### Prior Detailed Implementation Map (reconciled 2026-07-22)
-
-| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
-|---|---|---|---|
-| S2/R1-S1, S2/R1-S2, S2/R1-S3 | `apps/server/app/assistant/question_service.ts#AssistantQuestionService` and `PiModelSessionRuntime` | primary | Keeps provider status, run serialization, workspace tools, source provenance, and canonical turns service-owned while accepting only the bundle's validated model-session policy. |
-| S2/R1-S1 | `plugins/assistant/src/index.ts` and `apps/server/app/plugins/plugin_runtime_service.ts#askAssistant` | bundled policy / host route | The static bundle owns the grounded prompt, declared search/read list, and single active question handler; authenticated routes only dispatch through that host. |
-| S2/R1-S1 | `packages/contracts/src/index.ts` and `packages/plugin-sdk/src/index.ts` | shared contract / capability boundary | Defines the bounded model-session policy, exposes its runner only during one host-dispatched question, enforces exact registered policy/descriptor shape, and rejects activation-time/fabricated capability use. |
-| S2/R2-S1, S2/R2-S2, S2/R2-S3 | `apps/server/app/assistant/workspace_context.ts#AssistantWorkspaceContext` | primary | Performs bounded opaque search/read revalidation and derives source evidence only from successful reads. |
-| S2/R3-S1, S2/R3-S2 | `apps/server/app/assistant/conversation_store.ts#ConversationStore` | primary | Writes confined versioned turns atomically, appends follow-ups, and recovers incomplete turns as explicit interrupted failures. |
-| S2/R4 | `apps/web/src/AssistantContext.tsx` and `apps/web/src/App.tsx#contextPanel` | browser adapter | Descriptor-driven Context rendering presents setup, question, busy, answer, source, error, and session-expiry paths without hard-coding a plugin identity. |
-| S2/R4 | `apps/web/src/AssistantContext.css`, `plugins/system-status/src/index.ts`, and `apps/web/src/App.stories.tsx` | supporting presentation / parity | Keeps the Context contribution layout contained and preserves the existing System Status descriptor as the generic-rendering reference. |
-
 #### Implemented By
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
 | S2/R1 | `apps/server/app/assistant/question_service.ts#AssistantQuestionService` | primary | Governs serialized read-only questions. |
-| S2/R2 | `apps/server/app/assistant/workspace_context.ts#AssistantWorkspaceContext` | primary | Governs brokered bounded context and source provenance. |
-| S2/R3 | `apps/server/app/assistant/conversation_store.ts#ConversationStore` | primary | Governs durable conversation records and recovery. |
-| S2/R4 | `apps/web/src/AssistantContext.tsx#AssistantContext` | primary | Governs accessible Context interaction states. |
+| S2/R2 | `apps/server/app/assistant/workspace_context.ts#AssistantWorkspaceContext` | primary | Governs bounded brokered context and provenance. |
+| S2/R3 | `apps/server/app/assistant/conversation_store.ts#ConversationStore` | primary | Governs canonical conversation records and recovery. |
+| S2/R4 | `apps/web/src/AssistantContext.tsx#AssistantContext` | primary | Governs Context interaction states. |
 
 #### Implementation Gaps
 
 None for the accepted read-only Assistant slice.
 
-#### Prior Detailed Verification Map (reconciled 2026-07-22)
-
-| Requirement / Scenario | Evidence | Proves | Status |
-|---|---|---|---|
-| S2/R2-S1, S2/R2-S2, S2/R2-S3 | `apps/server/app/assistant/workspace_context.test.ts` | Internal/symlinked/unknown resources cannot enter the broker; UTF-8 and total context limits are deterministic; provenance appears only after a successful authority read. | focused automated passing |
-| S2/R2-S1 | `packages/workspace/src/index.test.ts` | Canonical `.graphitemd/` state is excluded, a safe legacy vault migrates atomically, and conflicting or symlinked layouts fail closed. | focused automated passing |
-| S2/R3-S1, S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts` | Canonical versioned turns persist beneath `.graphitemd/conversations`; malformed and redirected state fails closed; interrupted turns are recovered honestly. | focused automated passing |
-| S2/R1-S2, S2/R1-S3 | `apps/server/app/assistant/question_service.test.ts` | Only brokered tools can produce sources; no-read replies become honest no-evidence failures; disconnected, empty, concurrent, and follow-up questions are handled deterministically. | focused automated passing |
-| S2/R1-S1 | `packages/contracts/src/index.test.ts`, `packages/plugin-sdk/src/index.test.ts`, `plugins/assistant/src/index.test.ts`, `apps/server/tests/plugins/plugin_runtime_service.test.ts`, and `apps/server/tests/http/authentication.test.ts` | Bounded policies reject unknown/duplicate tools; the runner exists only during one dispatched question and accepts only its registered policy; activation-time/fabricated access fails closed; the static bundle sends its prompt/tool list, and the production host lists and dispatches the active contribution. | focused automated passing |
-| S2/R1-S1 | `apps/server/tests/plugins/plugin_runtime_service.test.ts` | A production host dispatches through the active Assistant handler and returns unavailable immediately after the Assistant is disabled. | focused automated passing |
-| S2/R1-S1, S2/R3-S1 | `apps/server/tests/http/authentication.test.ts` — `dispatches an authenticated, XSRF-protected grounded question and persists the canonical turn` | A disposable real HTTP server rejects unauthenticated/missing-XSRF requests, dispatches through the active bundle, returns service-derived provenance without a host path, and commits the completed turn under `.graphitemd/conversations`. | focused automated passing 2026-07-20 |
-| S2/R1-S1 | `apps/server/app/assistant/pi_runtime_boundary.test.ts` | Pi uses in-memory settings/session managers, disables automatic resource discovery, admits only the declared custom tool, prevents prompt-template expansion, and always unsubscribes/disposes the ephemeral session. | focused automated passing 2026-07-20 |
-| S2/R4-S1, S2/R4-S3 | `apps/web/src/AssistantContext.test.tsx` and `apps/web/src/App.test.tsx` | The connected composer retains a prompt while busy, announces busy/error state, prevents duplicate submit, exposes a retry action, renders returned service sources, and directs disconnected owners to Settings. | focused automated passing |
-| S2/R4-S1 | `apps/web/src/App.test.tsx` | Active descriptor contributions mount and disappear with plugin lifecycle. | focused automated passing |
-| S2/R4-S1, S2/R4-S2, S2/R4-S3 | `tests/e2e/foundation.spec.ts` — production owner path | A production-built server with an explicit test-only grounded runtime renders the contained desktop Context panel and a 390px Context drawer; it proves busy/error/retry and answer/source visibility, long-content scrolling, no horizontal overflow, focus restoration, and a question-route 401 returning to login without leaving the drawer mounted. | rendered browser passing 2026-07-20 |
-| S2/R1-S1, S2/R3-S1, S2/R4 | Owner-confirmed live playtest, 2026-07-22 | A connected Codex run against the disposable `Welcome.md` completed with provider `openai-codex`, model `gpt-5.4`, and a service-derived `Welcome.md` source; its canonical conversation record contains no host paths, while machine state and credential files retain owner-only permissions and the service log contains no question or credential content. | live-provider and manual confirmation passing |
-
 #### Verified By
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
-| S2/R1-S1, S2/R1-S2, S2/R1-S3 | `apps/server/app/assistant/question_service.test.ts#it(` | Grounded/no-evidence/unavailable question behavior. | passing |
-| S2/R2-S1, S2/R2-S2, S2/R2-S3 | `apps/server/app/assistant/workspace_context.test.ts#it(` | Context confinement, bounded reads, and provenance. | passing |
-| S2/R3-S1, S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts#it(` | Canonical turn persistence and interruption recovery. | passing |
-| S2/R4-S1, S2/R4-S2, S2/R4-S3 | `apps/web/src/AssistantContext.test.tsx#it(` | Context UI answer, busy, error, retry, and source states. | passing |
+| S2/R1-S1 | `apps/server/app/assistant/question_service.test.ts#R1-S1 runs only brokered tools and persists the resulting service-derived sources` | Brokered grounded answer. | passing |
+| S2/R1-S2 | `apps/server/app/assistant/question_service.test.ts#R1-S2 produces an honest no-evidence terminal result when the runtime performs no successful read` | Honest no-evidence result. | passing |
+| S2/R1-S3 | `apps/server/app/assistant/question_service.test.ts#R1-S3 rejects disconnected, empty, and concurrent questions without starting ambiguous work` | Unavailable and duplicate-run handling. | passing |
+| S2/R2-S1 | `apps/server/app/assistant/workspace_context.test.ts#R2-S1 revalidates opaque resources and excludes internal or symlinked content before returning it to the model` | Context confinement. | passing |
+| S2/R2-S2 | `apps/server/app/assistant/workspace_context.test.ts#R2-S2 enforces deterministic per-source and total context budgets while recording truncation` | Bounded retrieval. | passing |
+| S2/R2-S3 | `apps/server/app/assistant/workspace_context.test.ts#R2-S3 derives source evidence only from successful brokered reads` | Source provenance. | passing |
+| S2/R3-S1 | `apps/server/app/assistant/conversation_store.test.ts#R3-S1 atomically persists only normalized turns under .graphitemd/conversations` | Inspectable canonical turn. | passing |
+| S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts#R3-S2 converts an interrupted in-progress turn to an honest terminal record on recovery` | Interrupted-turn recovery. | passing |
+| S2/R4-S1 | `apps/web/src/AssistantContext.test.tsx#GMD-004/S2 R1-S1 keeps the submitted question visible while one grounded turn is in progress` | Desktop busy interaction. | passing |
+| S2/R4-S2 | `apps/web/src/App.test.tsx#R4-S2 opens keyboard-accessible narrow-layout drawers and closes them with Escape` | Narrow drawer controls. | passing |
+| S2/R4-S3 | `apps/web/src/AssistantContext.test.tsx#keeps the question available behind an explicit retry action after a recoverable error` | Busy/failure recovery. | passing |
 
 #### Verification Gaps
 
