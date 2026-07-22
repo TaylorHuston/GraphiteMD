@@ -5,10 +5,10 @@ status: in_review
 
 ## Resume Here
 
-- Last completed action: independent review found and corrected semantic recovered-state validation before final activation.
-- Next action: record the local review verdict after committing the remediation.
+- Last completed action: independent review completed ready after remediation commit `96aed1d`.
+- Next action: await user authorization to merge and close, or further direction.
 - Active branch/ref: `change/bundled-plugin-recovery-verification`.
-- Expected dirty files: review remediation and evidence records pending the local commit.
+- Expected dirty files: review-ledger finalization only.
 - Known blockers: none.
 
 ## Task Checklist
@@ -62,9 +62,9 @@ status: in_review
 ### 6. Review And Closeout
 
 - [x] 6.1 Update the project-defined release communication when `proposal.md` says release-communication impact is required or TBD.
-- [ ] 6.2 Run `sdd-review` as the local PR gate for Requirements, Scenarios, Epic truth, tests, security, docs, release communication, ADR consistency, and branch readiness.
-- [ ] 6.3 Record review outcome as a `review.md` path, a clean review recorded in this ledger, or an explicit user-approved review waiver.
-- [ ] 6.4 Address any `review.md` findings or explicitly defer accepted non-blocking risks.
+- [x] 6.2 Run `sdd-review` as the local PR gate for Requirements, Scenarios, Epic truth, tests, security, docs, release communication, ADR consistency, and branch readiness.
+- [x] 6.3 Record review outcome as a `review.md` path, a clean review recorded in this ledger, or an explicit user-approved review waiver.
+- [x] 6.4 Address any `review.md` findings or explicitly defer accepted non-blocking risks.
 - [x] 6.5 Record manual UI confirmation status as `not applicable`, `pending user`, `user confirmed`, or `accepted gap`.
 - [x] 6.6 Confirm proposal/design/tasks/review artifacts do not still claim completed work is not implemented, not verified, pending, or accepted under obsolete manual status vocabulary.
 - [x] 6.7 Confirm machine-readable Change status agrees with Resume Here, checklist, review, manual confirmation, release communication, ADR, PR/merge, deferred-gap, and folder-location claims.
@@ -79,7 +79,7 @@ Record meaningful Requirement, Scenario, enabling, or delegated slices as they h
 
 | Date | Slice | Agent / Guidance | Files / Areas | Result | Commit / Ref |
 |---|---|---|---|---|---|
-| 2026-07-22 | GMD-003/S1/R4-S3 | main; independent review remediation | `packages/plugin-sdk`, production runtime test, GMD-003 map | Recovery now rejects malformed JSON and semantically invalid state envelopes before every bundled plugin activation; current bundle IDs derive from the production bundle list. | pending local commit |
+| 2026-07-22 | GMD-003/S1/R4-S3 | main; independent review remediation | `packages/plugin-sdk`, production runtime test, GMD-003 map | Recovery now rejects malformed JSON and semantically invalid state envelopes before every bundled plugin activation; current bundle IDs derive from the production bundle list. | `96aed1d` |
 
 ## Verification Ledger
 
@@ -166,15 +166,15 @@ Required for UI-bearing changes. If not applicable, record why.
 ## Review Handoff Candidate
 
 - Integration target / merge base: `develop` / `c0e80a653657204fb1057deee314dda5b3bc8da1`.
-- Candidate source commit: `4dd8e56` (implementation `ae3891f`, documentation baseline `ad3e1b9`).
+- Candidate source commit: `96aed1d` (review remediation; implementation baseline `ae3891f`).
 - Source differs from target when implementation changed: yes.
-- Intended implementation fully committed: yes.
+- Intended implementation fully committed: yes, including review remediation `96aed1d`.
 - Unrelated dirty state preserved: yes.
 - Commit-sensitive generated-contract / diff / integration checks: `git diff --check develop...ae3891f` passing; no generated contract applies.
 - Required risk, fan-out, environment, or verification rows still pending or blocked: no implementation blockers; R4-S2 process-kill/pathname-race limits remain deferred outside this Change.
 - Pattern parity and stateful transition matrices reconciled or not applicable with reason: reconciled; this uses the existing state-backend contract at the host activation boundary.
 - Evidence claims falsified against exact tests, assertions, routes, or observations: focused tests inspected and passed.
-- Fresh-context failure-seeking passes completed: discovery and coverage reviews identified and closed the Assistant recovery gap.
+- Fresh-context failure-seeking passes completed: discovery and coverage reviews identified and closed the invalid-envelope activation gap.
 
 ## Closeout
 
@@ -186,16 +186,16 @@ Required for UI-bearing changes. If not applicable, record why.
 - Superseded earlier Epic truth reconciled: yes; Assistant's platform conformance is current scope while product behavior remains GMD-004.
 - ADR status: no ADR change required.
 - Release communication current: not required; no user-facing change.
-- `sdd-review` verdict: pending independent review.
-- Review record: no review record yet.
-- `review.md` findings resolved: not applicable until review.
+- `sdd-review` verdict: ready.
+- Review record: `docs/changes/2026-07-22-bundled-plugin-recovery-verification/review.md`.
+- `review.md` findings resolved: yes; required invalid-envelope recovery finding resolved in `96aed1d`.
 - Planning updates resolved: yes.
 - Implementation risk and confirmation rows resolved: yes; R4-S2 platform limit remains explicit and outside this Change.
 - Pattern parity and stateful transition rows resolved: yes.
 - Evidence-claim integrity checked: yes; fresh-context code/evidence review passed.
 - Decision fan-out reconciled: yes.
 - Verification environment obligations resolved: yes; disposable workspace, no provider/browser required.
-- Immutable review handoff candidate: `4dd8e56` (implementation `ae3891f`, documentation baseline `ad3e1b9`).
+- Immutable review handoff candidate: `96aed1d` (review remediation; implementation baseline `ae3891f`).
 - Manual UI confirmation status: not applicable; no UI change.
 - Rendered UI verification status: not applicable; no UI change.
 - PR / merge state: not created; no user authorization to push or merge.

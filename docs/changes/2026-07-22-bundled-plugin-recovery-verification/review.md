@@ -58,12 +58,12 @@ Not applicable: this Change modifies server/plugin lifecycle behavior only.
 ## Review Bundle
 
 - Source branch/ref: `change/bundled-plugin-recovery-verification`.
-- Reviewed source commit: pending local remediation commit.
+- Reviewed source commit: `96aed1daa5c71c4ecc8e07f012ffc47d7ab3fd48`.
 - Target branch/ref: `develop`.
 - Merge base: `c0e80a653657204fb1057deee314dda5b3bc8da1`.
 - Source-only commits before this review remediation: `ad3e1b9`, `ae3891f`, `4dd8e56`, `d1009c0`.
-- Conflict check: `git merge-tree --write-tree develop HEAD` passed before remediation; remediation is confined to the same GMD-003 code/evidence surface.
-- Dirty state: intentional review remediation pending local commit only.
+- Conflict check: `git merge-tree --write-tree develop HEAD` passed after remediation.
+- Dirty state: clean after remediation commit.
 - Reverse-traceability command/result: `sdd_orphan_audit.py ... --changed-from develop --epic GMD-003` found 15 candidates, 2 source files, 1 test file, and no missing references.
 
 ## Consolidated Remediation
@@ -77,10 +77,10 @@ Not applicable: this Change modifies server/plugin lifecycle behavior only.
 ## PR / Merge Readiness
 
 - Source branch: `change/bundled-plugin-recovery-verification`.
-- Reviewed source commit: pending local remediation commit.
+- Reviewed source commit: `96aed1daa5c71c4ecc8e07f012ffc47d7ab3fd48`.
 - Target branch: `develop`.
 - Conflict check: pass before remediation; no integration conflict indicators.
-- Commit state: remediation pending a safe local review commit.
+- Commit state: reviewed implementation and remediation are committed.
 - PR status: not created.
 - Merge status: not authorized.
 
