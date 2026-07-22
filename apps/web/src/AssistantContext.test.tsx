@@ -54,6 +54,20 @@ describe('Assistant Context contribution', () => {
     expect(openSettings).toHaveBeenCalledOnce()
   })
 
+  it('refreshes provider availability after Assistant settings change', async () => {
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => response(200, { provider: 'openai-codex', status: 'disconnected', model: null }))
+      .mockImplementationOnce(() => response(200, { provider: 'openai-codex', status: 'connected', model: 'gpt-5.4' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const props = { title: 'Assistant', onSessionExpired: vi.fn(), onOpenSettings: vi.fn(), onOpenNote: vi.fn() }
+    const view = render(<AssistantContext {...props} providerRevision={0} />)
+    expect(await screen.findByRole('button', { name: 'Open Assistant settings' })).toBeVisible()
+
+    view.rerender(<AssistantContext {...props} providerRevision={1} />)
+    expect(await screen.findByRole('textbox', { name: 'Ask Codex' })).toBeVisible()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('keeps the question available behind an explicit retry action after a recoverable error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
       if (url === '/api/v1/assistant/provider') return response(200, { provider: 'openai-codex', status: 'connected', model: 'gpt-5.4' })

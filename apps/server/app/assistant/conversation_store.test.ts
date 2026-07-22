@@ -50,6 +50,19 @@ describe('GMD-004/S2 R3 inspectable conversation records', () => {
     })])
   })
 
+  it('R3-S2 recovers every retained in-progress conversation during startup enumeration', async () => {
+    const { store } = await fixture()
+    await store.create(startedTurn)
+    await store.create({ ...startedTurn, conversationId: 'conv_beta', turnId: 'turn_beta' })
+
+    const recovered = await store.recoverAll()
+    expect(recovered).toHaveLength(2)
+    expect(recovered.flatMap((document) => document.turns)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ conversationId: 'conv_alpha', status: 'failed', error: expect.objectContaining({ code: 'interrupted' }) }),
+      expect.objectContaining({ conversationId: 'conv_beta', status: 'failed', error: expect.objectContaining({ code: 'interrupted' }) }),
+    ]))
+  })
+
   it('R3-S2 fails closed for malformed records and a redirected conversations directory', async () => {
     const { root, store } = await fixture()
     await store.create(startedTurn)
@@ -61,5 +74,16 @@ describe('GMD-004/S2 R3 inspectable conversation records', () => {
     await rm(join(root, '.graphitemd', 'conversations'), { recursive: true })
     await symlink(redirected, join(root, '.graphitemd', 'conversations'))
     await expect(store.create({ ...startedTurn, conversationId: 'conv_beta', turnId: 'turn_beta' })).rejects.toBeInstanceOf(ConversationStoreError)
+  })
+
+  it('R3-S2 rejects a preexisting redirected .graphitemd ancestor before creating descendants', async () => {
+    const { root, store } = await fixture()
+    const redirected = await mkdtemp(join(tmpdir(), 'graphitemd-ancestor-redirect-'))
+    roots.push(redirected)
+    await rm(join(root, '.graphitemd'), { recursive: true })
+    await symlink(redirected, join(root, '.graphitemd'))
+
+    await expect(store.create(startedTurn)).rejects.toBeInstanceOf(ConversationStoreError)
+    await expect(readFile(join(redirected, 'conversations', 'conv_alpha.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

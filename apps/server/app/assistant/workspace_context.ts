@@ -28,6 +28,7 @@ function truncateUtf8(source: string, maximumBytes: number): Readonly<{ text: st
 
 export class AssistantWorkspaceContext {
   readonly #sources = new Map<string, AssistantSource>()
+  readonly #searchResults = new Set<string>()
   #totalBytes = 0
 
   constructor(
@@ -40,7 +41,9 @@ export class AssistantWorkspaceContext {
     const normalized = query.trim()
     if (!normalized) return []
     try {
-      return await this.searchService.search(normalized, this.options.maxResults ?? 5)
+      const results = await this.searchService.search(normalized, this.options.maxResults ?? 5)
+      for (const result of results) this.#searchResults.add(result.resourceId)
+      return results.map((result) => ({ ...result, snippet: null }))
     } catch (error) {
       if (error instanceof WorkspaceUnavailableError || error instanceof LocalSearchUnavailableError) {
         throw new AssistantWorkspaceContextError('workspace_unavailable')
@@ -50,6 +53,7 @@ export class AssistantWorkspaceContext {
   }
 
   async read(resourceId: string): Promise<AssistantRead> {
+    if (!this.#searchResults.has(resourceId)) throw new AssistantWorkspaceContextError('workspace_unavailable')
     let note
     try {
       note = await this.workspace.readNote(resourceId)

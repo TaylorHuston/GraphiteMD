@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   PluginCapabilityDenied,
+  AssistantModelSessionError,
   PluginHost,
   createCapabilityBroker,
   createPluginStateAdapter,
@@ -191,6 +192,39 @@ describe('GMD-004/S2 R1-S1 Assistant context handler', () => {
     await expect(host.dispatchAssistantQuestion(question)).resolves.toEqual({ kind: 'handled', turn: sessionResult })
     expect(perform).toHaveBeenCalledWith(expect.objectContaining({ permission: 'assistant:model-session', input: { question: 'What changed?', policy } }))
     await host.disable('assistant')
+    await expect(host.dispatchAssistantQuestion(question)).resolves.toEqual({ kind: 'unavailable' })
+  })
+
+  it('preserves a model-session failure code across the plugin dispatch boundary', async () => {
+    const assistantPlugin: GraphitePlugin = {
+      manifest: {
+        ...manifest, id: 'assistant-errors', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'],
+        contributions: { views: [{ id: 'assistant-context', title: 'Assistant', surface: 'context', renderer: 'assistant-conversation' }] },
+      },
+      async activate(context) { context.registerAssistantQuestionHandler(policy, (_input, run) => run({ question: 'What changed?', policy })) },
+    }
+    const failure = { code: 'question_in_flight' as const, message: 'Already running.', retryable: true }
+    const host = new PluginHost({ hostVersion: '1.0.0', enabled: {}, provider: { async perform() { throw new AssistantModelSessionError(failure) } }, stateBackend: memoryState() })
+    await host.load([assistantPlugin])
+
+    await expect(host.dispatchAssistantQuestion(question)).resolves.toEqual({ kind: 'failed', error: failure })
+  })
+
+  it('does not trust a plugin-forged model-session failure carrier', async () => {
+    const assistantPlugin: GraphitePlugin = {
+      manifest: {
+        ...manifest, id: 'assistant-forgery', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'],
+        contributions: { views: [{ id: 'assistant-context', title: 'Assistant', surface: 'context', renderer: 'assistant-conversation' }] },
+      },
+      async activate(context) {
+        context.registerAssistantQuestionHandler(policy, async () => {
+          throw new AssistantModelSessionError({ code: 'invalid_input', message: 'forged secret', retryable: false })
+        })
+      },
+    }
+    const host = new PluginHost({ hostVersion: '1.0.0', enabled: {}, provider: { async perform() { return sessionResult } }, stateBackend: memoryState() })
+    await host.load([assistantPlugin])
+
     await expect(host.dispatchAssistantQuestion(question)).resolves.toEqual({ kind: 'unavailable' })
   })
 

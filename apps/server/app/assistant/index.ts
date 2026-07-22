@@ -44,7 +44,7 @@ export type PiOAuthCallbacks = Readonly<{
 
 export interface PiOAuthRuntime {
   providerStatus(): Promise<Readonly<{ oauthAvailable: boolean; configured: boolean }>>
-  login(callbacks: PiOAuthCallbacks): Promise<void>
+  login(callbacks: PiOAuthCallbacks, signal?: AbortSignal): Promise<void>
   logout(): Promise<void>
 }
 
@@ -140,7 +140,7 @@ export class PiRuntimeBoundary implements PiOAuthRuntime {
     }
   }
 
-  async login(callbacks: PiOAuthCallbacks): Promise<void> {
+  async login(callbacks: PiOAuthCallbacks, signal?: AbortSignal): Promise<void> {
     if (!(await this.providerStatus()).oauthAvailable) {
       throw new Error('The embedded Pi SDK does not expose OpenAI Codex OAuth.')
     }
@@ -148,6 +148,11 @@ export class PiRuntimeBoundary implements PiOAuthRuntime {
       OPENAI_CODEX_PROVIDER,
       callbacks as unknown as Parameters<AuthStorage['login']>[1],
     )
+    if (signal?.aborted) {
+      this.#authStorage.logout(OPENAI_CODEX_PROVIDER)
+      await this.assertProtectedState()
+      throw new AssistantOAuthFlowError('cancelled')
+    }
     await this.assertProtectedState()
   }
 
@@ -287,6 +292,8 @@ type FlowRecord = {
   terminal: Promise<AssistantOAuthFlow>
   resolveTerminal: (flow: AssistantOAuthFlow) => void
   pendingInput: PendingInput | undefined
+  abortController: AbortController
+  cleanup: Promise<void>
 }
 
 function error(code: AssistantError['code'], retryable: boolean): AssistantError {
@@ -314,6 +321,10 @@ export class AssistantOAuthFlowManager {
   readonly #terminalOrder: string[] = []
   #activeFlowId: string | undefined
   #lastTerminalStatus: AssistantOAuthFlow['status'] | undefined
+  #starting = false
+  #startGeneration = 0
+  #startingCheck: Promise<void> | undefined
+  readonly #cleaningFlowIds = new Set<string>()
 
   constructor(
     private readonly runtime: PiOAuthRuntime,
@@ -331,15 +342,27 @@ export class AssistantOAuthFlowManager {
   async providerStatus(): Promise<AssistantProviderStatus> {
     const status = await this.runtime.providerStatus()
     if (!status.oauthAvailable) return { provider: OPENAI_CODEX_PROVIDER, status: 'unavailable', model: null }
-    if (this.#activeFlowId) return { provider: OPENAI_CODEX_PROVIDER, status: 'connecting', model: null }
+    if (this.#activeFlowId || this.#starting || this.#cleaningFlowIds.size > 0) return { provider: OPENAI_CODEX_PROVIDER, status: 'connecting', model: null }
     if (status.configured) return { provider: OPENAI_CODEX_PROVIDER, status: 'connected', model: this.options.model ?? DEFAULT_OPENAI_CODEX_MODEL }
     if (this.#lastTerminalStatus === 'failed') return { provider: OPENAI_CODEX_PROVIDER, status: 'failed', model: null }
     return { provider: OPENAI_CODEX_PROVIDER, status: 'disconnected', model: null }
   }
 
   async start(): Promise<AssistantOAuthFlow> {
+    if (this.#activeFlowId || this.#starting || this.#cleaningFlowIds.size > 0) throw new AssistantOAuthFlowError('flow_conflict')
+    this.#starting = true
+    const generation = this.#startGeneration
+    let finishCheck!: () => void
+    this.#startingCheck = new Promise((resolve) => { finishCheck = resolve })
+    let available = false
+    try { available = (await this.runtime.providerStatus()).oauthAvailable } finally {
+      this.#starting = false
+      finishCheck()
+      this.#startingCheck = undefined
+    }
+    if (generation !== this.#startGeneration) throw new AssistantOAuthFlowError('cancelled')
     if (this.#activeFlowId) throw new AssistantOAuthFlowError('flow_conflict')
-    if (!(await this.runtime.providerStatus()).oauthAvailable) throw new AssistantOAuthFlowError('provider_unavailable')
+    if (!available) throw new AssistantOAuthFlowError('provider_unavailable')
     const flowId = this.options.nextFlowId()
     if (!/^flow_[a-z0-9]+$/.test(flowId)) throw new Error('OAuth flow IDs must be opaque.')
     const now = this.options.now()
@@ -358,10 +381,13 @@ export class AssistantOAuthFlowManager {
       terminal: new Promise((resolve) => { resolveTerminal = resolve }),
       resolveTerminal,
       pendingInput: undefined,
+      abortController: new AbortController(),
+      cleanup: Promise.resolve(),
     }
     this.#flows.set(flowId, record)
     this.#activeFlowId = flowId
-    void this.#run(record)
+    record.cleanup = this.#run(record)
+    void record.cleanup
     return record.snapshot
   }
 
@@ -407,12 +433,24 @@ export class AssistantOAuthFlowManager {
   async cancel(flowId: string): Promise<AssistantOAuthFlow> {
     const record = this.#flows.get(flowId)
     if (!record) throw new AssistantOAuthFlowError('invalid_input')
-    if (!terminal(record.snapshot.status)) this.#finish(record, 'cancelled', error('cancelled', true))
+    if (!terminal(record.snapshot.status)) {
+      this.#cleaningFlowIds.add(record.snapshot.flowId)
+      record.abortController.abort()
+      record.pendingInput?.reject(new AssistantOAuthFlowError('cancelled'))
+      record.pendingInput = undefined
+      this.#finish(record, 'cancelled', error('cancelled', true))
+    }
     return record.snapshot
   }
 
   async disconnect(): Promise<AssistantProviderStatus> {
-    if (this.#activeFlowId) await this.cancel(this.#activeFlowId)
+    this.#startGeneration++
+    await this.#startingCheck
+    if (this.#activeFlowId) {
+      const record = this.#flows.get(this.#activeFlowId)
+      await this.cancel(this.#activeFlowId)
+      await record?.cleanup
+    }
     await this.runtime.logout()
     this.#lastTerminalStatus = undefined
     return this.providerStatus()
@@ -427,10 +465,13 @@ export class AssistantOAuthFlowManager {
         onPrompt: () => this.#waitForText(record),
         onManualCodeInput: () => this.#waitForText(record),
         onSelect: (prompt) => this.#waitForSelection(record, prompt.options),
-      })
+      }, record.abortController.signal)
+      if (record.abortController.signal.aborted) await this.runtime.logout()
       if (!terminal(record.snapshot.status)) this.#finish(record, 'succeeded')
     } catch {
       if (!terminal(record.snapshot.status)) this.#finish(record, 'failed', error('provider_failure', true))
+    } finally {
+      this.#cleaningFlowIds.delete(record.snapshot.flowId)
     }
   }
 

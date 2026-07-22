@@ -18,9 +18,10 @@ type AssistantContextProps = Readonly<{
   onSessionExpired: () => void
   onOpenSettings: () => void
   onOpenNote: (resourceId: string) => void
+  providerRevision?: number
 }>
 
-export function AssistantContext({ title, onSessionExpired, onOpenSettings, onOpenNote }: AssistantContextProps) {
+export function AssistantContext({ title, onSessionExpired, onOpenSettings, onOpenNote, providerRevision = 0 }: AssistantContextProps) {
   const questionId = useId()
   const [provider, setProvider] = useState<'loading' | 'connected' | 'unavailable'>('loading')
   const [question, setQuestion] = useState('')
@@ -37,7 +38,7 @@ export function AssistantContext({ title, onSessionExpired, onOpenSettings, onOp
       setProvider(response.ok && response.data.status === 'connected' ? 'connected' : 'unavailable')
     }).catch(() => { if (active) setProvider('unavailable') })
     return () => { active = false }
-  }, [onSessionExpired])
+  }, [onSessionExpired, providerRevision])
 
   async function ask(event: FormEvent) {
     event.preventDefault()

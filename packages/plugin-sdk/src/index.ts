@@ -4,6 +4,7 @@ import {
   AssistantTurn,
   matchesContract,
   type AssistantQuestion as AssistantQuestionValue,
+  type AssistantError,
   type AssistantModelSessionRequest as AssistantModelSessionRequestValue,
   type AssistantTurn as AssistantTurnValue,
 } from '@graphitemd/contracts'
@@ -118,7 +119,7 @@ export function createCapabilityBroker(manifest: PluginManifest, provider: Capab
       }
       try { return await provider.perform(operation) }
       catch (error) {
-        if (error instanceof PluginCapabilityDenied) throw error
+        if (error instanceof PluginCapabilityDenied || error instanceof AssistantModelSessionError) throw error
         throw new PluginCapabilityDenied('unavailable')
       }
     },
@@ -159,6 +160,14 @@ export type AssistantQuestionDispatch =
   | Readonly<{ kind: 'handled'; turn: AssistantTurnValue }>
   | Readonly<{ kind: 'unavailable' }>
   | Readonly<{ kind: 'denied' }>
+  | Readonly<{ kind: 'failed'; error: AssistantError }>
+
+export class AssistantModelSessionError extends Error {
+  constructor(readonly error: AssistantError) {
+    super(error.message)
+    this.name = 'AssistantModelSessionError'
+  }
+}
 export interface GraphitePlugin {
   manifest: PluginManifest
   activate(context: PluginContext): Promise<void | (() => void | Promise<void>)>
@@ -295,6 +304,7 @@ export class PluginHost {
     if (!registered || !matchesContract(AssistantQuestionContract, input) || !input.question.trim()) {
       return registered ? { kind: 'denied' } : { kind: 'unavailable' }
     }
+    let modelFailure: AssistantError | undefined
     try {
       let modelTurn: AssistantTurnValue | undefined
       const turn = await registered.handler(input, async (request) => {
@@ -304,13 +314,20 @@ export class PluginHost {
             !sameModelSessionPolicy(request.policy, registered.policy)) {
           throw new PluginCapabilityDenied('undeclared', 'Assistant handlers may run only their registered policy for the dispatched question.')
         }
-        const value = await registered.capabilities.perform({ permission: 'assistant:model-session', resource: resourceId('assistant'), input: request })
+        let value
+        try {
+          value = await registered.capabilities.perform({ permission: 'assistant:model-session', resource: resourceId('assistant'), input: request })
+        } catch (error) {
+          if (error instanceof AssistantModelSessionError) modelFailure = error.error
+          throw error
+        }
         if (!matchesContract(AssistantTurn, value)) throw new PluginCapabilityDenied('unavailable', 'Assistant model session returned an invalid turn.')
         modelTurn = value
         return modelTurn
       })
       return modelTurn && turn === modelTurn ? { kind: 'handled', turn } : { kind: 'unavailable' }
     } catch {
+      if (modelFailure) return { kind: 'failed', error: modelFailure }
       return { kind: 'unavailable' }
     }
   }

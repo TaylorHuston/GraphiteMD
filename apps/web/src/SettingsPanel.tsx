@@ -29,7 +29,7 @@ function statusLabel(status: Plugin['status']) {
   return status.split('_').map((part) => `${part[0]?.toUpperCase()}${part.slice(1)}`).join(' ')
 }
 
-function AssistantSettings({ onSessionExpired }: { onSessionExpired: () => void }) {
+function AssistantSettings({ onSessionExpired, onAssistantChanged }: { onSessionExpired: () => void; onAssistantChanged?: () => void }) {
   const [provider, setProvider] = useState<ProviderStatus | null>(null)
   const [flow, setFlow] = useState<OAuthFlow | null>(null)
   const [value, setValue] = useState('')
@@ -41,7 +41,7 @@ function AssistantSettings({ onSessionExpired }: { onSessionExpired: () => void 
       if (response.status === 401) { onSessionExpired(); return }
       if (!response.ok) { setError('Codex authorization is unavailable.'); return }
       setProvider(response.data)
-      if (response.data.status !== 'connecting') return
+      if (response.data.status !== 'connecting') { setFlow(null); return }
       const activeFlow = await requestJson('/api/v1/assistant/oauth/active', ActiveAssistantOAuthFlow)
       if (activeFlow.status === 401) { onSessionExpired(); return }
       if (activeFlow.ok) setFlow(activeFlow.data)
@@ -54,11 +54,15 @@ function AssistantSettings({ onSessionExpired }: { onSessionExpired: () => void 
     const poll = () => void requestJson(`/api/v1/assistant/oauth/${encodeURIComponent(flow.flowId)}`, AssistantOAuthFlow)
       .then((response) => {
         if (response.status === 401) { onSessionExpired(); return }
-        if (response.ok) setFlow(response.data)
+        if (response.ok) {
+          if (['succeeded', 'failed', 'cancelled'].includes(response.data.status)) {
+            setFlow(null); void loadProvider(); onAssistantChanged?.()
+          } else setFlow(response.data)
+        }
       })
     const interval = window.setInterval(poll, 1000)
     return () => window.clearInterval(interval)
-  }, [flow, onSessionExpired])
+  }, [flow, onSessionExpired, onAssistantChanged])
   const start = async () => {
     setPending(true); setError(null); setValue('')
     try {
@@ -94,7 +98,7 @@ function AssistantSettings({ onSessionExpired }: { onSessionExpired: () => void 
         method: 'POST', headers: { 'x-xsrf-token': xsrfToken() },
       })
       if (response.status === 401) { onSessionExpired(); return }
-      if (response.ok) setFlow(response.data); else setError('Codex authorization could not be cancelled.')
+      if (response.ok) { setFlow(null); await loadProvider(); onAssistantChanged?.() } else setError('Codex authorization could not be cancelled.')
     } catch { setError('Codex authorization could not be cancelled.') }
     finally { setPending(false) }
   }
@@ -107,6 +111,7 @@ function AssistantSettings({ onSessionExpired }: { onSessionExpired: () => void 
       if (response.status === 401) { onSessionExpired(); return }
       if (!response.ok) { setError('Codex could not be disconnected.'); return }
       setProvider(response.data); setFlow(null)
+      onAssistantChanged?.()
     } catch { setError('Codex could not be disconnected.') }
     finally { setPending(false) }
   }
@@ -143,7 +148,7 @@ function AssistantSettings({ onSessionExpired }: { onSessionExpired: () => void 
   </section>
 }
 
-export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: { onSessionExpired: () => void; onPluginsChanged?: () => void; onLogout?: () => void }) {
+export function SettingsPanel({ onSessionExpired, onPluginsChanged, onAssistantChanged, onLogout }: { onSessionExpired: () => void; onPluginsChanged?: () => void; onAssistantChanged?: () => void; onLogout?: () => void }) {
   const [area, setArea] = useState<SettingsArea>('account')
   const [plugins, setPlugins] = useState<Plugin[] | null>(null)
   const [pluginError, setPluginError] = useState<string | null>(null)
@@ -249,7 +254,7 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
       </form>
       {onLogout && <button className="secondary-button" type="button" onClick={onLogout}>Log out</button>}
     </section>}
-    {area === 'assistant' && <AssistantSettings onSessionExpired={onSessionExpired} />}
+    {area === 'assistant' && <AssistantSettings onSessionExpired={onSessionExpired} {...(onAssistantChanged ? { onAssistantChanged } : {})} />}
     {area === 'plugins' && <section id="settings-panel-plugins" role="tabpanel" aria-labelledby="settings-tab-plugins"><p className="panel-label">Extensions</p><h2 id="plugin-settings">Bundled plugins</h2>
       <p>Inspect what each plugin can access and which contributions are currently active.</p>
       {pluginError && <p className="form-error" role="alert">{pluginError}</p>}

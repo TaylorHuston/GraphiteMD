@@ -496,12 +496,13 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
       setRenameError('GraphiteMD received an invalid rename response. Your note was not replaced.')
     }
   }
+  const [assistantRevision, setAssistantRevision] = useState(0)
   const contextContributions = plugins.flatMap((plugin) => plugin.status === 'active'
     ? (plugin.contributions.views ?? []).filter((view) => view.surface === 'context')
     : [])
   const contextPanel = () => <><ContextPlaceholder note={selected} />{contextContributions.map((view) => {
     if (view.renderer === 'assistant-conversation') {
-      return <AssistantContext key={view.id} title={view.title} onSessionExpired={onSessionExpired} onOpenSettings={() => setDrawer('Settings')} onOpenNote={(resourceId) => { void openNote(resourceId, 'push', true); setDrawer(null) }} />
+      return <AssistantContext key={view.id} title={view.title} providerRevision={assistantRevision} onSessionExpired={onSessionExpired} onOpenSettings={() => setDrawer('Settings')} onOpenNote={(resourceId) => { void openNote(resourceId, 'push', true); setDrawer(null) }} />
     }
     if (view.renderer === 'system-status') {
       return <section className="system-status-contribution" aria-label={view.title} key={view.id}><p className="panel-label">{view.title}</p><h2>Service connected</h2><dl><div><dt>Workspace</dt><dd>Available</dd></div><div><dt>Markdown notes</dt><dd>{workspaceState.notes.length}</dd></div></dl></section>
@@ -524,7 +525,7 @@ function Workbench({ workspace, onSessionExpired, onSignedOut }: { workspace: Wo
       <div className="document-body">{workspaceState.inventory.length === 0 ? <EmptyState /> : noteStatus === 'loading' ? <div className="empty-state" aria-live="polite"><h2>Opening note…</h2></div> : selected ? <>{(save.phase === 'error' || save.phase === 'conflict') && <div className="save-recovery" role="alert"><p>{save.phase === 'conflict' ? 'This note changed on the host. Your local draft has not been overwritten.' : 'GraphiteMD could not save this draft.'}</p>{save.phase === 'error' ? <button type="button" onClick={() => void autosave.retry()}>Retry save</button> : <button type="button" onClick={() => { autosave.discard(); void openNote(selected.resourceId, 'restore') }}>Discard draft and reload</button>}</div>}<form name="rename-note" className="rename-note" onSubmit={(event) => void renameSelected(event)}><label htmlFor="note-filename">Filename</label><input id="note-filename" name="filename" autoComplete="off" value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} disabled={save.pending} /><button type="submit" disabled={save.pending}>Rename</button>{renameError && <p role="alert">{renameError}</p>}</form><MarkdownEditor key={selected.resourceId} source={save.resourceId === selected.resourceId ? save.draft : selected.source} onChange={(source) => autosave.edit(source)} /></> : noteStatus === 'unavailable' ? <div className="empty-state" role="alert"><h2>Note unavailable</h2><p>The requested note could not be opened. Select another note from Files.</p></div> : <div className="empty-state"><div className="empty-mark" aria-hidden="true">◇</div><h2>Select a note</h2><p>Choose a Markdown file from Files to open it here.</p></div>}</div>
     </article>
     <aside className="context-panel" aria-label="Note context">{contextPanel()}</aside>
-    {drawer && <Drawer name={drawer} onClose={closeDrawer}>{drawer === 'Files' ? filesPanel : drawer === 'Search' ? <SearchPanel onSessionExpired={onSessionExpired} onSelect={(resourceId) => { void openNote(resourceId, 'push', true); setDrawer(null) }} /> : drawer === 'Context' ? contextPanel() : <SettingsPanel onSessionExpired={onSessionExpired} onPluginsChanged={refreshPlugins} onLogout={() => void logout()} />}</Drawer>}
+    {drawer && <Drawer name={drawer} onClose={closeDrawer}>{drawer === 'Files' ? filesPanel : drawer === 'Search' ? <SearchPanel onSessionExpired={onSessionExpired} onSelect={(resourceId) => { void openNote(resourceId, 'push', true); setDrawer(null) }} /> : drawer === 'Context' ? contextPanel() : <SettingsPanel onSessionExpired={onSessionExpired} onPluginsChanged={refreshPlugins} onAssistantChanged={() => setAssistantRevision((value) => value + 1)} onLogout={() => void logout()} />}</Drawer>}
   </main>
 }
 

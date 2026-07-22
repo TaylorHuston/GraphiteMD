@@ -23,16 +23,21 @@ describe('GMD-004/S2 R2 confined context and provenance', () => {
     const { root, workspace, context } = await fixture()
     await mkdir(join(root, '.graphitemd'))
     await writeFile(join(root, 'Visible.md'), '# Visible\nverified workspace fact')
+    await writeFile(join(root, 'Other.md'), '# Other\nunsearched-only fact')
     await writeFile(join(root, '.graphitemd', 'Hidden.md'), '# Hidden\nsecret assistant state')
     await workspace.openConfigured()
 
     const results = await context.search('workspace')
     expect(results).toHaveLength(1)
+    expect(results[0]?.snippet).toBeNull()
     await expect(context.read(results[0]!.resourceId)).resolves.toMatchObject({
       source: expect.objectContaining({ displayPath: 'Visible.md' }),
       text: expect.stringContaining('verified workspace fact'),
     })
     await expect(context.read('res_missing')).rejects.toMatchObject({ code: 'workspace_unavailable' })
+
+    const [unsearched] = await new LocalSearchService(root, workspace).search('unsearched-only')
+    await expect(context.read(unsearched!.resourceId)).rejects.toMatchObject({ code: 'workspace_unavailable' })
 
     const outside = await mkdtemp(join(tmpdir(), 'graphitemd-assistant-outside-'))
     roots.push(outside)

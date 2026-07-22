@@ -89,6 +89,34 @@ describe('owner Settings', () => {
     }))
   })
 
+  it('GMD-004/S1 R1-S2 clears a cancelled flow, refreshes status, and restores Connect', async () => {
+    const flow = {
+      flowId: 'flow_cancel', provider: 'openai-codex', status: 'awaiting_provider',
+      createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z', input: null, authorization: null, error: null,
+    }
+    let providerCalls = 0
+    const changed = vi.fn()
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/v1/plugins') return response(200, { plugins: [] })
+      if (url === '/api/v1/assistant/provider') {
+        providerCalls++
+        return response(200, { provider: 'openai-codex', status: 'disconnected', model: null })
+      }
+      if (url === '/api/v1/assistant/oauth' && init?.method === 'POST') return response(200, flow)
+      if (url === '/api/v1/assistant/oauth/flow_cancel/cancel') return response(200, { ...flow, status: 'cancelled' })
+      return response(404)
+    }))
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={vi.fn()} onAssistantChanged={changed} />)
+    await user.click(screen.getByRole('tab', { name: 'Assistant' }))
+    await user.click(await screen.findByRole('button', { name: 'Connect Codex' }))
+    await user.click(await screen.findByRole('button', { name: 'Cancel connection' }))
+
+    expect(await screen.findByRole('button', { name: 'Connect Codex' })).toBeVisible()
+    expect(providerCalls).toBe(2)
+    expect(changed).toHaveBeenCalledOnce()
+  })
+
   it('GMD-004/S1 R1-S2 restores an active OAuth choice after Settings remounts', async () => {
     const flow = {
       flowId: 'flow_recover', provider: 'openai-codex', status: 'awaiting_input',

@@ -21,6 +21,7 @@ class FakePiOAuthRuntime implements PiOAuthRuntime {
   #complete!: () => void
   #fail!: (error: Error) => void
   #login: Promise<void> | undefined
+  logoutCount = 0
 
   async providerStatus() {
     return { oauthAvailable: true, configured: this.configured }
@@ -36,6 +37,7 @@ class FakePiOAuthRuntime implements PiOAuthRuntime {
   }
 
   async logout(): Promise<void> {
+    this.logoutCount++
     this.configured = false
   }
 
@@ -72,6 +74,9 @@ describe('GMD-004/S1 R1 GraphiteMD-owned Codex OAuth', () => {
     await expect(manager.activeFlow()).resolves.toBeNull()
     await expect(pendingInput).rejects.toMatchObject({ code: 'cancelled' })
     await expect(manager.flow(first.flowId)).resolves.toMatchObject({ status: 'cancelled', error: { code: 'cancelled' } })
+    runtime.succeed()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(runtime.logoutCount).toBe(1)
 
     const retry = await manager.start()
     await Promise.resolve()
@@ -87,6 +92,54 @@ describe('GMD-004/S1 R1 GraphiteMD-owned Codex OAuth', () => {
 
     expect((await manager.listTerminal()).map((flow) => flow.flowId)).toEqual([retry.flowId, failure.flowId])
     expect(JSON.stringify(await manager.listTerminal())).not.toMatch(/authorization code|callback|raw-value/i)
+  })
+
+  it('R1-S2 reserves startup before the asynchronous provider check completes', async () => {
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => { release = resolve })
+    const runtime = new FakePiOAuthRuntime()
+    runtime.providerStatus = async () => { await pending; return { oauthAvailable: true, configured: false } }
+    const manager = new AssistantOAuthFlowManager(runtime, { now: () => '2026-07-20T00:00:00.000Z', nextFlowId: () => 'flow_reserved' })
+
+    const first = manager.start()
+    await Promise.resolve()
+    await expect(manager.start()).rejects.toMatchObject({ code: 'flow_conflict' })
+    release()
+    const flow = await first
+    await manager.cancel(flow.flowId)
+  })
+
+  it('R1-S2 blocks a replacement flow until cancelled provider cleanup finishes', async () => {
+    const runtime = new FakePiOAuthRuntime()
+    const manager = new AssistantOAuthFlowManager(runtime, {
+      now: () => '2026-07-20T00:00:00.000Z',
+      nextFlowId: (() => { let number = 0; return () => `flow_cleanup${++number}` })(),
+    })
+    const first = await manager.start()
+    await Promise.resolve()
+    await manager.cancel(first.flowId)
+
+    await expect(manager.start()).rejects.toMatchObject({ code: 'flow_conflict' })
+    runtime.succeed()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const replacement = await manager.start()
+    await manager.cancel(replacement.flowId)
+  })
+
+  it('R2-S2 disconnect invalidates a start still awaiting provider status', async () => {
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => { release = resolve })
+    const runtime = new FakePiOAuthRuntime()
+    runtime.providerStatus = async () => { await pending; return { oauthAvailable: true, configured: runtime.configured } }
+    const manager = new AssistantOAuthFlowManager(runtime, { now: () => '2026-07-20T00:00:00.000Z', nextFlowId: () => 'flow_stale' })
+
+    const starting = manager.start()
+    await Promise.resolve()
+    const disconnecting = manager.disconnect()
+    release()
+    await expect(starting).rejects.toMatchObject({ code: 'cancelled' })
+    await expect(disconnecting).resolves.toMatchObject({ status: 'disconnected' })
+    await expect(manager.activeFlow()).resolves.toBeNull()
   })
 
   it('R1-S2 returns the provider option ID after the owner selects its opaque browser choice', async () => {

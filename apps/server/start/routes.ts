@@ -1,5 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { AssistantQuestion as AssistantQuestionContract, matchesContract, serviceDescriptor, type AssistantQuestion } from '@graphitemd/contracts'
+import { AssistantModelSessionError } from '@graphitemd/plugin-sdk'
 import {
   ConfiguredWorkspaceAuthority,
   WorkspaceInvalidMutationError,
@@ -32,15 +33,20 @@ const search = process.env.GRAPHITEMD_WORKSPACE_ROOT
 const plugins = process.env.GRAPHITEMD_WORKSPACE_ROOT
   ? new PluginRuntimeService(process.env.GRAPHITEMD_WORKSPACE_ROOT, workspace, async (request) => {
     const service = await questionService()
-    if (!service) throw new AssistantQuestionError('workspace_unavailable')
-    return service.ask(request)
+    if (!service) throw new AssistantModelSessionError({ code: 'workspace_unavailable', message: 'The workspace is unavailable.', retryable: true })
+    try { return await service.ask(request) } catch (error) {
+      if (error instanceof AssistantQuestionError) {
+        throw new AssistantModelSessionError({ code: error.code, message: error.message, retryable: error.code !== 'invalid_input' })
+      }
+      throw error
+    }
   })
   : undefined
 let pluginsStarted: Promise<void> | undefined
 const loginAttempts = new LoginAttemptLimiter()
 let assistantOAuth: Promise<AssistantOAuthFlowManager> | undefined
 let assistantBoundary: Promise<PiRuntimeBoundary> | undefined
-let assistantQuestions: AssistantQuestionService | undefined
+let assistantQuestions: Promise<AssistantQuestionService> | undefined
 
 /**
  * A deterministic production-server test seam. It is unavailable unless the
@@ -78,12 +84,16 @@ function oauthManager(): Promise<AssistantOAuthFlowManager> {
 async function questionService(): Promise<AssistantQuestionService | undefined> {
   if (!search || !process.env.GRAPHITEMD_WORKSPACE_ROOT) return undefined
   if (!assistantQuestions) {
-    const runtime = testAssistantRuntime() ?? new PiModelSessionRuntime(await piBoundary(), process.env.GRAPHITEMD_WORKSPACE_ROOT)
-    assistantQuestions = new AssistantQuestionService({
-      runtime,
-      context: () => new AssistantWorkspaceContext(workspace, search),
-      conversationStore: new ConversationStore(process.env.GRAPHITEMD_WORKSPACE_ROOT!, workspace),
-    })
+    assistantQuestions = (async () => {
+      const runtime = testAssistantRuntime() ?? new PiModelSessionRuntime(await piBoundary(), process.env.GRAPHITEMD_WORKSPACE_ROOT!)
+      const conversationStore = new ConversationStore(process.env.GRAPHITEMD_WORKSPACE_ROOT!, workspace)
+      await conversationStore.recoverAll()
+      return new AssistantQuestionService({
+        runtime,
+        context: () => new AssistantWorkspaceContext(workspace, search!),
+        conversationStore,
+      })
+    })().catch((error) => { assistantQuestions = undefined; throw error })
   }
   return assistantQuestions
 }
@@ -250,6 +260,11 @@ router.post('/api/v1/assistant/questions', async ({ auth, request, response }) =
     const result = await runtime.askAssistant(assistantQuestion as AssistantQuestion)
     if (result.kind === 'handled') return result.turn
     if (result.kind === 'denied') return response.badRequest({ error: { code: 'invalid_input', message: 'The Assistant question is invalid.' } })
+    if (result.kind === 'failed') {
+      const body = { error: result.error }
+      if (result.error.code === 'invalid_input') return response.badRequest(body)
+      return response.serviceUnavailable(body)
+    }
     return response.serviceUnavailable({ error: { code: 'provider_unavailable', message: 'The Assistant is unavailable.' } })
   } catch {
     return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The workspace is unavailable.' } })

@@ -131,6 +131,7 @@ None for the accepted Codex onboarding scope.
 |---|---|---|---|
 | S1/R1-S1 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#R1-S1 exposes the transient browser authorization link alongside the manual fallback` | Browser login and fallback. | passing |
 | S1/R1-S2 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#R1-S2 rejects concurrent and stale input, safely cancels, and retains bounded sanitized terminal summaries` | Cancellation and recovery. | passing |
+| S1/R1-S2 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#R1-S2 reserves startup before the asynchronous provider check completes` and `apps/web/src/SettingsPanel.test.tsx#GMD-004/S1 R1-S2 clears a cancelled flow, refreshes status, and restores Connect` | Concurrent starts are serialized and terminal Settings state becomes actionable again. | passing |
 | S1/R2-S1 | `apps/server/tests/security/owner_setup_service.test.ts#GMD-004/S1 R2-S1 defaults secret state to the machine vault and rejects workspace-local overrides` | Machine-local credential state. | passing |
 | S1/R2-S2 | `apps/server/app/assistant/question_service.test.ts#R1-S3 rejects disconnected, empty, and concurrent questions without starting ambiguous work` | Disconnected provider rejects new questions. | passing |
 | S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#GMD-004/S1 R2-S3 rejects unauthenticated Codex reads and mutations without exposing flow state` | Owner-only provider mutation. | passing |
@@ -242,6 +243,8 @@ The system SHALL provide a responsive, keyboard-accessible Assistant question fl
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
 | S2/R1 | `apps/server/app/assistant/question_service.ts#AssistantQuestionService` | primary | Governs serialized read-only questions. |
+| S2/R1-S3 | `packages/plugin-sdk/src/index.ts#dispatchAssistantQuestion` | adapter | Preserves service-owned terminal failures across the bundled plugin dispatch boundary. |
+| S2/R1-S3 | `apps/server/start/routes.ts#/api/v1/assistant/questions` | adapter | Maps normalized Assistant failures to owner-facing HTTP responses. |
 | S2/R2 | `apps/server/app/assistant/workspace_context.ts#AssistantWorkspaceContext` | primary | Governs bounded brokered context and provenance. |
 | S2/R3 | `apps/server/app/assistant/conversation_store.ts#ConversationStore` | primary | Governs canonical conversation records and recovery. |
 | S2/R4 | `apps/web/src/AssistantContext.tsx#AssistantContext` | primary | Governs Context interaction states. |
@@ -257,15 +260,17 @@ None for the accepted read-only Assistant slice.
 | S2/R1-S1 | `apps/server/app/assistant/question_service.test.ts#R1-S1 runs only brokered tools and persists the resulting service-derived sources` | Brokered grounded answer. | passing |
 | S2/R1-S2 | `apps/server/app/assistant/question_service.test.ts#R1-S2 produces an honest no-evidence terminal result when the runtime performs no successful read` | Honest no-evidence result. | passing |
 | S2/R1-S3 | `apps/server/app/assistant/question_service.test.ts#R1-S3 rejects disconnected, empty, and concurrent questions without starting ambiguous work` | Unavailable and duplicate-run handling. | passing |
-| S2/R1-S3 | `apps/server/tests/http/authentication.test.ts#GMD-004/S2 R1-S3 returns service unavailable for a concurrent question instead of invalid input` | The HTTP adapter does not misclassify a retryable duplicate run as invalid input after the plugin boundary normalizes it to unavailable. | passing |
-| S2/R2-S1 | `apps/server/app/assistant/workspace_context.test.ts#R2-S1 revalidates opaque resources and excludes internal or symlinked content before returning it to the model` | Context confinement. | passing |
+| S2/R1-S3 | `apps/server/tests/http/authentication.test.ts#GMD-004/S2 R1-S3 returns service unavailable for a concurrent question instead of invalid input` and `packages/plugin-sdk/src/index.test.ts#preserves a model-session failure code across the plugin dispatch boundary` | The HTTP and plugin adapters preserve the specific retryable failure without misclassifying it as invalid input. | passing |
+| S2/R2-S1 | `apps/server/app/assistant/workspace_context.test.ts#R2-S1 revalidates opaque resources and excludes internal or symlinked content before returning it to the model` | Reads require a current-run search result and search snippets cannot bypass context accounting. | passing |
 | S2/R2-S2 | `apps/server/app/assistant/workspace_context.test.ts#R2-S2 enforces deterministic per-source and total context budgets while recording truncation` | Bounded retrieval. | passing |
 | S2/R2-S3 | `apps/server/app/assistant/workspace_context.test.ts#R2-S3 derives source evidence only from successful brokered reads` | Source provenance. | passing |
 | S2/R3-S1 | `apps/server/app/assistant/conversation_store.test.ts#R3-S1 atomically persists only normalized turns under .graphitemd/conversations` | Inspectable canonical turn. | passing |
 | S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts#R3-S2 converts an interrupted in-progress turn to an honest terminal record on recovery` | Interrupted-turn recovery. | passing |
+| S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts#R3-S2 recovers every retained in-progress conversation during startup enumeration` and `apps/server/app/assistant/conversation_store.test.ts#R3-S2 rejects a preexisting redirected .graphitemd ancestor before creating descendants` | First-turn interruptions recover at startup and redirected state ancestors fail closed. | passing |
 | S2/R4-S1 | `apps/web/src/AssistantContext.test.tsx#GMD-004/S2 R1-S1 keeps the submitted question visible while one grounded turn is in progress` | Desktop busy interaction. | passing |
 | S2/R4-S2 | `apps/web/src/App.test.tsx#R4-S2 opens keyboard-accessible narrow-layout drawers and closes them with Escape` | Narrow drawer controls. | passing |
 | S2/R4-S3 | `apps/web/src/AssistantContext.test.tsx#keeps the question available behind an explicit retry action after a recoverable error` | Busy/failure recovery. | passing |
+| S2/R4-S3 | `apps/web/src/AssistantContext.test.tsx#refreshes provider availability after Assistant settings change` | The mounted Context surface observes connect/disconnect changes. | passing |
 
 #### Verification Gaps
 

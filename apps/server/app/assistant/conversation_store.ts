@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import { lstat, mkdir, open, readFile, realpath, rename, rm } from 'node:fs/promises'
+import { lstat, mkdir, open, readFile, readdir, realpath, rename, rm } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 
 import { AssistantTurn, matchesContract, type AssistantError, type AssistantTurn as AssistantTurnValue } from '@graphitemd/contracts'
@@ -129,6 +129,17 @@ export class ConversationStore {
     })
   }
 
+  async recoverAll(): Promise<readonly ConversationDocument[]> {
+    await this.#assertAuthority()
+    const directory = await this.#directory()
+    let entries
+    try { entries = await readdir(directory, { withFileTypes: true }) } catch { throw new ConversationStoreError() }
+    const ids = entries
+      .filter((entry) => entry.isFile() && !entry.isSymbolicLink() && /^conv_[a-z0-9]+\.json$/.test(entry.name))
+      .map((entry) => entry.name.slice(0, -'.json'.length))
+    return Promise.all(ids.map((conversationId) => this.recover(conversationId)))
+  }
+
   #error(code: Extract<AssistantError['code'], 'interrupted'>, retryable: boolean): AssistantError {
     return { code, message: 'The Assistant request was interrupted before it completed.', retryable }
   }
@@ -143,10 +154,15 @@ export class ConversationStore {
   async #directory(): Promise<string> {
     const graphite = join(this.#root, '.graphitemd')
     const directory = join(graphite, 'conversations')
-    try { await mkdir(directory, { recursive: true, mode: 0o700 }) } catch { throw new ConversationStoreError() }
     for (const path of [graphite, directory]) {
       let metadata
-      try { metadata = await lstat(path) } catch { throw new ConversationStoreError() }
+      try { metadata = await lstat(path) } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw new ConversationStoreError()
+        try { await mkdir(path, { mode: 0o700 }) } catch (creationError) {
+          if ((creationError as NodeJS.ErrnoException).code !== 'EEXIST') throw new ConversationStoreError()
+        }
+        try { metadata = await lstat(path) } catch { throw new ConversationStoreError() }
+      }
       if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new ConversationStoreError()
       const expected = join(await realpath(this.#root), relative(this.#root, path))
       if ((await realpath(path)) !== expected) throw new ConversationStoreError()

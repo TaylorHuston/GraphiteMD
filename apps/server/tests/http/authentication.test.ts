@@ -200,7 +200,7 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
     })
     expect(concurrent.status).toBe(503)
     expect(await concurrent.json()).toEqual({
-      error: { code: 'provider_unavailable', message: 'The Assistant is unavailable.' },
+      error: { code: 'question_in_flight', message: 'An Assistant question is already in progress.', retryable: true },
     })
     expect((await first).status).toBe(200)
   })
