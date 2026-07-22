@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-07-18
 - Related Change: [Foundation Workspace Slice](../changes/2026-07-18-foundation-workspace-slice/proposal.md) (architectural constraint; agent behavior is deferred)
-- Related Epics / Stories: None implemented yet; the foundation Change establishes capability boundaries but explicitly defers Assistant proposals, grants, and autonomous runs.
+- Related Epics / Stories: [GMD-004/S2 Ask The Workspace Through Codex](../epics/gmd-004-llm-assistant/epic.md#story-s2-ask-the-workspace-through-codex) owns the planned read-only foundation; proposals, grants, and autonomous runs remain deferred.
 - Supersedes: None in this repository.
 - Superseded by:
 
@@ -27,7 +27,7 @@ Direct autonomous action SHALL require an explicit one-run grant containing:
 - whether writes require review or may be applied directly;
 - automatic expiration when the run ends;
 - visible live activity and an immediate stop control;
-- a durable inspectable record under `.graphite/`.
+- a durable inspectable record under `.graphitemd/`.
 
 Destructive actions and externally consequential operations SHALL require separate confirmation rather than being implied by a general grant. Edited Markdown or grant-record files SHALL NOT confer authority by themselves; the capability broker must validate the active grant.
 

@@ -11,7 +11,7 @@ export default defineConfig({
   use: { baseURL: productionOrigin, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-      command: 'pnpm build && node --import=tsx --conditions=graphitemd-production tests/e2e/start-production-server.ts', url: `${productionOrigin}/api/v1/health`,
+      command: 'pnpm build && NODE_ENV=test GRAPHITEMD_ASSISTANT_TEST_RUNTIME=grounded node --import=tsx --conditions=graphitemd-production tests/e2e/start-production-server.ts', url: `${productionOrigin}/api/v1/health`,
       timeout: 120_000, reuseExistingServer: false,
       env: {
         NODE_ENV: 'production', PORT: String(productionPort), HOST: '127.0.0.1', LOG_LEVEL: 'silent',

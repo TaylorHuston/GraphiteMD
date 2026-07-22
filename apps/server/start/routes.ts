@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router'
-import { serviceDescriptor } from '@graphitemd/contracts'
+import { AssistantQuestion as AssistantQuestionContract, matchesContract, serviceDescriptor, type AssistantQuestion } from '@graphitemd/contracts'
 import {
   ConfiguredWorkspaceAuthority,
   WorkspaceInvalidMutationError,
@@ -19,6 +19,10 @@ import {
 import { PluginRuntimeService } from '../app/plugins/plugin_runtime_service.js'
 import { LocalSearchService, LocalSearchUnavailableError } from '../app/search/local_search_service.js'
 import { LoginAttemptLimiter } from '../app/security/login_attempt_limiter.js'
+import { AssistantOAuthFlowError, AssistantOAuthFlowManager, PiModelSessionRuntime, PiRuntimeBoundary } from '../app/assistant/index.js'
+import { AssistantQuestionError, AssistantQuestionService, type AssistantRunRuntime } from '../app/assistant/question_service.js'
+import { ConversationStore } from '../app/assistant/conversation_store.js'
+import { AssistantWorkspaceContext } from '../app/assistant/workspace_context.js'
 
 const ownerSetup = new OwnerSetupService(resolveSecurityStateDirectory())
 const workspace = new ConfiguredWorkspaceAuthority(process.env.GRAPHITEMD_WORKSPACE_ROOT)
@@ -26,10 +30,78 @@ const search = process.env.GRAPHITEMD_WORKSPACE_ROOT
   ? new LocalSearchService(process.env.GRAPHITEMD_WORKSPACE_ROOT, workspace)
   : undefined
 const plugins = process.env.GRAPHITEMD_WORKSPACE_ROOT
-  ? new PluginRuntimeService(process.env.GRAPHITEMD_WORKSPACE_ROOT, workspace)
+  ? new PluginRuntimeService(process.env.GRAPHITEMD_WORKSPACE_ROOT, workspace, async (request) => {
+    const service = await questionService()
+    if (!service) throw new AssistantQuestionError('workspace_unavailable')
+    return service.ask(request)
+  })
   : undefined
 let pluginsStarted: Promise<void> | undefined
 const loginAttempts = new LoginAttemptLimiter()
+let assistantOAuth: Promise<AssistantOAuthFlowManager> | undefined
+let assistantBoundary: Promise<PiRuntimeBoundary> | undefined
+let assistantQuestions: AssistantQuestionService | undefined
+
+/**
+ * A deterministic production-server test seam. It is unavailable unless the
+ * test process explicitly opts in, so normal hosts can never fall back from
+ * Pi/Codex to a synthetic provider.
+ */
+function testAssistantRuntime(): AssistantRunRuntime | undefined {
+  if (process.env.NODE_ENV !== 'test' || process.env.GRAPHITEMD_ASSISTANT_TEST_RUNTIME !== 'grounded') return undefined
+  return {
+    status: async () => ({ connected: true, model: 'graphitemd-test-model' }),
+    run: async ({ question, tools }) => {
+      const query = question.toLowerCase().includes('silver graphite') ? 'silver graphite' : 'unique grounded fact'
+      const [result] = await tools.search(query)
+      if (!result) return 'I could not find supporting workspace evidence.'
+      const note = await tools.read(result.resourceId)
+      return `Grounded test answer: ${note.text.trim()}`
+    },
+  }
+}
+
+function piBoundary(): Promise<PiRuntimeBoundary> {
+  assistantBoundary ??= PiRuntimeBoundary.create(resolveSecurityStateDirectory())
+  return assistantBoundary
+}
+
+function oauthManager(): Promise<AssistantOAuthFlowManager> {
+  assistantOAuth ??= piBoundary()
+    .then((runtime) => new AssistantOAuthFlowManager(runtime))
+  return assistantOAuth
+}
+
+async function questionService(): Promise<AssistantQuestionService | undefined> {
+  if (!search || !process.env.GRAPHITEMD_WORKSPACE_ROOT) return undefined
+  if (!assistantQuestions) {
+    const runtime = testAssistantRuntime() ?? new PiModelSessionRuntime(await piBoundary(), process.env.GRAPHITEMD_WORKSPACE_ROOT)
+    assistantQuestions = new AssistantQuestionService({
+      runtime,
+      context: () => new AssistantWorkspaceContext(workspace, search),
+      conversationStore: new ConversationStore(process.env.GRAPHITEMD_WORKSPACE_ROOT!, workspace),
+    })
+  }
+  return assistantQuestions
+}
+
+async function requireOwner(auth: { use: (guard: 'web') => { authenticate: () => Promise<unknown> } }, response: { unauthorized: (body: unknown) => unknown }): Promise<boolean> {
+  try {
+    await auth.use('web').authenticate()
+    return true
+  } catch {
+    response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+    return false
+  }
+}
+
+function assistantOAuthErrorResponse(error: unknown, response: { badRequest: (body: unknown) => unknown; conflict: (body: unknown) => unknown; serviceUnavailable: (body: unknown) => unknown }): unknown {
+  if (error instanceof AssistantOAuthFlowError) {
+    const body = { error: { code: error.code, message: error.message } }
+    return error.code === 'flow_conflict' ? response.conflict(body) : response.badRequest(body)
+  }
+  return response.serviceUnavailable({ error: { code: 'provider_unavailable', message: 'Codex authorization is unavailable.' } })
+}
 
 async function pluginRuntime(): Promise<PluginRuntimeService | undefined> {
   if (!plugins) return undefined
@@ -86,6 +158,101 @@ router.get('/api/v1/auth/current', async ({ auth, response }) => {
     return { owner: { id: 'owner' } }
   } catch {
     return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+})
+
+router.get('/api/v1/assistant/provider', async ({ auth, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  if (testAssistantRuntime()) return { provider: 'openai-codex' as const, status: 'connected' as const, model: 'graphitemd-test-model' }
+  try {
+    return await (await oauthManager()).providerStatus()
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.post('/api/v1/assistant/oauth', async ({ auth, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).start()
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.get('/api/v1/assistant/oauth/active', async ({ auth, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).activeFlow()
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.get('/api/v1/assistant/oauth/:flowId', async ({ auth, params, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).flow(params.flowId)
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.post('/api/v1/assistant/oauth/:flowId/answer', async ({ auth, params, request, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  const value = request.input('value')
+  if (typeof value !== 'string') {
+    return response.badRequest({ error: { code: 'invalid_input', message: 'The authorization input is invalid or no longer current.' } })
+  }
+  try {
+    return await (await oauthManager()).answer(params.flowId, value)
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.post('/api/v1/assistant/oauth/:flowId/cancel', async ({ auth, params, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).cancel(params.flowId)
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.post('/api/v1/assistant/disconnect', async ({ auth, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  try {
+    return await (await oauthManager()).disconnect()
+  } catch (error) {
+    return assistantOAuthErrorResponse(error, response)
+  }
+})
+
+router.post('/api/v1/assistant/questions', async ({ auth, request, response }) => {
+  if (!(await requireOwner(auth, response))) return
+  const question = request.input('question')
+  const conversationId = request.input('conversationId')
+  if (typeof question !== 'string' || !question.trim() || Buffer.byteLength(question, 'utf8') > 4_000 ||
+      (conversationId !== undefined && typeof conversationId !== 'string')) {
+    return response.badRequest({ error: { code: 'invalid_input', message: 'The Assistant question is invalid.' } })
+  }
+  const assistantQuestion = { question, ...(conversationId === undefined ? {} : { conversationId }) }
+  if (!matchesContract(AssistantQuestionContract, assistantQuestion)) {
+    return response.badRequest({ error: { code: 'invalid_input', message: 'The Assistant question is invalid.' } })
+  }
+  const runtime = await pluginRuntime()
+  if (!runtime) return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The workspace is unavailable.' } })
+  try {
+    const result = await runtime.askAssistant(assistantQuestion as AssistantQuestion)
+    if (result.kind === 'handled') return result.turn
+    if (result.kind === 'denied') return response.badRequest({ error: { code: 'invalid_input', message: 'The Assistant question is invalid.' } })
+    return response.serviceUnavailable({ error: { code: 'provider_unavailable', message: 'The Assistant is unavailable.' } })
+  } catch (error) {
+    if (error instanceof AssistantQuestionError) {
+      return response.badRequest({ error: { code: error.code, message: error.message } })
+    }
+    return response.serviceUnavailable({ error: { code: 'workspace_unavailable', message: 'The workspace is unavailable.' } })
   }
 })
 

@@ -12,7 +12,7 @@ export const systemStatusPlugin: GraphitePlugin = {
     state: { schemaVersion: 1 },
     contributions: {
       commands: [{ id: 'show-system-status', title: 'Show system status' }],
-      views: [{ id: 'system-status', title: 'System Status' }],
+      views: [{ id: 'system-status', title: 'System Status', surface: 'context', renderer: 'system-status' }],
     },
   },
   async activate(context) {

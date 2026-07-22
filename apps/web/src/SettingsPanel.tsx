@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import {
+  ActiveAssistantOAuthFlow,
+  AssistantOAuthFlow,
+  AssistantProviderStatus,
   PluginResponse,
   PluginsResponse,
+  type AssistantOAuthFlow as OAuthFlow,
+  type AssistantProviderStatus as ProviderStatus,
   type PluginInventoryItem as Plugin,
 } from '@graphitemd/contracts'
 import { readApiError, request, requestJson } from './api.js'
+import './AssistantSettings.css'
 
 export type { Plugin }
-type SettingsArea = 'account' | 'plugins'
+type SettingsArea = 'account' | 'assistant' | 'plugins'
 
 function xsrfToken(): string {
   const value = document.cookie.split('; ').find((cookie) => cookie.startsWith('XSRF-TOKEN='))?.slice('XSRF-TOKEN='.length)
@@ -21,6 +27,120 @@ const contributionLabels = {
 
 function statusLabel(status: Plugin['status']) {
   return status.split('_').map((part) => `${part[0]?.toUpperCase()}${part.slice(1)}`).join(' ')
+}
+
+function AssistantSettings({ onSessionExpired }: { onSessionExpired: () => void }) {
+  const [provider, setProvider] = useState<ProviderStatus | null>(null)
+  const [flow, setFlow] = useState<OAuthFlow | null>(null)
+  const [value, setValue] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+  const loadProvider = async () => {
+    try {
+      const response = await requestJson('/api/v1/assistant/provider', AssistantProviderStatus)
+      if (response.status === 401) { onSessionExpired(); return }
+      if (!response.ok) { setError('Codex authorization is unavailable.'); return }
+      setProvider(response.data)
+      if (response.data.status !== 'connecting') return
+      const activeFlow = await requestJson('/api/v1/assistant/oauth/active', ActiveAssistantOAuthFlow)
+      if (activeFlow.status === 401) { onSessionExpired(); return }
+      if (activeFlow.ok) setFlow(activeFlow.data)
+      else setError('The existing Codex authorization flow could not be restored.')
+    } catch { setError('Codex authorization is unavailable.') }
+  }
+  useEffect(() => { void loadProvider() }, [onSessionExpired])
+  useEffect(() => {
+    if (!flow || ['succeeded', 'failed', 'cancelled'].includes(flow.status)) return
+    const poll = () => void requestJson(`/api/v1/assistant/oauth/${encodeURIComponent(flow.flowId)}`, AssistantOAuthFlow)
+      .then((response) => {
+        if (response.status === 401) { onSessionExpired(); return }
+        if (response.ok) setFlow(response.data)
+      })
+    const interval = window.setInterval(poll, 1000)
+    return () => window.clearInterval(interval)
+  }, [flow, onSessionExpired])
+  const start = async () => {
+    setPending(true); setError(null); setValue('')
+    try {
+      const response = await requestJson('/api/v1/assistant/oauth', AssistantOAuthFlow, {
+        method: 'POST', headers: { 'x-xsrf-token': xsrfToken() },
+      })
+      if (response.status === 401) { onSessionExpired(); return }
+      if (!response.ok) { setError('Codex authorization could not be started.'); return }
+      setFlow(response.data)
+    } catch { setError('Codex authorization could not be started.') }
+    finally { setPending(false) }
+  }
+  const answer = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!flow) return
+    const answerValue = flow.input?.kind === 'selection' && !value ? flow.input.options[0]?.id ?? '' : value
+    setPending(true); setError(null)
+    try {
+      const response = await requestJson(`/api/v1/assistant/oauth/${encodeURIComponent(flow.flowId)}/answer`, AssistantOAuthFlow, {
+        method: 'POST', headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() }, body: JSON.stringify({ value: answerValue }),
+      })
+      if (response.status === 401) { onSessionExpired(); return }
+      if (!response.ok) { setError('That authorization input is no longer valid.'); return }
+      setFlow(response.data); setValue('')
+    } catch { setError('That authorization input is no longer valid.') }
+    finally { setPending(false) }
+  }
+  const cancel = async () => {
+    if (!flow) return
+    setPending(true)
+    try {
+      const response = await requestJson(`/api/v1/assistant/oauth/${encodeURIComponent(flow.flowId)}/cancel`, AssistantOAuthFlow, {
+        method: 'POST', headers: { 'x-xsrf-token': xsrfToken() },
+      })
+      if (response.status === 401) { onSessionExpired(); return }
+      if (response.ok) setFlow(response.data); else setError('Codex authorization could not be cancelled.')
+    } catch { setError('Codex authorization could not be cancelled.') }
+    finally { setPending(false) }
+  }
+  const disconnect = async () => {
+    setPending(true); setError(null)
+    try {
+      const response = await requestJson('/api/v1/assistant/disconnect', AssistantProviderStatus, {
+        method: 'POST', headers: { 'x-xsrf-token': xsrfToken() },
+      })
+      if (response.status === 401) { onSessionExpired(); return }
+      if (!response.ok) { setError('Codex could not be disconnected.'); return }
+      setProvider(response.data); setFlow(null)
+    } catch { setError('Codex could not be disconnected.') }
+    finally { setPending(false) }
+  }
+  const input = flow?.input
+  const selectedOption = input?.kind === 'selection'
+    ? input.options.find((option) => option.id === value) ?? input.options[0]
+    : undefined
+  const status = flow && !['succeeded', 'failed', 'cancelled'].includes(flow.status) ? 'connecting' : provider?.status
+  return <section id="settings-panel-assistant" role="tabpanel" aria-labelledby="settings-tab-assistant"><p className="panel-label">Assistant</p><h2>OpenAI Codex</h2>
+    <p aria-live="polite">{status ? `Status: ${status}.` : 'Checking Codex status…'}</p>
+    {error && <p className="form-error" role="alert">{error}</p>}
+    {provider?.status !== 'connected' && !flow && <button className="primary-button" type="button" disabled={pending} onClick={() => void start()}>{pending ? 'Starting…' : 'Connect Codex'}</button>}
+    {flow && <div className="settings-form" aria-live="polite"><p>Authorization status: {flow.status.replaceAll('_', ' ')}.</p>
+      {flow.authorization && <p className="oauth-browser-login">{flow.authorization.instructions ?? 'Complete login in your browser.'} <a href={flow.authorization.url} target="_blank" rel="noreferrer">Open secure OpenAI login</a></p>}
+      {input?.kind === 'device_code' && <p>Open <a href={input.verificationUri} target="_blank" rel="noreferrer">Codex device authorization</a> and enter code <strong>{input.userCode}</strong>.</p>}
+      {input?.kind === 'selection' && <form className="oauth-selection-form" onSubmit={(event) => void answer(event)}>
+        <fieldset>
+          <legend>Choose how to connect</legend>
+          <p id="oauth-selection-help" className="oauth-selection-help">You’ll complete authorization in Codex.</p>
+          <div className="oauth-option-list" aria-describedby="oauth-selection-help">
+            {input.options.map((option) => <label className={`oauth-option${selectedOption?.id === option.id ? ' selected' : ''}`} key={option.id}>
+              <input type="radio" name="oauth-selection" value={option.id} checked={selectedOption?.id === option.id} onChange={() => setValue(option.id)} required />
+              <span>{option.label}</span>
+            </label>)}
+          </div>
+        </fieldset>
+        <button className="primary-button" type="submit" disabled={pending}>{pending ? 'Continuing…' : `Continue with ${selectedOption?.label ?? 'selected option'}`}</button>
+      </form>}
+      {input?.kind === 'text' && <form onSubmit={(event) => void answer(event)}><label htmlFor="oauth-input">{input.label}</label><input id="oauth-input" type={input.secret ? 'password' : 'text'} value={value} onChange={(event) => setValue(event.target.value)} required={input.required} /><button type="submit" disabled={pending}>{pending ? 'Continuing…' : 'Continue'}</button></form>}
+      {!['succeeded', 'failed', 'cancelled'].includes(flow.status) && <button className="secondary-button oauth-cancel-button" type="button" disabled={pending} onClick={() => void cancel()}>Cancel connection</button>}
+      {flow.error && <p className="form-error" role="alert">{flow.error.message}</p>}
+    </div>}
+    {provider?.status === 'connected' && <button className="secondary-button" type="button" disabled={pending} onClick={() => void disconnect()}>Disconnect Codex</button>}
+  </section>
 }
 
 export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: { onSessionExpired: () => void; onPluginsChanged?: () => void; onLogout?: () => void }) {
@@ -97,7 +217,7 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
   }
 
   function navigateAreas(event: KeyboardEvent<HTMLButtonElement>, current: SettingsArea) {
-    const areas: SettingsArea[] = ['account', 'plugins']
+    const areas: SettingsArea[] = ['account', 'assistant', 'plugins']
     const index = areas.indexOf(current)
     let next: SettingsArea | undefined
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') next = areas[(index + 1) % areas.length]
@@ -113,6 +233,7 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
   return <div className="settings-panel">
     <nav className="settings-navigation" aria-label="Settings areas" role="tablist" aria-orientation={horizontalTabs ? 'horizontal' : 'vertical'}>
       <button id="settings-tab-account" type="button" role="tab" aria-selected={area === 'account'} aria-controls="settings-panel-account" tabIndex={area === 'account' ? 0 : -1} onClick={() => setArea('account')} onKeyDown={(event) => navigateAreas(event, 'account')}>Account</button>
+      <button id="settings-tab-assistant" type="button" role="tab" aria-selected={area === 'assistant'} aria-controls="settings-panel-assistant" tabIndex={area === 'assistant' ? 0 : -1} onClick={() => setArea('assistant')} onKeyDown={(event) => navigateAreas(event, 'assistant')}>Assistant</button>
       <button id="settings-tab-plugins" type="button" role="tab" aria-selected={area === 'plugins'} aria-controls="settings-panel-plugins" tabIndex={area === 'plugins' ? 0 : -1} onClick={() => setArea('plugins')} onKeyDown={(event) => navigateAreas(event, 'plugins')}>Plugins</button>
     </nav>
     <div className="settings-content">
@@ -128,6 +249,7 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onLogout }: 
       </form>
       {onLogout && <button className="secondary-button" type="button" onClick={onLogout}>Log out</button>}
     </section>}
+    {area === 'assistant' && <AssistantSettings onSessionExpired={onSessionExpired} />}
     {area === 'plugins' && <section id="settings-panel-plugins" role="tabpanel" aria-labelledby="settings-tab-plugins"><p className="panel-label">Extensions</p><h2 id="plugin-settings">Bundled plugins</h2>
       <p>Inspect what each plugin can access and which contributions are currently active.</p>
       {pluginError && <p className="form-error" role="alert">{pluginError}</p>}

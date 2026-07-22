@@ -71,7 +71,7 @@ beforeAll(async () => {
   stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-http-security-'))
   workspaceRoot = await mkdtemp(join(tmpdir(), 'graphitemd-http-workspace-'))
   await mkdir(join(workspaceRoot, 'Notes'))
-  await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# Welcome\n', 'utf8')
+  await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# Welcome\n\nUnique grounded fact: cobalt otter.\n', 'utf8')
   await new OwnerSetupService(stateDirectory).createOwner('correct horse battery staple')
 
   server = spawn(process.execPath, ['--import=@poppinss/ts-exec', 'bin/server.ts'], {
@@ -85,6 +85,7 @@ beforeAll(async () => {
       GRAPHITEMD_STATE_DIR: stateDirectory,
       GRAPHITEMD_WORKSPACE_ROOT: workspaceRoot,
       GRAPHITEMD_ALLOWED_ORIGINS: 'http://127.0.0.1:5173',
+      GRAPHITEMD_ASSISTANT_TEST_RUNTIME: 'grounded',
     },
     stdio: ['ignore', 'ignore', 'pipe'],
   })
@@ -104,6 +105,74 @@ afterAll(async () => {
 })
 
 describe('GMD-001/S1 R2 browser session authentication', () => {
+  it('GMD-004/S1 R2-S3 rejects unauthenticated Codex reads and mutations without exposing flow state', async () => {
+    const anonymous = await csrfSession()
+    const requests = await Promise.all([
+      fetch(`${origin}/api/v1/assistant/provider`),
+      fetch(`${origin}/api/v1/assistant/oauth`, {
+        method: 'POST', headers: { cookie: anonymous.cookie, 'x-xsrf-token': anonymous.token },
+      }),
+      fetch(`${origin}/api/v1/assistant/oauth/active`, { headers: { cookie: anonymous.cookie } }),
+      fetch(`${origin}/api/v1/assistant/oauth/flow_unknown/cancel`, {
+        method: 'POST', headers: { cookie: anonymous.cookie, 'x-xsrf-token': anonymous.token },
+      }),
+      fetch(`${origin}/api/v1/assistant/disconnect`, {
+        method: 'POST', headers: { cookie: anonymous.cookie, 'x-xsrf-token': anonymous.token },
+      }),
+      fetch(`${origin}/api/v1/assistant/questions`, {
+        method: 'POST', headers: { 'content-type': 'application/json', cookie: anonymous.cookie, 'x-xsrf-token': anonymous.token },
+        body: JSON.stringify({ question: 'What is the unique grounded fact?' }),
+      }),
+    ])
+    expect(requests.map((response) => response.status)).toEqual([401, 401, 401, 401, 401, 401])
+    expect(await Promise.all(requests.map((response) => response.json()))).toEqual([
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
+      { error: { code: 'unauthenticated', message: 'Authentication required.' } },
+    ])
+  })
+
+  it('GMD-004/S1 R1-S1 returns only the normalized provider projection to the authenticated owner', async () => {
+    const owner = await loginOwner()
+    const provider = await fetch(`${origin}/api/v1/assistant/provider`, { headers: { cookie: owner.cookie } })
+    expect(provider.status).toBe(200)
+    expect(await provider.json()).toMatchObject({
+      provider: 'openai-codex',
+      status: expect.stringMatching(/^(disconnected|connected|unavailable|failed)$/),
+    })
+  })
+
+  it('GMD-004/S2 R1-S1 dispatches an authenticated, XSRF-protected grounded question and persists the canonical turn', async () => {
+    const owner = await loginOwner()
+    const missingProof = await fetch(`${origin}/api/v1/assistant/questions`, {
+      method: 'POST', headers: { 'content-type': 'application/json', cookie: owner.cookie },
+      body: JSON.stringify({ question: 'What is the unique grounded fact?' }),
+    })
+    expect(missingProof.status).toBe(403)
+
+    const completed = await fetch(`${origin}/api/v1/assistant/questions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: owner.cookie, 'x-xsrf-token': owner.token },
+      body: JSON.stringify({ question: 'What is the unique grounded fact?' }),
+    })
+    expect(completed.status).toBe(200)
+    const turn = await completed.json() as {
+      conversationId: string; status: string; answer: string; sources: Array<{ displayPath: string }>
+    }
+    expect(turn).toMatchObject({
+      conversationId: expect.stringMatching(/^conv_/), status: 'completed', answer: expect.stringContaining('cobalt otter'),
+      sources: [expect.objectContaining({ displayPath: 'Notes/Welcome.md' })],
+    })
+    expect(JSON.stringify(turn)).not.toContain(workspaceRoot)
+
+    const record = JSON.parse(await readFile(join(workspaceRoot, '.graphitemd', 'conversations', `${turn.conversationId}.json`), 'utf8'))
+    expect(record.turns).toHaveLength(1)
+    expect(record.turns[0]).toMatchObject({ status: 'completed', answer: expect.stringContaining('cobalt otter') })
+  })
+
   it('R2-S1 establishes an official server-owned session and protects workspace delivery', async () => {
     const anonymous = await fetch(`${origin}/api/v1/auth/current`)
     const anonymousCookie = sessionCookie(anonymous)
@@ -441,7 +510,7 @@ describe('GMD-002/S3 authenticated local search', () => {
 
   it('R1-S3 reports a recoverable local-index failure without misclassifying workspace authority', async () => {
     const authenticated = await loginOwner()
-    const databasePath = join(workspaceRoot, '.graphite', 'cache', 'search.sqlite')
+    const databasePath = join(workspaceRoot, '.graphitemd', 'cache', 'search.sqlite')
     await rm(databasePath, { force: true })
     await mkdir(databasePath)
     try {
@@ -465,11 +534,15 @@ describe('GMD-003/S1 production plugin host', () => {
     const inventory = await fetch(`${origin}/api/v1/plugins`, { headers: { cookie: authenticated.cookie } })
     expect(inventory.status).toBe(200)
     expect(await inventory.json()).toEqual({
-      plugins: [expect.objectContaining({
+      plugins: expect.arrayContaining([expect.objectContaining({
         id: 'system-status',
         status: 'active',
         manifest: expect.objectContaining({ permissions: ['status:read'] }),
-      })],
+      }), expect.objectContaining({
+        id: 'assistant',
+        status: 'active',
+        manifest: expect.objectContaining({ permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'] }),
+      })]),
     })
 
     const disabled = await fetch(`${origin}/api/v1/plugins/system-status`, {
@@ -485,7 +558,7 @@ describe('GMD-003/S1 production plugin host', () => {
     expect(await disabled.json()).toEqual({
       plugin: expect.objectContaining({ id: 'system-status', status: 'disabled', contributions: {} }),
     })
-    expect(JSON.parse(await readFile(join(workspaceRoot, '.graphite', 'plugins.json'), 'utf8')))
+    expect(JSON.parse(await readFile(join(workspaceRoot, '.graphitemd', 'plugins.json'), 'utf8')))
       .toEqual({ schemaVersion: 1, enabled: { 'system-status': false } })
   })
 })
@@ -542,6 +615,6 @@ describe('GMD-002/S1 R1 workspace identity authority', () => {
     const response = await fetch(`${origin}/api/v1/workspace`, { headers: { cookie: authenticated.cookie } })
     expect(response.status).toBe(503)
     expect(await response.json()).toEqual({ available: false, reason: 'identity_changed' })
-    await expect(stat(join(workspaceRoot, '.graphite'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(join(workspaceRoot, '.graphitemd'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

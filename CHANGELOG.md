@@ -14,3 +14,4 @@ All notable user-facing changes to GraphiteMD will be documented here.
 - Local full-text search with a rebuildable workspace-local index.
 - Bundled plugin inspection and enablement through a capability-mediated runtime.
 - A System Status plugin showing service and workspace availability plus the current Markdown note count.
+- A Codex Assistant in Context for read-only, workspace-grounded questions with visible note sources after connection.

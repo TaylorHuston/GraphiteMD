@@ -20,6 +20,7 @@ The foundation monorepo is active. AdonisJS owns the service boundary, React/Vit
 - Host-local full-text search backed by a rebuildable SQLite projection.
 - Responsive browser workbench with opaque resource navigation.
 - Bundled plugin inventory, enablement, capability mediation, and inspectable namespaced state, demonstrated by System Status.
+- A bundled Codex Assistant Context contribution for read-only, workspace-grounded questions with visible service-derived sources after connection.
 
 AI interaction, proposal/grant workflows, community plugins, arbitrary plugin isolation, offline sync, and a dedicated mobile app remain outside this foundation slice.
 
@@ -30,6 +31,7 @@ Requires Node.js 24 or newer and pnpm 11.5.2.
 ```bash
 pnpm install
 export GRAPHITEMD_WORKSPACE_ROOT="/absolute/path/to/a/test-workspace"
+# Optional: defaults to ~/.graphitemd; any override must be outside the workspace.
 export GRAPHITEMD_STATE_DIR="/absolute/path/to/machine-local-state"
 export GRAPHITEMD_ALLOWED_ORIGINS="http://127.0.0.1:5173"
 export APP_KEY="replace-with-a-persisted-random-secret-of-at-least-32-characters"
@@ -49,9 +51,9 @@ pnpm start
 
 `pnpm build` compiles the web client, stages it into the AdonisJS public tree, and includes that tree in the deployable server build. `pnpm start` then serves the browser application, hashed assets, SPA history fallback, and `/api/v1` from one origin. The fallback never handles `/api/**`; unknown API routes remain JSON/HTTP 404 responses. `pnpm test:e2e` builds and exercises this same production server path rather than the Vite development proxy.
 
-`GRAPHITEMD_WORKSPACE_ROOT` is the canonical Markdown workspace. GraphiteMD provisions `.graphite/workspace.json` for stable workspace identity, preserves an existing `.graphite/.gitignore`, and otherwise ignores only `/cache/` and `/operations/` by default. Configuration and plugin state remain inspectable beneath `.graphite/`; the search database under `.graphite/cache/` is disposable. Prepared rename receipts are cleared after a known rollback, while committed receipts under `.graphite/operations/` are retained indefinitely in this foundation so old-resource retries remain idempotent; a future versioned compaction policy may bound that retention without weakening recovery. `GRAPHITEMD_STATE_DIR` is machine-local security/session state and must not be placed in the workspace or committed. `GRAPHITEMD_ALLOWED_ORIGINS` is a comma-separated exact allowlist for credentialed browser origins. `APP_KEY` is mandatory outside tests: generate a strong random value, store it with the host's secrets, and reuse the same value across restarts. Never commit it or place it inside the workspace.
+`GRAPHITEMD_WORKSPACE_ROOT` is the canonical Markdown workspace. GraphiteMD provisions `.graphitemd/workspace.json` for stable workspace identity, preserves an existing `.graphitemd/.gitignore`, and otherwise ignores only `/cache/` and `/operations/` by default. Configuration, normalized conversations, and plugin state remain inspectable beneath `.graphitemd/`; the search database under `.graphitemd/cache/` is disposable. Prepared rename receipts are cleared after a known rollback, while committed receipts under `.graphitemd/operations/` are retained indefinitely in this foundation so old-resource retries remain idempotent. Existing safe `.graphite/` state atomically migrates to `.graphitemd/`; a conflict or symlinked state path stops startup without merging or deleting either directory. `GRAPHITEMD_STATE_DIR` defaults to `~/.graphitemd` for machine-local security/session/provider state. An explicit override must be absolute and outside the configured workspace; it is never workspace content or a Git-tracked file. `GRAPHITEMD_ALLOWED_ORIGINS` is a comma-separated exact allowlist for credentialed browser origins. `APP_KEY` is mandatory outside tests: generate a strong random value, store it with the host's secrets, and reuse the same value across restarts. Never commit it or place it inside the workspace.
 
-Back up Markdown, `.graphite/workspace.json`, `.graphite/plugins.json`, and `.graphite/plugins/` together. A full-filesystem backup may also retain ignored operation receipts; `.graphite/cache/` can be rebuilt. Back up `GRAPHITEMD_STATE_DIR` and `APP_KEY` separately using host-secret protections, because workspace files alone cannot restore owner access. Stop the service or use a filesystem snapshot so the workspace and inspectable state are captured consistently.
+Back up Markdown, `.graphitemd/workspace.json`, `.graphitemd/conversations/`, `.graphitemd/plugins.json`, and `.graphitemd/plugins/` together. A full-filesystem backup may also retain ignored operation receipts; `.graphitemd/cache/` can be rebuilt. Back up `~/.graphitemd` (or `GRAPHITEMD_STATE_DIR`) and `APP_KEY` separately using host-secret protections, because workspace files alone cannot restore owner access. Stop the service or use a filesystem snapshot so the workspace and inspectable state are captured consistently.
 
 Storybook owns deterministic previews for authentication, loading, empty, error, editor, search, Settings, and plugin states. `pnpm test:storybook` exercises their interaction and accessibility checks in headless Chromium. `pnpm test:e2e` creates disposable workspace and security roots under the operating-system temporary directory, starts the real Adonis/Vite path on dedicated loopback ports, and removes the fixture after desktop and narrow-browser acceptance. It never reads or mutates a real workspace.
 
@@ -75,6 +77,7 @@ The current target is a technically capable single owner on a trusted private ne
 - `packages/plugin-sdk`: manifest and lifecycle contracts for every plugin.
 - `packages/plugin-testkit`: headless plugin conformance helpers.
 - `plugins/system-status`: bundled plugin proving the production SDK boundary.
+- `plugins/assistant`: bundled grounded-answer policy and Context contribution; it receives no raw filesystem, credential, process, shell, or network access.
 
 ## Architecture Decisions
 

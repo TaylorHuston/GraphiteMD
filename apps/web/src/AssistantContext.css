@@ -1,0 +1,14 @@
+.assistant-context { display: grid; gap: .75rem; min-width: 0; padding: .8rem .35rem; border-top: 1px solid var(--line); }
+.context-panel:has(.assistant-context) { height: 100dvh; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.assistant-context h2 { margin: 0; font-size: 1rem; }
+.assistant-context p { margin: 0; color: var(--muted); line-height: 1.45; }
+.assistant-empty, .assistant-composer, .assistant-turns { display: grid; gap: .65rem; }
+.assistant-empty button, .assistant-composer button, .assistant-sources button { width: fit-content; }
+.assistant-composer label { color: var(--muted); font-size: .78rem; }
+.assistant-composer textarea { width: 100%; min-height: 5.5rem; resize: vertical; }
+.assistant-turn { display: grid; gap: .45rem; padding: .7rem; border: 1px solid var(--line); border-radius: .45rem; background: color-mix(in srgb, var(--surface) 92%, white); }
+.assistant-turn .assistant-question { color: var(--text); font-weight: 600; }
+.assistant-evidence { display: grid; gap: .35rem; }
+.assistant-evidence h3 { margin: 0; color: var(--muted); font-size: .78rem; font-weight: 600; }
+.assistant-sources { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+.assistant-sources button { min-height: auto; padding: 0; border: 0; color: var(--accent); background: transparent; text-align: left; }

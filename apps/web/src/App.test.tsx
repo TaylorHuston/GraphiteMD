@@ -638,7 +638,7 @@ describe('GMD-002/S1 responsive browse shell', () => {
   })
 
   it('GMD-003/S1 R2-S1 mounts and removes only the active declared System Status contribution', async () => {
-    const active = { id: 'system-status', status: 'active', manifest: { name: 'System Status', version: '1.0.0', permissions: ['status:read'] }, contributions: { views: [{ id: 'system-status', title: 'System Status' }] } }
+    const active = { id: 'system-status', status: 'active', manifest: { name: 'System Status', version: '1.0.0', permissions: ['status:read'] }, contributions: { views: [{ id: 'system-status', title: 'System Status', surface: 'context', renderer: 'system-status' }] } }
     const disabled = { ...active, status: 'disabled', contributions: {} }
     const fetchMock = vi.fn()
       .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))

@@ -24,14 +24,17 @@
     "@adonisjs/session": "^8.1.0",
     "@adonisjs/shield": "^9.0.0",
     "@adonisjs/static": "^2.0.1",
+    "@earendil-works/pi-coding-agent": "0.80.6",
     "@graphitemd/contracts": "workspace:*",
     "@graphitemd/domain": "workspace:*",
     "@graphitemd/plugin-sdk": "workspace:*",
+    "@graphitemd/plugin-assistant": "workspace:*",
     "@graphitemd/plugin-system-status": "workspace:*",
     "@graphitemd/workspace": "workspace:*",
     "better-sqlite3": "^12.11.1",
     "luxon": "^3.7.2",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "typebox": "^1.3.6"
   },
   "devDependencies": {
     "@adonisjs/assembler": "^8.4.0",

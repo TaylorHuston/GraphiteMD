@@ -4,12 +4,21 @@ import { lstat, mkdir, open, readFile, readdir, realpath, rename, rm, stat } fro
 import { dirname, join, relative } from 'node:path'
 
 import {
+  AssistantModelSessionRequest,
+  type AssistantModelSessionRequest as AssistantModelSessionRequestValue,
+  type AssistantQuestion,
+  type AssistantTurn,
+  matchesContract,
+} from '@graphitemd/contracts'
+import {
+  type AssistantQuestionDispatch,
   PluginCapabilityDenied,
   PluginHost,
   type CapabilityProvider,
   type PluginInventoryItem,
   type PluginStateBackend,
 } from '@graphitemd/plugin-sdk'
+import { assistantPlugin } from '@graphitemd/plugin-assistant'
 import { systemStatusPlugin } from '@graphitemd/plugin-system-status'
 import { WorkspaceUnavailableError, type ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
 
@@ -142,12 +151,12 @@ export class PluginEnablementStore {
   #pending: Promise<unknown> = Promise.resolve()
 
   constructor(private readonly workspaceRoot: string, private readonly options: AtomicPluginWriteOptions = {}) {
-    this.#path = join(workspaceRoot, '.graphite', 'plugins.json')
+    this.#path = join(workspaceRoot, '.graphitemd', 'plugins.json')
   }
 
   async read(): Promise<EnablementDocument> {
     await this.options.assertAuthority?.()
-    await assertNoSymlink(dirname(dirname(this.#path)), ['.graphite', 'plugins.json'])
+    await assertNoSymlink(dirname(dirname(this.#path)), ['.graphitemd', 'plugins.json'])
     const value = await readJson(this.#path)
     if (value === undefined) return DEFAULT_ENABLEMENT
     if (typeof value !== 'object' || value === null || Array.isArray(value) ||
@@ -184,7 +193,7 @@ export class FilesystemPluginStateBackend implements PluginStateBackend {
 
   #statePath(pluginId: string): string {
     if (!PLUGIN_ID.test(pluginId)) throw new Error('Invalid plugin identity.')
-    return join(this.workspaceRoot, '.graphite', 'plugins', pluginId, 'state.json')
+    return join(this.workspaceRoot, '.graphitemd', 'plugins', pluginId, 'state.json')
   }
 
   async read(pluginId: string): Promise<unknown | undefined> {
@@ -251,7 +260,7 @@ export class FilesystemPluginStateBackend implements PluginStateBackend {
 
   async #assertSafe(pluginId: string): Promise<void> {
     if (!PLUGIN_ID.test(pluginId)) throw new Error('Invalid plugin identity.')
-    await assertNoSymlink(this.workspaceRoot, ['.graphite', 'plugins', pluginId])
+    await assertNoSymlink(this.workspaceRoot, ['.graphitemd', 'plugins', pluginId])
   }
 }
 
@@ -264,6 +273,7 @@ export class PluginRuntimeService {
   constructor(
     workspaceRoot: string,
     private readonly workspace: ConfiguredWorkspaceAuthority,
+    private readonly modelSession?: (request: AssistantModelSessionRequestValue) => Promise<Extract<AssistantTurn, { status: 'completed' }>>,
   ) {
     const assertAuthority = async () => {
       const current = await this.workspace.current()
@@ -289,11 +299,15 @@ export class PluginRuntimeService {
     const configuration = await this.#enablement.read()
     const provider: CapabilityProvider = {
       perform: async (operation) => {
-        if (operation.permission !== 'status:read' || operation.resource !== 'system') {
-          throw new PluginCapabilityDenied('unavailable')
+        if (operation.permission === 'status:read' && operation.resource === 'system') {
+          const current = await this.workspace.current()
+          return { service: 'available', workspace: current.available ? 'available' : 'unavailable' }
         }
-        const current = await this.workspace.current()
-        return { service: 'available', workspace: current.available ? 'available' : 'unavailable' }
+        if (operation.permission === 'assistant:model-session' && operation.resource === 'assistant' &&
+          this.modelSession && matchesContract(AssistantModelSessionRequest, operation.input)) {
+          return this.modelSession(operation.input)
+        }
+        throw new PluginCapabilityDenied('unavailable')
       },
     }
     this.#host = new PluginHost({
@@ -302,11 +316,17 @@ export class PluginRuntimeService {
       provider,
       stateBackend: this.#state,
     })
-    await this.#host.load([systemStatusPlugin])
+    await this.#host.load([systemStatusPlugin, assistantPlugin])
   }
 
   list(): readonly PluginInventoryItem[] {
     return this.#host?.list() ?? []
+  }
+
+  async askAssistant(input: AssistantQuestion): Promise<AssistantQuestionDispatch> {
+    const host = this.#host
+    if (!host) return { kind: 'unavailable' }
+    return host.dispatchAssistantQuestion(input)
   }
 
   async setEnabled(id: string, enabled: boolean): Promise<PluginInventoryItem> {

@@ -26,7 +26,7 @@ const note = {
 const activePlugin = {
   id: 'system-status', status: 'active',
   manifest: { name: 'System Status', version: '0.1.0', permissions: ['status:read'] },
-  contributions: { views: [{ id: 'system-status', title: 'System Status' }] },
+  contributions: { views: [{ id: 'system-status', title: 'System Status', surface: 'context', renderer: 'system-status' }] },
 }
 
 function handlers(options: {

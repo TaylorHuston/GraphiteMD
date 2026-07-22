@@ -120,6 +120,8 @@ type NormalizedWorkspaceInventoryOptions = Required<Omit<WorkspaceInventoryOptio
 
 const DEFAULT_MAX_SOURCE_BYTES = 1024 * 1024
 const WORKSPACE_ID = /^wrk_[a-f0-9]{32}$/
+const WORKSPACE_STATE_DIRECTORY = '.graphitemd'
+const LEGACY_WORKSPACE_STATE_DIRECTORY = '.graphite'
 const GRAPHITE_GITIGNORE = '/cache/\n/operations/\n'
 
 export class WorkspaceUnavailableError extends Error {
@@ -147,6 +149,14 @@ export class WorkspaceInvalidMutationError extends Error {
   constructor(readonly code: 'invalid_source' | 'invalid_name' | 'collision' | 'indeterminate') {
     super('The requested note mutation could not be applied.')
     this.name = 'WorkspaceInvalidMutationError'
+  }
+}
+
+/** A legacy workspace namespace could not be migrated without risking data loss. */
+export class WorkspaceStateMigrationError extends Error {
+  constructor(readonly code: 'conflict' | 'unsafe_legacy' | 'unsafe_destination') {
+    super('GraphiteMD could not safely migrate .graphite to .graphitemd. Resolve the workspace state layout and retry.')
+    this.name = 'WorkspaceStateMigrationError'
   }
 }
 
@@ -504,7 +514,7 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
     status: 'prepared' | 'committed',
   ): Promise<void> {
     if (!/^res_[a-f0-9]{64}$/.test(resourceId)) throw new WorkspaceResourceUnavailableError()
-    const directory = join(opened.root, '.graphite', 'operations', 'renames')
+    const directory = join(opened.root, WORKSPACE_STATE_DIRECTORY, 'operations', 'renames')
     await ensureConfinedDirectory(opened.root, directory)
     await atomicWorkspaceFile(join(directory, `${resourceId}.json`), `${JSON.stringify({
       schemaVersion: 1,
@@ -518,7 +528,7 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
 
   async #clearRenameReceipt(opened: OpenWorkspace, resourceId: string): Promise<void> {
     if (!/^res_[a-f0-9]{64}$/.test(resourceId)) throw new WorkspaceResourceUnavailableError()
-    const receiptPath = join(opened.root, '.graphite', 'operations', 'renames', `${resourceId}.json`)
+    const receiptPath = join(opened.root, WORKSPACE_STATE_DIRECTORY, 'operations', 'renames', `${resourceId}.json`)
     try {
       await unlink(receiptPath)
     } catch (error) {
@@ -531,7 +541,7 @@ export class ConfiguredWorkspaceAuthority implements WorkspaceAuthority {
     if (!/^res_[a-f0-9]{64}$/.test(resourceId)) return undefined
     try {
       const value: unknown = JSON.parse(await readFile(
-        join(opened.root, '.graphite', 'operations', 'renames', `${resourceId}.json`), 'utf8',
+        join(opened.root, WORKSPACE_STATE_DIRECTORY, 'operations', 'renames', `${resourceId}.json`), 'utf8',
       ))
       if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
       const receipt = value as Record<string, unknown>
@@ -676,7 +686,8 @@ async function ensureConfinedDirectory(root: string, directory: string): Promise
 }
 
 async function provisionWorkspaceState(root: string): Promise<WorkspaceId> {
-  const graphite = join(root, '.graphite')
+  await migrateLegacyWorkspaceState(root)
+  const graphite = join(root, WORKSPACE_STATE_DIRECTORY)
   await mkdir(graphite, { recursive: true, mode: 0o700 })
   if (await realpath(graphite) !== graphite) throw new Error('Workspace state must not traverse symbolic links.')
   const configurationPath = join(graphite, 'workspace.json')
@@ -704,6 +715,30 @@ async function provisionWorkspaceState(root: string): Promise<WorkspaceId> {
     await atomicWorkspaceFile(ignorePath, GRAPHITE_GITIGNORE)
   }
   return workspaceId
+}
+
+async function migrateLegacyWorkspaceState(root: string): Promise<void> {
+  const legacy = join(root, LEGACY_WORKSPACE_STATE_DIRECTORY)
+  const destination = join(root, WORKSPACE_STATE_DIRECTORY)
+  const legacyMetadata = await lstat(legacy).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return undefined
+    throw error
+  })
+  if (!legacyMetadata) return
+  if (!legacyMetadata.isDirectory() || legacyMetadata.isSymbolicLink() || await realpath(legacy) !== legacy) {
+    throw new WorkspaceStateMigrationError('unsafe_legacy')
+  }
+  const destinationMetadata = await lstat(destination).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return undefined
+    throw error
+  })
+  if (destinationMetadata) {
+    if (!destinationMetadata.isDirectory() || destinationMetadata.isSymbolicLink() || await realpath(destination) !== destination) {
+      throw new WorkspaceStateMigrationError('unsafe_destination')
+    }
+    throw new WorkspaceStateMigrationError('conflict')
+  }
+  await rename(legacy, destination)
 }
 
 async function atomicWorkspaceFile(path: string, source: string): Promise<void> {
@@ -895,7 +930,7 @@ async function inventoryMarkdown(
 }
 
 function normalizeExcludedPaths(paths: readonly string[]): readonly string[] {
-  return ['.graphite', ...paths]
+  return [WORKSPACE_STATE_DIRECTORY, LEGACY_WORKSPACE_STATE_DIRECTORY, ...paths]
     .map((path) => path.replaceAll('\\', '/').replace(/^\.\//, '').replace(/\/$/, ''))
     .filter((path) => path.length > 0 && !posix.isAbsolute(path) && path !== '..' && !path.startsWith('../'))
 }

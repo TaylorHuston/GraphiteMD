@@ -87,10 +87,10 @@ describe('GMD-002/S3 local search', () => {
     await expect(service.rebuild()).rejects.toMatchObject({ name: 'LocalSearchUnavailableError' })
   })
 
-  it('R2-S3 never indexes .graphite Markdown state', async () => {
+  it('R2-S3 never indexes .graphitemd Markdown state', async () => {
     const { root, authority, service } = await fixture()
-    await mkdir(join(root, '.graphite'))
-    await writeFile(join(root, '.graphite', 'Secret.md'), '# Secret\nforbiddenword\n')
+    await mkdir(join(root, '.graphitemd'))
+    await writeFile(join(root, '.graphitemd', 'Secret.md'), '# Secret\nforbiddenword\n')
     await writeFile(join(root, 'Visible.md'), '# Visible\nallowedword\n')
     await authority.openConfigured()
     await expect(service.search('forbiddenword')).resolves.toEqual([])
@@ -102,7 +102,7 @@ describe('GMD-002/S3 local search', () => {
     const outside = await mkdtemp(join(tmpdir(), 'graphitemd-search-outside-'))
     roots.push(outside)
     await writeFile(join(root, 'Visible.md'), '# Visible\nneedle\n')
-    await symlink(outside, join(root, '.graphite'))
+    await symlink(outside, join(root, '.graphitemd'))
     await expect(authority.openConfigured()).rejects.toThrow('unavailable')
     await expect(service.search('needle')).rejects.toThrow('unavailable')
     await expect(readFile(join(outside, 'cache', 'search.sqlite'))).rejects.toMatchObject({ code: 'ENOENT' })

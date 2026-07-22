@@ -24,7 +24,7 @@ Plugins SHALL:
 - declare identity, version, compatibility, dependencies, permissions, capabilities, and contributions in a manifest;
 - receive opaque workspace, mount, resource, and revision identities rather than unrestricted absolute paths;
 - use broker-mediated operations for files, credentials, Git, processes, models, and external systems;
-- store inspectable durable state under `.graphite/plugins/<plugin-id>/` and use only namespaced derived projections;
+- store inspectable durable state under `.graphitemd/plugins/<plugin-id>/` and use only namespaced derived projections;
 - register commands, views, events, tools, and settings through SDK contracts;
 - behave predictably when capabilities are denied or unavailable.
 

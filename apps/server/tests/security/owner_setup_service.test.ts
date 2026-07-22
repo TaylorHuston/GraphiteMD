@@ -1,4 +1,5 @@
-import { mkdtemp, readFile, stat } from 'node:fs/promises'
+import { mkdtemp, readFile, stat, symlink } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -9,9 +10,29 @@ import {
   OwnerAlreadyExistsError,
   OwnerSetupService,
   PasswordPolicyError,
+  resolveSecurityStateDirectory,
 } from '../../app/security/owner_setup_service.js'
 
 describe('GMD-001/S1 R1 host-local owner setup', () => {
+  it('GMD-004/S1 R2-S1 defaults secret state to the machine vault and rejects workspace-local overrides', async () => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), 'graphitemd-workspace-'))
+    expect(resolveSecurityStateDirectory({})).toBe(join(homedir(), '.graphitemd'))
+    expect(() => resolveSecurityStateDirectory({
+      GRAPHITEMD_WORKSPACE_ROOT: workspaceRoot,
+      GRAPHITEMD_STATE_DIR: join(workspaceRoot, '.graphitemd'),
+    })).toThrow('must resolve outside')
+  })
+
+  it('GMD-004/S1 R2-S1 rejects a state override whose symlinked ancestor enters the workspace', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'graphitemd-state-parent-'))
+    const workspaceRoot = await mkdtemp(join(tmpdir(), 'graphitemd-workspace-'))
+    const linked = join(parent, 'linked')
+    await symlink(workspaceRoot, linked)
+
+    await expect(new OwnerSetupService(join(linked, 'state'), workspaceRoot).hasOwner())
+      .rejects.toThrow('must not traverse')
+  })
+
   it('R1-S1 stores only a password hash in machine-local security state', async () => {
     const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
     const service = new OwnerSetupService(stateDirectory)

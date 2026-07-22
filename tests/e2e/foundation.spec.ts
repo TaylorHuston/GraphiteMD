@@ -32,6 +32,13 @@ test('foundation owner path works on desktop and a narrow mobile browser', async
   await page.goto('/')
   await signIn(page, initialPassword)
 
+  const desktopContext = page.locator('.context-panel')
+  await expect(desktopContext.getByRole('textbox', { name: 'Ask Codex' })).toBeVisible()
+  expect(await desktopContext.evaluate((panel) => {
+    const style = window.getComputedStyle(panel)
+    return style.overflowY === 'auto' && panel.getBoundingClientRect().height <= window.innerHeight
+  })).toBe(true)
+
   await page.getByRole('treeitem', { name: /Welcome/ }).click()
   await expect(page.getByRole('heading', { name: 'Welcome', level: 1 })).toBeVisible()
   await expect(page).toHaveURL(/resource=res_[a-z0-9]+/)
@@ -100,8 +107,44 @@ test('foundation owner path works on desktop and a narrow mobile browser', async
   await expect(page.getByRole('heading', { name: 'Roadmap', level: 1 })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
 
-  await page.getByRole('button', { name: 'Settings' }).first().click()
-  const mobileSettings = page.getByRole('dialog', { name: 'Settings' })
-  await mobileSettings.getByRole('button', { name: 'Log out' }).click()
-  await expect(page.getByText('Enter the owner password for this host.')).toBeVisible()
+  const contextTrigger = page.getByRole('button', { name: 'Context' })
+  await contextTrigger.click()
+  const contextDrawer = page.getByRole('dialog', { name: 'Context' })
+  await expect(contextDrawer.getByRole('button', { name: 'Close Context' })).toBeFocused()
+  const assistantInput = contextDrawer.getByRole('textbox', { name: 'Ask Codex' })
+  await assistantInput.fill('What is the unique grounded fact?')
+  await contextDrawer.getByRole('button', { name: 'Ask Codex' }).click()
+  await expect(contextDrawer.getByText('Grounded test answer:')).toBeVisible()
+  await expect(contextDrawer.getByRole('heading', { name: 'Sources used' })).toBeVisible()
+  expect(await contextDrawer.evaluate((drawer) => drawer.scrollHeight > drawer.clientHeight)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await contextDrawer.getByRole('button', { name: 'Close Context' }).click()
+  await expect(contextTrigger).toBeFocused()
+
+  await contextTrigger.click()
+  await page.route('**/api/v1/assistant/questions', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    await route.fulfill({
+      status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'provider_unavailable', message: 'Codex is temporarily unavailable.' } }),
+    })
+  })
+  const retryContext = page.getByRole('dialog', { name: 'Context' })
+  await retryContext.getByRole('textbox', { name: 'Ask Codex' }).fill('Can you answer later?')
+  await retryContext.getByRole('button', { name: 'Ask Codex' }).click()
+  await expect(retryContext.getByRole('status')).toContainText('Your question will remain here')
+  await expect(retryContext.getByRole('alert')).toHaveText('Codex is temporarily unavailable.')
+  await expect(retryContext.getByRole('button', { name: 'Retry Codex' })).toBeEnabled()
+  await page.unroute('**/api/v1/assistant/questions')
+  await retryContext.getByRole('button', { name: 'Close Context' }).click()
+
+  await contextTrigger.click()
+  await page.route('**/api/v1/assistant/questions', (route) => route.fulfill({
+    status: 401, contentType: 'application/json', body: JSON.stringify({ error: { code: 'unauthenticated', message: 'Authentication required.' } }),
+  }))
+  const expiredContext = page.getByRole('dialog', { name: 'Context' })
+  await expiredContext.getByRole('textbox', { name: 'Ask Codex' }).fill('Can you still see this?')
+  await expiredContext.getByRole('button', { name: 'Ask Codex' }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in to GraphiteMD' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Context' })).toHaveCount(0)
+
 })
