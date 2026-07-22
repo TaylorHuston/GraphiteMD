@@ -5,11 +5,11 @@ status: in_review
 
 ## Resume Here
 
-- Last completed action: transitioned to `in_review` and committed the reviewed implementation and reconciliation through `4dd8e56`.
-- Next action: independent `/sdd-review` of the immutable candidate.
+- Last completed action: independent review found and corrected semantic recovered-state validation before final activation.
+- Next action: record the local review verdict after committing the remediation.
 - Active branch/ref: `change/bundled-plugin-recovery-verification`.
-- Expected dirty files: none.
-- Known blockers: none identified yet
+- Expected dirty files: review remediation and evidence records pending the local commit.
+- Known blockers: none.
 
 ## Task Checklist
 
@@ -79,7 +79,7 @@ Record meaningful Requirement, Scenario, enabling, or delegated slices as they h
 
 | Date | Slice | Agent / Guidance | Files / Areas | Result | Commit / Ref |
 |---|---|---|---|---|---|
-| 2026-07-22 | GMD-003/S1/R4-S3 | main; fresh-context discovery and coverage review | `packages/plugin-sdk`, production runtime test, GMD-003 map | Recovery now runs before every plugin activation; both current manifests have persistent lifecycle and interrupted-state proof. | `ae3891f` |
+| 2026-07-22 | GMD-003/S1/R4-S3 | main; independent review remediation | `packages/plugin-sdk`, production runtime test, GMD-003 map | Recovery now rejects malformed JSON and semantically invalid state envelopes before every bundled plugin activation; current bundle IDs derive from the production bundle list. | pending local commit |
 
 ## Verification Ledger
 
@@ -87,34 +87,24 @@ Record proof as it happens. Keep chronological command output here; summarize on
 
 | Date | Check | Evidence Type | What It Proves | Result |
 |---|---|---|---|---|
-| 2026-07-22 | `pnpm --filter @graphitemd/server test -- plugin_runtime_service.test.ts` | focused automated test | GMD-003/S1/R4-S3: both bundle IDs persist explicit disable/enable, recover complete temporary state, and isolate malformed recovery failures. | passing: 95 tests |
+| 2026-07-22 | `pnpm --filter @graphitemd/server test -- plugin_runtime_service.test.ts` | focused automated test | GMD-003/S1/R4-S3: every current bundle ID persists explicit disable/enable, recovers complete temporary state, and isolates malformed JSON or invalid state envelopes. | passing: 96 tests |
 | 2026-07-22 | `pnpm --filter @graphitemd/plugin-sdk test` | focused automated test | `PluginHost.enable` recovery guard preserves SDK lifecycle coverage. | passing: 15 tests |
 | 2026-07-22 | `pnpm --filter @graphitemd/server typecheck` | broad supporting gate | Server TypeScript surface remains valid. | passing |
 | 2026-07-22 | `sdd validate graphitemd --change 2026-07-22-bundled-plugin-recovery-verification --repo /Users/taylor/src/my-life/spaces/graphitemd --workspace /Users/taylor --json` | artifact validation | Active Change structure and status are valid. | passing: 0 errors, 0 warnings |
+| 2026-07-22 | `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm audit --audit-level=high` | broad supporting gates | Monorepo regressions, static checks, and high-severity dependency advisories. | passing; 96 server tests; no known vulnerabilities |
+| 2026-07-22 | `sdd validate graphitemd --repo /Users/taylor/src/my-life/spaces/graphitemd --workspace /Users/taylor --json` | repository artifact validation | All current GraphiteMD Change and Epic artifacts remain coherent after evidence reconciliation. | passing: 0 errors, 0 warnings |
 
 ## Manual Feedback
 
-Record the user's manual testing feedback after implementation starts.
-
-| Date | Feedback | Classification | Action / Artifact Updates | Status |
-|---|---|---|---|---|
-| YYYY-MM-DD | TBD | defect / verification gap / artifact drift / requirement refinement / scope expansion / product drift | TBD | open |
+Not applicable: this Change has no browser-visible behavior or requested user confirmation.
 
 ## Planning Updates
 
-Record `/sdd-change --replan` updates when implementation or feedback discovers planning-level requirements.
-
-| Date | Discovery | Classification | Planning Updates | Next Apply Starting Point |
-|---|---|---|---|---|
-| YYYY-MM-DD | TBD | in-scope refinement / scope expansion / product drift / Epic ownership change / technical constraint / follow-up change | proposal.md / design.md / tasks.md | `/sdd-apply` TBD |
+None. Review findings remained within the accepted recovery scope.
 
 ## Design Updates
 
-Record `/sdd-design --revise` work when implementation, comparison, review, or manual feedback requires another experience-design pass without changing accepted behavior.
-
-| Date | Feedback / Discovery | Classification | Reference / Target | Preserve / Change / Non-Goals | Artifact Updates | Next Apply Starting Point |
-|---|---|---|---|---|---|---|
-| YYYY-MM-DD | TBD | experience refinement / experience defect / accessibility correction / responsive correction | TBD | TBD | design.md / tasks.md | `/sdd-apply` TBD |
+Not applicable: no experience design or UI surface changed.
 
 ## Implementation Risk And Confirmation Matrix
 
@@ -122,7 +112,7 @@ This is a living end-state and evidence surface, not an upfront implementation s
 
 | Requirement / Surface | End-State Invariant | Risk / Failure Mode | Check Or Confirmation Needed | Evidence / Finding | Status |
 |---|---|---|---|---|---|
-| GMD-003/S1/R4-S3 | Every enabled bundle recovers valid state before activation; malformed state activates no contributions. | Assistant could bypass recovery because it does not read/write state during activation. | Exercise durable temporary state through the production runtime for both bundle IDs. | `PluginHost.enable` invokes `recovery`; focused tests prove complete recovery and isolated `activation_failed`. | proved |
+| GMD-003/S1/R4-S3 | Every enabled bundle recovers a valid state envelope before activation; malformed state activates no contributions. | Assistant could bypass recovery because it does not read/write state during activation; syntactically valid but structurally invalid state could also be accepted. | Exercise durable temporary state through the production runtime for every production bundle ID. | `PluginHost.enable` invokes recovery then validates the persisted envelope; focused tests prove complete recovery and isolated `activation_failed` for malformed JSON and invalid envelopes. | proved |
 
 ## Pattern Parity Matrix
 
@@ -130,7 +120,7 @@ Required when implementation adds a surface parallel to an established adapter, 
 
 | Concern | Reference Location / Contract | New Location / Contract | Focused Proof | Intentional Divergence / Gap | Status |
 |---|---|---|---|---|---|
-| recovery and activation failure | Existing `FilesystemPluginStateBackend.recovery` contract | `PluginHost.enable` before plugin activation | malformed temporary state produces `activation_failed` with `{}` contributions while its sibling remains active | no new adapter; host now applies the existing recovery contract uniformly | matched |
+| recovery and activation failure | Existing `FilesystemPluginStateBackend.recovery` contract | `PluginHost.enable` before plugin activation | malformed or structurally invalid temporary state produces `activation_failed` with `{}` contributions while its sibling remains active | no new adapter; host now applies recovery and envelope validation uniformly | matched |
 
 ## Stateful Transition Matrix
 
@@ -138,7 +128,7 @@ Required when implementation owns editable, autosaving, cached, routed, asynchro
 
 | Start State | Trigger / Transition | Expected Invariant | Focused Test Or Runtime Observation | Result |
 |---|---|---|---|---|
-| durable temporary state | runtime recreation then activation | complete state becomes canonical before activation; malformed state affects only its namespace/plugin | `GMD-003/S1 R4-S3` recovery and malformed-state focused tests | passed |
+| durable temporary state | runtime recreation then activation | complete state becomes canonical before activation; malformed JSON or invalid state envelopes affect only their namespace/plugin | `GMD-003/S1 R4-S3` recovery and invalid-state focused tests | passed |
 
 ## Decision Fan-Out Ledger
 
@@ -146,7 +136,7 @@ Record implementation discoveries, user decisions, replans, ADR changes, default
 
 | Date | Decision / Discovery | End-State Consequence | Affected Surfaces To Reconcile | Evidence / Artifact Updates | Status |
 |---|---|---|---|---|---|
-| 2026-07-22 | Runtime recovery must occur at host activation, not only through plugin state reads. | Assistant receives the same recovery enforcement as System Status without a provider or UI change. | SDK host, runtime tests, GMD-003 ownership/evidence, Change design/tasks. | Updated `PluginHost.enable`, exact evidence rows, and retained R4-S2 platform gap. | reconciled |
+| 2026-07-22 | Runtime recovery must occur at host activation and reject a structurally invalid persisted envelope, not only malformed JSON or plugin state reads. | Assistant receives the same recovery enforcement as System Status without a provider or UI change. | SDK host, runtime tests, GMD-003 ownership/evidence, Change tasks. | Updated `PluginHost.enable`, bundle-derived runtime coverage, and GMD-003 evidence; retained R4-S2 platform gap. | reconciled |
 
 ## Verification Environment
 
@@ -188,7 +178,6 @@ Required for UI-bearing changes. If not applicable, record why.
 
 ## Closeout
 
-- Change status:
 - Change status: `in_review`.
 - Epic files updated: GMD-003; prior all-Epic audit reconciliation is committed in `ad3e1b9`.
 - Story labels/references and Requirement/Scenario IDs current: yes.

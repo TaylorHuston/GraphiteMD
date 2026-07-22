@@ -253,6 +253,11 @@ export class PluginHost {
       if (await this.options.stateBackend.recovery(id) === 'failed') {
         throw new Error('Plugin state recovery failed.')
       }
+      const recoveredState = await this.options.stateBackend.read(id)
+      if (recoveredState !== undefined &&
+          (!isRecord(recoveredState) || recoveredState.schemaVersion !== plugin.manifest.state.schemaVersion || !('value' in recoveredState))) {
+        throw new Error('Plugin state schema mismatch.')
+      }
       const capabilities = createCapabilityBroker(plugin.manifest, this.options.provider)
       const activationCapabilities: ReturnType<typeof createCapabilityBroker> = Object.freeze({
         perform: (operation) => operation.permission === 'assistant:model-session'

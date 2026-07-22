@@ -132,7 +132,7 @@ The system SHALL confine durable plugin state to its documented `.graphitemd/plu
 ###### Scenario R4-S3: Bundled Plugin Passes Conformance
 
 - WHEN a bundled plugin is accepted for release
-- THEN the shared conformance suite proves manifest validation, enable/disable/restart behavior, permission denial, state isolation, contribution removal, and headless contracts
+- THEN the bundled-plugin conformance suite proves manifest validation, enable/disable/restart behavior, permission denial, state isolation, contribution removal, and headless contracts
 - AND bundled status grants no test or runtime bypass.
 
 #### Prior Detailed Implementation Map (reconciled 2026-07-22)
@@ -161,7 +161,7 @@ The system SHALL confine durable plugin state to its documented `.graphitemd/plu
 | S1/R1 | `packages/plugin-sdk/src/index.ts#PluginHost` | primary | Governs manifest validation and host lifecycle. |
 | S1/R2 | `apps/server/app/plugins/plugin_runtime_service.ts#PluginRuntimeService` | primary | Governs persisted enablement and contribution lifecycle. |
 | S1/R3 | `packages/plugin-sdk/src/index.ts#createCapabilityBroker` | primary | Governs declared capability mediation. |
-| S1/R4-S2, S1/R4-S3 | `packages/plugin-sdk/src/index.ts#PluginHost.enable` | primary | Runs each plugin's state recovery before activation and reports malformed recovery as an isolated activation failure with no contributions. |
+| S1/R4 | `packages/plugin-sdk/src/index.ts#enable` | primary | Runs each plugin's state recovery and validates its persisted envelope before activation, reporting invalid recovery as an isolated activation failure with no contributions. |
 | S1/R4-S1, S1/R4-S2 | `apps/server/app/plugins/plugin_runtime_service.ts#FilesystemPluginStateBackend` | primary | Governs confined plugin state persistence and recovery. |
 
 #### Implementation Gaps
@@ -200,7 +200,7 @@ None for the accepted bundled System Status scope. Broader resource providers be
 | S1/R2-S1, S1/R2-S2 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#it(` | Enablement control and persisted System Status state. | passing |
 | S1/R3-S1, S1/R3-S2 | `packages/plugin-sdk/src/index.test.ts#it(` | Declared capabilities work while undeclared use is denied. | passing |
 | S1/R4-S1, S1/R4-S2 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#recovers a complete interrupted write without treating invalid partial JSON as complete` | The filesystem backend recovers one complete temporary write and returns `failed` for malformed JSON. | passing |
-| S1/R4-S3 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#GMD-003/S1 R4-S3 applies persisted enablement before every bundled plugin activates after restart`; `#GMD-003/S1 R4-S3 recovers complete interrupted state for every bundled plugin before restart activation`; `#GMD-003/S1 R4-S3 reports malformed interrupted state for each bundled plugin without activating it` | In a disposable real workspace, both current bundle IDs persist disabled and enabled configuration across service recreation; each complete temporary state is recovered before activation; malformed temporary state fails only that plugin with no contributions. | passing 2026-07-22 (focused automated test) |
+| S1/R4-S3 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#GMD-003/S1 R4-S3 applies persisted enablement before every bundled plugin activates after restart`; `apps/server/tests/plugins/plugin_runtime_service.test.ts#GMD-003/S1 R4-S3 recovers complete interrupted state for every bundled plugin before restart activation`; `apps/server/tests/plugins/plugin_runtime_service.test.ts#GMD-003/S1 R4-S3 reports malformed interrupted state for each bundled plugin without activating it`; `apps/server/tests/plugins/plugin_runtime_service.test.ts#GMD-003/S1 R4-S3 rejects semantically invalid recovered state for each bundled plugin` | In a disposable real workspace, both current bundle IDs persist disabled and enabled configuration across service recreation; each complete temporary state is recovered before activation; malformed JSON or an invalid state envelope fails only that plugin with no contributions. | passing 2026-07-22 (focused automated test) |
 
 #### Verification Gaps
 
