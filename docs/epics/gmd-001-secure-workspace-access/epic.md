@@ -121,7 +121,7 @@ The system SHALL accept credentialed browser requests only from configured exact
 - THEN the service rejects it without granting cross-origin access
 - AND wildcard credentialed CORS is never used.
 
-#### Implemented By
+#### Prior Detailed Implementation Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
@@ -138,11 +138,19 @@ The system SHALL accept credentialed browser requests only from configured exact
 | S1/R3-S1 | `apps/server/config/shield.ts#defineConfig` | primary | Enables official Shield CSRF enforcement for state-changing methods and its encrypted SPA XSRF cookie proof flow. |
 | S1/R3-S2 | `apps/server/config/cors.ts#defineConfig` | primary | Restricts credentialed cross-origin responses to the exact origins supplied through `GRAPHITEMD_ALLOWED_ORIGINS`; never configures reflection or wildcard access. |
 
+#### Implemented By
+
+| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
+|---|---|---|---|
+| S1/R1 | `apps/server/app/security/owner_setup_service.ts#OwnerSetupService` | primary | Governs singleton owner setup and password hashing. |
+| S1/R2 | `apps/server/start/routes.ts#ownerSetup` | primary | Governs authenticated owner session issuance and logout. |
+| S1/R3 | `apps/server/config/shield.ts#defineConfig` | primary | Governs XSRF protection for browser mutations. |
+
 #### Implementation Gaps
 
 - None.
 
-#### Verified By
+#### Prior Detailed Verification Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
@@ -159,6 +167,14 @@ The system SHALL accept credentialed browser requests only from configured exact
 | `S1/R3-S1` | `apps/server/tests/http/authentication.test.ts` — `R3-S1 rejects a state-changing authenticated request without XSRF proof and accepts valid proof` | Real HTTP evidence proves missing and invalid XSRF proof reject logout without invalidating the session, while the official cookie/header proof permits the same mutation. | Passing 2026-07-18. |
 | `S1/R3-S2` | `apps/server/tests/http/authentication.test.ts` — `R3-S2 grants credentialed CORS only to an exact configured origin` | Real HTTP evidence proves an exact configured origin receives its own ACAO value plus credential permission, while a near-match untrusted credentialed origin receives no ACAO and wildcard access is absent. | Passing 2026-07-18. |
 | `S1/R2`, `S1/R3` | `tests/e2e/foundation.spec.ts` — desktop owner path | Deterministic real-browser evidence proves XSRF-protected login establishes the service session and reaches the protected workspace through the Vite/Adonis production path. | Passing 2026-07-18. |
+
+#### Verified By
+
+| Requirement / Scenario | Evidence | Proves | Status |
+|---|---|---|---|
+| S1/R1-S1, S1/R1-S2 | `apps/server/tests/security/owner_setup_service.test.ts#it(` | Owner creation and existing-owner refusal remain secure. | passing |
+| S1/R2-S1, S1/R2-S2, S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#it(` | Session, generic failure, and logout replay behavior. | passing |
+| S1/R3-S1, S1/R3-S2 | `apps/server/tests/http/authentication.test.ts#it(` | XSRF and exact-origin CORS behavior. | passing |
 
 #### Verification Gaps
 
@@ -231,7 +247,7 @@ The system SHALL restore an authenticated browser from valid service-owned sessi
 - THEN protected APIs reject the session
 - AND the browser returns to the login experience without exposing prior workspace content.
 
-#### Implemented By
+#### Prior Detailed Implementation Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
@@ -245,11 +261,19 @@ The system SHALL restore an authenticated browser from valid service-owned sessi
 | S2/R2 | `apps/server/commands/reset_owner.ts#runOwnerReset`; `apps/server/commands/reset_owner.ts#ResetOwner` | adapter | Exposes explicit confirmation and secure matching prompts through the host-local `owner:reset` Ace command without logging credential material. |
 | S2/R3 | `apps/server/start/routes.ts#ownerSetup` | primary | The current-owner route restores valid service-owned sessions and normalizes rejected reconnects into the login experience without making browser state authoritative. |
 
+#### Implemented By
+
+| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
+|---|---|---|---|
+| S2/R1 | `apps/server/app/security/owner_setup_service.ts#changePassword` | primary | Governs password rotation and session revocation. |
+| S2/R2 | `apps/server/app/security/owner_setup_service.ts#resetPassword` | primary | Governs host-local reset and rollback. |
+| S2/R3 | `apps/server/app/middleware/session_generation_middleware.ts#SessionGenerationMiddleware` | primary | Governs reconnect validity after revocation. |
+
 #### Implementation Gaps
 
 - None for the currently accepted S2 behavior.
 
-#### Verified By
+#### Prior Detailed Verification Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
@@ -265,6 +289,14 @@ The system SHALL restore an authenticated browser from valid service-owned sessi
 | `S2/R3-S1` | `apps/server/tests/http/authentication.test.ts` — `R2-S1 establishes an official server-owned session and protects workspace delivery` | Disposable real-HTTP evidence proves the same persisted cookie reconnects to current-owner and workspace APIs while the response omits the host workspace path. | Passing 2026-07-18. |
 | `S2/R3-S2` | `apps/server/tests/http/authentication.test.ts`; `apps/server/tests/http/access_maintenance.test.ts`; `apps/web/src/App.test.tsx` — `distinguishes an initial unauthenticated browser from an expired session`; `returns a note-read 401 to the expired-session login state` | HTTP evidence proves logout, password change, and host reset reject replayed cookies generically; browser-component evidence distinguishes a fresh login from later invalidation and returns rejected note reads to login without prior workspace content. | Passing with gap 2026-07-18. |
 | `S2/R1`, `S2/R3` | `tests/e2e/foundation.spec.ts` — password rotation and second-session invalidation | Deterministic real-browser evidence proves an owner changes the credential, all existing sessions are invalidated, and only the replacement credential reconnects. | Passing 2026-07-18. |
+
+#### Verified By
+
+| Requirement / Scenario | Evidence | Proves | Status |
+|---|---|---|---|
+| S2/R1-S1, S2/R1-S2 | `apps/server/tests/http/access_maintenance.test.ts#it(` | Password rotation and generic denial preserve the security boundary. | passing |
+| S2/R2-S1, S2/R2-S2 | `apps/server/tests/commands/reset_owner.test.ts#it(` | Reset success and rollback behavior. | passing |
+| S2/R3-S1, S2/R3-S2 | `apps/server/tests/http/authentication.test.ts#it(` | Reconnect and invalidated-session rejection. | passing |
 
 #### Verification Gaps
 

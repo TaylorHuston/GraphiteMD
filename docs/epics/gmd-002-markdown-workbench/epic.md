@@ -148,7 +148,7 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 - THEN the document remains the primary surface
 - AND files, search, and context remain reachable through touch-sized, keyboard-accessible controls without horizontal page overflow.
 
-#### Implemented By
+#### Prior Detailed Implementation Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
@@ -163,11 +163,20 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 | S1/R4 | `apps/web/src/styles.css#.workbench` | presentation | Bounded desktop grid, physically centered safe document measure, intermediate-width containment, compact-rail narrow breakpoint, safe-area handling, and page-level overflow containment. |
 | S1/R1, S1/R4 | `apps/server/app/middleware/spa_fallback_middleware.ts#SpaFallbackMiddleware`; `apps/server/config/static.ts`; root and server `package.json#build`; `scripts/stage-web-build.mjs` | support | One serialized production build creates and stages the browser bundle before the AdonisJS artifact serves hashed assets, safe client-side history fallback, and authenticated API from the same origin without allowing the fallback to intercept `/api/**`. |
 
+#### Implemented By
+
+| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
+|---|---|---|---|
+| S1/R1 | `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority` | primary | Governs configured workspace identity and reconnection. |
+| S1/R2 | `packages/workspace/src/index.ts#inventoryMarkdown` | primary | Governs eligible Markdown inventory. |
+| S1/R3 | `packages/workspace/src/index.ts#readNote` | primary | Governs opaque note reads and revisions. |
+| S1/R4 | `apps/web/src/App.tsx#Workbench` | primary | Governs desktop and narrow workbench composition. |
+
 #### Implementation Gaps
 
 None.
 
-#### Verified By
+#### Prior Detailed Verification Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
@@ -187,6 +196,15 @@ None.
 | S1/R1, S1/R2, S1/R3, S1/R4 | `tests/e2e/foundation.spec.ts` — desktop and 390x844 workspace path | Deterministic real-browser evidence proves authenticated browse/read, reload reconnect, opaque selection, nested Files access, narrow navigation, and page overflow containment over a disposable workspace. | Passing 2026-07-18. |
 | S1/R1, S1/R3, S1/R4 | `playwright.config.ts` production web server plus `tests/e2e/foundation.spec.ts` | `pnpm build && pnpm start` serves the browser and API from one origin; direct client-side history reload remains in the SPA while unknown `/api/**` paths are not converted to HTML. | Passing 2026-07-18. |
 | S1/R2, S1/R4 | `apps/web/src/App.stories.tsx` — loading, login, empty, unavailable, desktop, and narrow workbench states | Storybook browser evidence renders the required workbench states and runs configured accessibility checks. | Passing 2026-07-18. |
+
+#### Verified By
+
+| Requirement / Scenario | Evidence | Proves | Status |
+|---|---|---|---|
+| S1/R1-S1, S1/R1-S2, S1/R1-S3 | `packages/workspace/src/index.test.ts#it(` | Workspace authority opens, fails closed, and reconnects. | passing |
+| S1/R2-S1, S1/R2-S2, S1/R2-S3 | `packages/workspace/src/index.test.ts#it(` | Inventory is confined, deterministic, and recoverable when empty. | passing |
+| S1/R3-S1, S1/R3-S2 | `packages/workspace/src/index.test.ts#it(` | Note selection and stale/history recovery remain confined. | passing |
+| S1/R4-S1, S1/R4-S2 | `apps/web/src/App.test.tsx#it(` | Desktop and narrow workbench accessibility behavior. | passing |
 
 #### Verification Gaps
 
@@ -296,7 +314,7 @@ The system SHALL confine every direct owner write to an authenticated, authorize
 - THEN the normal human write path applies directly with revision protection
 - AND proposal or autonomous-agent authority is not required or implied.
 
-#### Implemented By
+#### Prior Detailed Implementation Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
@@ -310,10 +328,19 @@ The system SHALL confine every direct owner write to an authenticated, authorize
 | S2/R1, S2/R2, S2/R3 | `apps/web/src/App.tsx#Workbench` | presentation | Editor/autosave binding, save status, guarded note transitions and unload, rename control, tree selection, and opaque history reconciliation. |
 | S2/R2, S2/R3 | `apps/web/src/App.tsx#bindAutosave` | presentation | Reusable resource-bound save authority after open, successful rename, or a discarded failed rename attempt; conflicted rename attempts reload authoritative source before proceeding; recoverable retry/conflict controls and displayed-resource URL restoration remain available. |
 
+#### Implemented By
+
+| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
+|---|---|---|---|
+| S2/R1 | `apps/web/src/MarkdownEditor.tsx#MarkdownEditor` | primary | Governs source and rendered editing modes. |
+| S2/R2 | `apps/web/src/autosave.ts#AutosaveCoordinator` | primary | Governs single-flight autosave and conflict recovery. |
+| S2/R3 | `packages/workspace/src/index.ts#renameNote` | primary | Governs safe note rename and reconciliation. |
+| S2/R4 | `packages/workspace/src/index.ts#saveNote` | primary | Governs confined human-authored note writes. |
+
 #### Implementation Gaps
 
 None.
-#### Verified By
+#### Prior Detailed Verification Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
@@ -330,6 +357,15 @@ None.
 | S2/R1, S2/R2, S2/R3, S2/R4 | `tests/e2e/foundation.spec.ts` — edit/conflict/recovery/rename path | Deterministic real-browser evidence proves rendered/source editing, autosave, external-edit conflict recovery, rename, post-rename reload, and continued service-owned access. | Passing 2026-07-18. |
 | S2/R1 | `apps/web/src/App.stories.tsx` — populated editor preview; `apps/web/src/MarkdownEditor.stories.tsx` — active syntax, wide table overflow, and read-only note states | Storybook browser evidence renders the source-backed editor in the complete workbench plus accepted editor edge states with interaction and accessibility checks. | Passing 2026-07-19. |
 | S2/R2-S3, S2/R2-S4, S2/R3-S1 | `apps/web/src/App.test.tsx` — save recovery, failed-draft empty-history guard, guarded popstate, post-rename edit, and discarded failed/conflicted-draft rename cases | Retry and explicit conflict recovery are reachable, cancelled history restores the displayed URL and draft, failed-draft rename rebinds autosave, and conflicted-draft rename reloads authoritative source/revision before renaming and continuing autosave. | Passing 2026-07-19. |
+
+#### Verified By
+
+| Requirement / Scenario | Evidence | Proves | Status |
+|---|---|---|---|
+| S2/R1-S1, S2/R1-S2, S2/R1-S3 | `apps/web/src/MarkdownEditor.test.tsx#it(` | Editor source/rendered states remain recoverable. | passing |
+| S2/R2-S1, S2/R2-S2, S2/R2-S3, S2/R2-S4 | `apps/web/src/autosave.test.ts#it(` | Autosave queues, conflicts, and protects transitions. | passing |
+| S2/R3-S1, S2/R3-S2, S2/R3-S3 | `packages/workspace/src/index.test.ts#it(` | Rename validates and recovers safely. | passing |
+| S2/R4-S1, S2/R4-S2 | `packages/workspace/src/index.test.ts#it(` | Human writes remain confined and outside agent grants. | passing |
 
 #### Verification Gaps
 
@@ -407,7 +443,7 @@ The system SHALL answer baseline search in the authoritative service without sen
 - THEN only the GraphiteMD service and its local derived index process the query
 - AND no AI provider or external search service receives it.
 
-#### Implemented By
+#### Prior Detailed Implementation Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
@@ -418,11 +454,17 @@ The system SHALL answer baseline search in the authoritative service without sen
 | S3/R2 | `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority.refresh` | primary | Re-inventories canonical sources while retaining the active workspace identity and the inventory's exclusion/confinement policy. |
 | S3/R3 | `apps/server/app/search/local_search_service.ts#LocalSearchService` | primary | Host-process-only `better-sqlite3` implementation with no provider or external-search interface. |
 
+#### Implemented By
+
+| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
+|---|---|---|---|
+| S3/R1, S3/R2, S3/R3 | `apps/server/app/search/local_search_service.ts#LocalSearchService` | primary | Governs local search, rebuild, and host-local indexing. |
+
 #### Implementation Gaps
 
 None.
 
-#### Verified By
+#### Prior Detailed Verification Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
@@ -437,6 +479,14 @@ None.
 | S3/R1, S3/R2 | `tests/e2e/foundation.spec.ts` — local search and external reconciliation path | Deterministic real-browser evidence proves local search selects an opaque result, rebuild/reconciliation reflects host changes, and the active workbench remains usable on desktop and narrow layouts. | Passing 2026-07-18. |
 | S3/R1 | `apps/web/src/App.stories.tsx` — idle, loading, results, no-results, failure, long-path, and mobile search previews | Storybook browser evidence renders the complete accepted search state matrix with configured interaction and accessibility checks. | Passing 2026-07-19. |
 | S3/R1 | `packages/contracts/src/index.test.ts`; `apps/web/src/api.test.ts`; `apps/web/src/App.test.tsx` — malformed search response cases | Runtime-contract and browser-component evidence proves malformed successful search responses cannot enter application state and recover within the owning workbench surface. | Passing 2026-07-19. |
+
+#### Verified By
+
+| Requirement / Scenario | Evidence | Proves | Status |
+|---|---|---|---|
+| S3/R1-S1, S3/R1-S2, S3/R1-S3 | `apps/server/app/search/local_search_service.test.ts#it(` | Search results, empty state, and failure recovery. | passing |
+| S3/R2-S1, S3/R2-S2, S3/R2-S3 | `apps/server/app/search/local_search_service.test.ts#it(` | Rebuild, reconciliation, and internal-state exclusion. | passing |
+| S3/R3-S1 | `apps/server/app/search/local_search_service.test.ts#it(` | Search stays local to the configured host. | passing |
 
 #### Verification Gaps
 

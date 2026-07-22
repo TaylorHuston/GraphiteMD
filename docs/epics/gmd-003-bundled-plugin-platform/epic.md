@@ -135,7 +135,7 @@ The system SHALL confine durable plugin state to its documented `.graphitemd/plu
 - THEN the shared conformance suite proves manifest validation, enable/disable/restart behavior, permission denial, state isolation, contribution removal, and headless contracts
 - AND bundled status grants no test or runtime bypass.
 
-#### Implemented By
+#### Prior Detailed Implementation Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
@@ -154,11 +154,20 @@ The system SHALL confine durable plugin state to its documented `.graphitemd/plu
 | S1/R4 | `apps/server/app/plugins/plugin_runtime_service.ts#FilesystemPluginStateBackend` | primary | Binds state to accepted workspace identity, creates namespace ancestors one segment at a time without following symlinks, serializes writes, revalidates namespace identity before creation/commit/recovery, syncs durability, and recovers only complete interrupted state. |
 | S1/R3-S2, S1/R4-S3 | `apps/server/tests/plugins/bundled_import_boundary.test.ts#boundaryViolations` | support | Enforces the trusted first-party bundled-source and production-dependency boundary in the required test gate, including dynamic imports and direct process/network/module escape APIs; it is not malicious-code runtime containment. |
 
+#### Implemented By
+
+| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
+|---|---|---|---|
+| S1/R1 | `packages/plugin-sdk/src/index.ts#PluginHost` | primary | Governs manifest validation and host lifecycle. |
+| S1/R2 | `apps/server/app/plugins/plugin_runtime_service.ts#PluginRuntimeService` | primary | Governs persisted enablement and contribution lifecycle. |
+| S1/R3 | `packages/plugin-sdk/src/index.ts#createCapabilityBroker` | primary | Governs declared capability mediation. |
+| S1/R4 | `apps/server/app/plugins/plugin_runtime_service.ts#FilesystemPluginStateBackend` | primary | Governs confined plugin state persistence and recovery. |
+
 #### Implementation Gaps
 
 None for the accepted bundled System Status scope. Broader resource providers belong to the deferred Assistant, Git, SDD, workflow, and community-plugin capabilities rather than this Story.
 
-#### Verified By
+#### Prior Detailed Verification Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
@@ -182,9 +191,19 @@ None for the accepted bundled System Status scope. Broader resource providers be
 | S1/R1, S1/R2 | `apps/web/src/App.stories.tsx` — plugin active and disabled preview states | Storybook browser evidence renders both contribution states and runs configured accessibility checks. | passing 2026-07-18 |
 | S1/R1, S1/R2 | `apps/web/src/App.stories.tsx` — plugin activation failure and incompatible preview states; `apps/web/src/SettingsPanel.test.tsx` — malformed inventory/control response cases | Browser evidence presents incompatible and failed activation states honestly, withholds invalid controls, and recovers from malformed successful plugin responses without trusting them. | passing 2026-07-19 |
 
+#### Verified By
+
+| Requirement / Scenario | Evidence | Proves | Status |
+|---|---|---|---|
+| S1/R1-S1, S1/R1-S2 | `packages/plugin-sdk/src/index.test.ts#it(` | Compatible manifests load and invalid ones fail closed. | passing |
+| S1/R2-S1, S1/R2-S2 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#it(` | Enablement control and persisted System Status state. | passing |
+| S1/R3-S1, S1/R3-S2 | `packages/plugin-sdk/src/index.test.ts#it(` | Declared capabilities work while undeclared use is denied. | passing |
+| S1/R4-S1, S1/R4-S2 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#it(` | State isolation and recovery for the production runtime. | passing |
+
 #### Verification Gaps
 
 - `S1/R4-S2`: Deterministic namespace replacement and malformed-state fault injection passes; process-kill durability and the documented residual pathname race remain unverified platform limits.
+- `S1/R4-S3`: The shared conformance harness does not yet prove persisted restart and interrupted-state recovery for every bundled plugin, including Assistant.
 
 #### Story Notes
 
