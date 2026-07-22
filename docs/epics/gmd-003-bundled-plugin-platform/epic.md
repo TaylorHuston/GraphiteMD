@@ -3,8 +3,8 @@ schema: sdd-epic-v2
 id: GMD-003
 status: draft
 created: 2026-07-18
-modified: 2026-07-19
-last_verified: 2026-07-19
+modified: 2026-07-22
+last_verified: 2026-07-22
 stories:
   - S1
 ---
@@ -29,14 +29,14 @@ The workspace owner will be able to inspect and control bundled plugins while Gr
 - Plugin inventory, enable/disable control, lifecycle state, compatibility reporting, and contribution registration.
 - Broker-mediated permissions for workspace resources, plugin state, commands, views, and events.
 - Inspectable namespaced durable plugin state under `.graphitemd/plugins/<plugin-id>/`.
-- A small useful bundled System Status plugin plus test-only conformance fixtures exercising the production SDK.
+- System Status and Assistant manifests exercising the production SDK, including persisted enablement and state-recovery conformance.
 
 ## Deferred Scope
 
 - Arbitrary plugin installation, community code, signing, distribution, marketplace, and compatibility promises.
 - Process/container isolation for service plugins and sandboxed community UI.
 - Dynamic dependency resolution, remote packages, hot code reload, and third-party migrations.
-- Assistant, Git, SDD, workflow, evidence, and developer-agent plugin behavior; those capabilities receive later Epics and Changes.
+- Assistant-specific product behavior, Git, SDD, workflow, evidence, and developer-agent capabilities; Assistant's shared bundled-platform conformance remains current scope.
 
 ## Candidate Stories
 
@@ -49,7 +49,7 @@ The workspace owner will be able to inspect and control bundled plugins while Gr
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | implemented | partial | Inspect, control, and trust bundled plugins. | 2026-07-19 | The trusted first-party System Status scope is implemented through the SDK, broker, workspace-bound persistence, validated controls, cold-start recovery, and inventory-mediated contributions; malicious containment remains deferred. |
+| S1 | implemented | partial | Inspect, control, and trust bundled plugins. | 2026-07-22 | System Status and Assistant share the SDK, workspace-bound persistence, validated controls, lifecycle recovery, and inventory-mediated contributions; malicious containment and the R4-S2 platform limits remain deferred. |
 
 ## Stories
 
@@ -58,8 +58,8 @@ The workspace owner will be able to inspect and control bundled plugins while Gr
 Implementation: implemented
 Verification: partial
 Created: 2026-07-18
-Modified: 2026-07-19
-Last verified: 2026-07-19
+Modified: 2026-07-22
+Last verified: 2026-07-22
 
 As a workspace owner, I want bundled plugins to be visible, controllable, and capability-limited, so that extensions can add value without becoming invisible unrestricted application code.
 
@@ -132,10 +132,10 @@ The system SHALL confine durable plugin state to its documented `.graphitemd/plu
 ###### Scenario R4-S3: Bundled Plugin Passes Conformance
 
 - WHEN a bundled plugin is accepted for release
-- THEN the shared conformance suite proves manifest validation, enable/disable/restart behavior, permission denial, state isolation, contribution removal, and headless contracts
+- THEN the bundled-plugin conformance suite proves manifest validation, enable/disable/restart behavior, permission denial, state isolation, contribution removal, and headless contracts
 - AND bundled status grants no test or runtime bypass.
 
-#### Implemented By
+#### Prior Detailed Implementation Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
@@ -154,11 +154,21 @@ The system SHALL confine durable plugin state to its documented `.graphitemd/plu
 | S1/R4 | `apps/server/app/plugins/plugin_runtime_service.ts#FilesystemPluginStateBackend` | primary | Binds state to accepted workspace identity, creates namespace ancestors one segment at a time without following symlinks, serializes writes, revalidates namespace identity before creation/commit/recovery, syncs durability, and recovers only complete interrupted state. |
 | S1/R3-S2, S1/R4-S3 | `apps/server/tests/plugins/bundled_import_boundary.test.ts#boundaryViolations` | support | Enforces the trusted first-party bundled-source and production-dependency boundary in the required test gate, including dynamic imports and direct process/network/module escape APIs; it is not malicious-code runtime containment. |
 
+#### Implemented By
+
+| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
+|---|---|---|---|
+| S1/R1 | `packages/plugin-sdk/src/index.ts#PluginHost` | primary | Governs manifest validation and host lifecycle. |
+| S1/R2 | `apps/server/app/plugins/plugin_runtime_service.ts#PluginRuntimeService` | primary | Governs persisted enablement and contribution lifecycle. |
+| S1/R3 | `packages/plugin-sdk/src/index.ts#createCapabilityBroker` | primary | Governs declared capability mediation. |
+| S1/R4 | `packages/plugin-sdk/src/index.ts#enable` | primary | Runs each plugin's state recovery and validates its persisted envelope before activation, reporting invalid recovery as an isolated activation failure with no contributions. |
+| S1/R4-S1, S1/R4-S2 | `apps/server/app/plugins/plugin_runtime_service.ts#FilesystemPluginStateBackend` | primary | Governs confined plugin state persistence and recovery. |
+
 #### Implementation Gaps
 
 None for the accepted bundled System Status scope. Broader resource providers belong to the deferred Assistant, Git, SDD, workflow, and community-plugin capabilities rather than this Story.
 
-#### Verified By
+#### Prior Detailed Verification Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
@@ -181,6 +191,16 @@ None for the accepted bundled System Status scope. Broader resource providers be
 | S1/R1, S1/R2 | `tests/e2e/foundation.spec.ts` — desktop plugin lifecycle | Deterministic real-browser evidence proves the owner sees System Status, disables it with contribution removal and persisted state, then re-enables it without losing the workbench. | passing 2026-07-18 |
 | S1/R1, S1/R2 | `apps/web/src/App.stories.tsx` — plugin active and disabled preview states | Storybook browser evidence renders both contribution states and runs configured accessibility checks. | passing 2026-07-18 |
 | S1/R1, S1/R2 | `apps/web/src/App.stories.tsx` — plugin activation failure and incompatible preview states; `apps/web/src/SettingsPanel.test.tsx` — malformed inventory/control response cases | Browser evidence presents incompatible and failed activation states honestly, withholds invalid controls, and recovers from malformed successful plugin responses without trusting them. | passing 2026-07-19 |
+
+#### Verified By
+
+| Requirement / Scenario | Evidence | Proves | Status |
+|---|---|---|---|
+| S1/R1-S1, S1/R1-S2 | `packages/plugin-sdk/src/index.test.ts#it(` | Compatible manifests load and invalid ones fail closed. | passing |
+| S1/R2-S1, S1/R2-S2 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#it(` | Enablement control and persisted System Status state. | passing |
+| S1/R3-S1, S1/R3-S2 | `packages/plugin-sdk/src/index.test.ts#it(` | Declared capabilities work while undeclared use is denied. | passing |
+| S1/R4-S1, S1/R4-S2 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#recovers a complete interrupted write without treating invalid partial JSON as complete` | The filesystem backend recovers one complete temporary write and returns `failed` for malformed JSON. | passing |
+| S1/R4-S3 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#GMD-003/S1 R4-S3 applies persisted enablement before every bundled plugin activates after restart`; `apps/server/tests/plugins/plugin_runtime_service.test.ts#GMD-003/S1 R4-S3 recovers complete interrupted state for every bundled plugin before restart activation`; `apps/server/tests/plugins/plugin_runtime_service.test.ts#GMD-003/S1 R4-S3 reports malformed interrupted state for each bundled plugin without activating it`; `apps/server/tests/plugins/plugin_runtime_service.test.ts#GMD-003/S1 R4-S3 rejects semantically invalid recovered state for each bundled plugin` | In a disposable real workspace, both current bundle IDs persist disabled and enabled configuration across service recreation; each complete temporary state is recovered before activation; malformed JSON or an invalid state envelope fails only that plugin with no contributions. | passing 2026-07-22 (focused automated test) |
 
 #### Verification Gaps
 

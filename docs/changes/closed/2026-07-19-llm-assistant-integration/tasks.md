@@ -5,11 +5,11 @@ status: in_review
 
 ## Resume Here
 
-- Last completed action: landed the bundled Assistant policy, policy-free Pi broker, authenticated host dispatch, and descriptor-driven Context UI.
-- Next action: complete an owner-authorized live Codex question against a disposable uniquely identifiable workspace note, then record owner acceptance.
-- Active branch/ref: `change/llm-assistant-integration` at bundled Assistant Context checkpoint `097e180`.
-- Expected dirty files: artifacts, README/changelog, review evidence, and any follow-up from broad gates.
-- Known constraints: service code keeps credential storage, Pi lifecycle, owner authorization, run serialization, workspace resource enforcement, provenance, and conversation persistence. The bundled Assistant owns the prompt, retrieval strategy, allowed tool selection, and Context presentation through declared capabilities. A separate owner-completed Codex OAuth is still required for live-provider verification.
+- Last completed action: owner-confirmed the live Codex question, merged the Change into `develop`, and closed this artifact set.
+- Next action: no active Change work; follow the deferred-scope or future verification Changes when selected.
+- Integrated ref: `develop` includes merge commit `29a23d9` and closeout commit `c0e80a6`.
+- Expected dirty files: none from this closed Change.
+- Known constraints: service code keeps credential storage, Pi lifecycle, owner authorization, run serialization, workspace resource enforcement, provenance, and conversation persistence. The bundled Assistant owns the prompt, retrieval strategy, allowed tool selection, and Context presentation through declared capabilities.
 
 ## Task Checklist
 
@@ -270,7 +270,7 @@ status: in_review
 
 ## Closeout
 
-- Change status: ready to close after the owner-authorized local merge.
+- Change status: closed after the owner-authorized local merge.
 - Epic files updated: `GMD-004` maps the implemented bundled policy, broker, Context adapter, and remaining verification gaps.
 - Story labels/references and Requirement/Scenario IDs current: yes for `S1` onboarding and `S2` Q&A scope.
 - Implemented By maps current: bundled policy, host dispatch, Pi broker, persistence/provenance, and Context adapters reconciled.
@@ -286,4 +286,4 @@ status: in_review
 - Rendered UI verification status: deterministic desktop/narrow matrix and live connected Context verified.
 - PR / merge state: owner authorized a local merge into `develop` and closeout.
 - Deferred scope accepted: yes, as recorded in proposal/design/Epic.
-- Change moved to `docs/changes/closed/`: no.
+- Change moved to `docs/changes/closed/`: yes.

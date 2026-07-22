@@ -6,12 +6,14 @@ import { ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import {
+  BUNDLED_PLUGINS,
   FilesystemPluginStateBackend,
   PluginEnablementStore,
   PluginRuntimeService,
 } from '../../app/plugins/plugin_runtime_service.js'
 
 const roots: string[] = []
+const bundledPluginIds = BUNDLED_PLUGINS.map((plugin) => plugin.manifest.id)
 async function workspaceRoot(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'graphitemd-plugins-'))
   roots.push(root)
@@ -103,6 +105,90 @@ describe('GMD-003/S1 R2 inspectable enablement', () => {
     const restarted = new PluginRuntimeService(root, authority)
     await restarted.start()
     expect(restarted.list()[0]).toEqual(expect.objectContaining({ id: 'system-status', status: 'disabled', contributions: {} }))
+  })
+
+  it('GMD-003/S1 R4-S3 applies persisted enablement before every bundled plugin activates after restart', async () => {
+    const root = await workspaceRoot()
+    const authority = new ConfiguredWorkspaceAuthority(root)
+    const first = new PluginRuntimeService(root, authority)
+    await first.start()
+
+    await Promise.all(bundledPluginIds.map((id) => first.setEnabled(id, false)))
+    expect(JSON.parse(await readFile(join(root, '.graphitemd', 'plugins.json'), 'utf8'))).toEqual({
+      schemaVersion: 1,
+      enabled: { 'system-status': false, assistant: false },
+    })
+
+    const restarted = new PluginRuntimeService(root, authority)
+    await restarted.start()
+    expect(restarted.list()).toEqual(expect.arrayContaining(bundledPluginIds.map((id) =>
+      expect.objectContaining({ id, status: 'disabled', contributions: {} }),
+    )))
+
+    await Promise.all(bundledPluginIds.map((id) => restarted.setEnabled(id, true)))
+    const reenabled = new PluginRuntimeService(root, authority)
+    await reenabled.start()
+    expect(reenabled.list()).toEqual(expect.arrayContaining(bundledPluginIds.map((id) =>
+      expect.objectContaining({ id, status: 'active', contributions: expect.any(Object) }),
+    )))
+    expect(reenabled.list().every((item) => Object.keys(item.contributions).length > 0)).toBe(true)
+  })
+
+  it('GMD-003/S1 R4-S3 recovers complete interrupted state for every bundled plugin before restart activation', async () => {
+    const root = await workspaceRoot()
+    for (const id of bundledPluginIds) {
+      const directory = join(root, '.graphitemd', 'plugins', id)
+      await mkdir(directory, { recursive: true })
+      await writeFile(join(directory, 'state.json.tmp'), JSON.stringify({ schemaVersion: 1, value: { recovered: id } }))
+    }
+
+    const service = new PluginRuntimeService(root, new ConfiguredWorkspaceAuthority(root))
+    await expect(service.start()).resolves.toBeUndefined()
+    expect(service.list()).toEqual(expect.arrayContaining(bundledPluginIds.map((id) =>
+      expect.objectContaining({ id, status: 'active', contributions: expect.any(Object) }),
+    )))
+    for (const id of bundledPluginIds) {
+      await expect(readFile(join(root, '.graphitemd', 'plugins', id, 'state.json.tmp'), 'utf8'))
+        .rejects.toMatchObject({ code: 'ENOENT' })
+    }
+    expect(JSON.parse(await readFile(join(root, '.graphitemd', 'plugins', 'assistant', 'state.json'), 'utf8')))
+      .toEqual({ schemaVersion: 1, value: { recovered: 'assistant' } })
+    expect(JSON.parse(await readFile(join(root, '.graphitemd', 'plugins', 'system-status', 'state.json'), 'utf8')))
+      .toEqual(expect.objectContaining({ schemaVersion: 1, value: expect.objectContaining({ lastKnownStatus: expect.any(Object) }) }))
+  })
+
+  it('GMD-003/S1 R4-S3 reports malformed interrupted state for each bundled plugin without activating it', async () => {
+    for (const id of bundledPluginIds) {
+      const root = await workspaceRoot()
+      const directory = join(root, '.graphitemd', 'plugins', id)
+      await mkdir(directory, { recursive: true })
+      await writeFile(join(directory, 'state.json.tmp'), '{broken')
+
+      const service = new PluginRuntimeService(root, new ConfiguredWorkspaceAuthority(root))
+      await expect(service.start()).resolves.toBeUndefined()
+      expect(service.list().find((item) => item.id === id))
+        .toEqual(expect.objectContaining({ status: 'activation_failed', message: 'Plugin state recovery failed.', contributions: {} }))
+      expect(service.list().find((item) => item.id !== id))
+        .toEqual(expect.objectContaining({ status: 'active' }))
+    }
+  })
+
+  it('GMD-003/S1 R4-S3 rejects semantically invalid recovered state for each bundled plugin', async () => {
+    for (const id of bundledPluginIds) {
+      for (const state of [{ schemaVersion: 2, value: {} }, { schemaVersion: 1 }]) {
+        const root = await workspaceRoot()
+        const directory = join(root, '.graphitemd', 'plugins', id)
+        await mkdir(directory, { recursive: true })
+        await writeFile(join(directory, 'state.json.tmp'), JSON.stringify(state))
+
+        const service = new PluginRuntimeService(root, new ConfiguredWorkspaceAuthority(root))
+        await expect(service.start()).resolves.toBeUndefined()
+        expect(service.list().find((item) => item.id === id))
+          .toEqual(expect.objectContaining({ status: 'activation_failed', message: 'Plugin state schema mismatch.', contributions: {} }))
+        expect(service.list().find((item) => item.id !== id))
+          .toEqual(expect.objectContaining({ status: 'active' }))
+      }
+    }
   })
 
   it('rejects malformed enablement rather than activating plugins with ambiguous settings', async () => {

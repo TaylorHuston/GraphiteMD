@@ -3,8 +3,8 @@ schema: sdd-epic-v2
 id: GMD-004
 status: draft
 created: 2026-07-19
-modified: 2026-07-20
-last_verified:
+modified: 2026-07-22
+last_verified: 2026-07-22
 stories:
   - S1
   - S2
@@ -57,18 +57,18 @@ The workspace owner will be able to connect an OpenAI Codex subscription and ask
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | implemented | partial | Connect and disconnect an OpenAI Codex subscription safely. | 2026-07-20 | OAuth/runtime behavior is implemented; live owner authorization remains a gap. |
-| S2 | implemented | partial | Ask the read-only Assistant about eligible workspace notes with visible source evidence. | 2026-07-20 | The bundled Assistant contribution, policy-free Pi broker, and Context UI are implemented; deterministic production-E2E, narrow rendered inspection, and live provider evidence remain. |
+| S1 | implemented | verified | Connect and disconnect an OpenAI Codex subscription safely. | 2026-07-22 | Deterministic OAuth/runtime checks and owner confirmation are complete. |
+| S2 | implemented | verified | Ask the read-only Assistant about eligible workspace notes with visible source evidence. | 2026-07-22 | Deterministic E2E and owner-confirmed live provider evidence are complete. |
 
 ## Stories
 
 ### Story S1: Connect OpenAI Codex
 
 Implementation: implemented
-Verification: partial
+Verification: verified
 Created: 2026-07-19
-Modified: 2026-07-20
-Last verified: 2026-07-20
+Modified: 2026-07-22
+Last verified: 2026-07-22
 
 As the workspace owner, I want to connect and disconnect my Codex subscription, so that I control whether GraphiteMD can use the provider without exposing its credential.
 
@@ -113,7 +113,7 @@ The system SHALL keep the Codex credential in protected machine-local state, exp
 - THEN GraphiteMD rejects the request without changing provider state
 - AND returns no provider secret or interaction payload.
 
-#### Implemented By
+#### Prior Detailed Implementation Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
@@ -124,11 +124,18 @@ The system SHALL keep the Codex credential in protected machine-local state, exp
 | S1/R2-S1 | `apps/server/app/assistant/index.ts#PiRuntimeBoundary.create` | supporting runtime | Keeps Pi credentials and scratch in owner-only machine-local state. |
 | S1/R2-S2, S1/R2-S3 | `apps/server/start/routes.ts#assistantOAuthErrorResponse` | primary | Exposes only sanitized status and owner-authorized disconnect/error behavior. |
 
+#### Implemented By
+
+| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
+|---|---|---|---|
+| S1/R1 | `apps/server/app/assistant/index.ts#AssistantOAuthFlowManager` | primary | Governs normalized Codex OAuth lifecycle. |
+| S1/R2 | `apps/server/app/security/owner_setup_service.ts#resolveSecurityStateDirectory` | primary | Governs the machine-local credential boundary. |
+
 #### Implementation Gaps
 
 None for the accepted Codex onboarding scope.
 
-#### Verified By
+#### Prior Detailed Verification Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
@@ -136,9 +143,17 @@ None for the accepted Codex onboarding scope.
 | S1/R1-S1, S1/R1-S2 | `apps/web/src/SettingsPanel.test.tsx` and direct Vite-browser inspection at 1440x900 and 390x844 | Browser authorization link is explicit and opens safely; an active OAuth choice is restored after Settings remount; choice radios use the selected/default answer value, continuation names that choice, cancellation remains available, and the pending-selection control is visually contained without console errors. | focused automated and rendered pending-selection state passing |
 | S1/R2-S1 | `apps/server/tests/security/owner_setup_service.test.ts` | Default machine-vault state and direct/symlinked workspace override refusal. | focused automated passing |
 
+#### Verified By
+
+| Requirement / Scenario | Evidence | Proves | Status |
+|---|---|---|---|
+| S1/R1-S1, S1/R1-S2 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#it(` | OAuth success, cancellation, recovery, and retry. | passing |
+| S1/R2-S1 | `apps/server/tests/security/owner_setup_service.test.ts#it(` | Credentials cannot use workspace-local state. | passing |
+| S1/R2-S2, S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#it(` | Disconnect and unauthenticated mutation denial. | passing |
+
 #### Verification Gaps
 
-- `S1/R1-S1`: Live owner-completed Codex authorization remains unverified.
+None for the accepted Codex onboarding scope.
 
 #### Story Notes
 
@@ -148,10 +163,10 @@ None for the accepted Codex onboarding scope.
 ### Story S2: Ask The Workspace Through Codex
 
 Implementation: implemented
-Verification: partial
+Verification: verified
 Created: 2026-07-19
-Modified: 2026-07-20
-Last verified: 2026-07-20
+Modified: 2026-07-22
+Last verified: 2026-07-22
 
 As the workspace owner, I want to ask Codex questions about my Markdown notes, so that I can prove the Assistant can read and reason over my workspace without receiving write authority.
 
@@ -238,7 +253,7 @@ The system SHALL provide a responsive, keyboard-accessible Assistant question fl
 - WHEN a question is in progress, cancelled, fails, or the owner session expires
 - THEN duplicate actions are disabled, status and errors are announced accessibly, secrets are never rendered, and session expiry returns to owner login.
 
-#### Implemented By
+#### Prior Detailed Implementation Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
 |---|---|---|---|
@@ -250,11 +265,20 @@ The system SHALL provide a responsive, keyboard-accessible Assistant question fl
 | S2/R4 | `apps/web/src/AssistantContext.tsx` and `apps/web/src/App.tsx#contextPanel` | browser adapter | Descriptor-driven Context rendering presents setup, question, busy, answer, source, error, and session-expiry paths without hard-coding a plugin identity. |
 | S2/R4 | `apps/web/src/AssistantContext.css`, `plugins/system-status/src/index.ts`, and `apps/web/src/App.stories.tsx` | supporting presentation / parity | Keeps the Context contribution layout contained and preserves the existing System Status descriptor as the generic-rendering reference. |
 
+#### Implemented By
+
+| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
+|---|---|---|---|
+| S2/R1 | `apps/server/app/assistant/question_service.ts#AssistantQuestionService` | primary | Governs serialized read-only questions. |
+| S2/R2 | `apps/server/app/assistant/workspace_context.ts#AssistantWorkspaceContext` | primary | Governs brokered bounded context and source provenance. |
+| S2/R3 | `apps/server/app/assistant/conversation_store.ts#ConversationStore` | primary | Governs durable conversation records and recovery. |
+| S2/R4 | `apps/web/src/AssistantContext.tsx#AssistantContext` | primary | Governs accessible Context interaction states. |
+
 #### Implementation Gaps
 
 None for the accepted read-only Assistant slice.
 
-#### Verified By
+#### Prior Detailed Verification Map (reconciled 2026-07-22)
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
@@ -270,6 +294,15 @@ None for the accepted read-only Assistant slice.
 | S2/R4-S1 | `apps/web/src/App.test.tsx` | Active descriptor contributions mount and disappear with plugin lifecycle. | focused automated passing |
 | S2/R4-S1, S2/R4-S2, S2/R4-S3 | `tests/e2e/foundation.spec.ts` — production owner path | A production-built server with an explicit test-only grounded runtime renders the contained desktop Context panel and a 390px Context drawer; it proves busy/error/retry and answer/source visibility, long-content scrolling, no horizontal overflow, focus restoration, and a question-route 401 returning to login without leaving the drawer mounted. | rendered browser passing 2026-07-20 |
 | S2/R1-S1, S2/R3-S1, S2/R4 | Owner-confirmed live playtest, 2026-07-22 | A connected Codex run against the disposable `Welcome.md` completed with provider `openai-codex`, model `gpt-5.4`, and a service-derived `Welcome.md` source; its canonical conversation record contains no host paths, while machine state and credential files retain owner-only permissions and the service log contains no question or credential content. | live-provider and manual confirmation passing |
+
+#### Verified By
+
+| Requirement / Scenario | Evidence | Proves | Status |
+|---|---|---|---|
+| S2/R1-S1, S2/R1-S2, S2/R1-S3 | `apps/server/app/assistant/question_service.test.ts#it(` | Grounded/no-evidence/unavailable question behavior. | passing |
+| S2/R2-S1, S2/R2-S2, S2/R2-S3 | `apps/server/app/assistant/workspace_context.test.ts#it(` | Context confinement, bounded reads, and provenance. | passing |
+| S2/R3-S1, S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts#it(` | Canonical turn persistence and interruption recovery. | passing |
+| S2/R4-S1, S2/R4-S2, S2/R4-S3 | `apps/web/src/AssistantContext.test.tsx#it(` | Context UI answer, busy, error, retry, and source states. | passing |
 
 #### Verification Gaps
 
