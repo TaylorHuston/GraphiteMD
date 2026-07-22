@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-18
-- Related Change: [Foundation Workspace Slice](../changes/2026-07-18-foundation-workspace-slice/proposal.md)
+- Related Change: [Foundation Workspace Slice](../changes/closed/2026-07-18-foundation-workspace-slice/proposal.md)
 - Related Epics / Stories: [GMD-001 Secure Workspace Access](../epics/gmd-001-secure-workspace-access/epic.md), [GMD-002 Markdown Workbench](../epics/gmd-002-markdown-workbench/epic.md), [GMD-003 Bundled Plugin Platform](../epics/gmd-003-bundled-plugin-platform/epic.md)
 - Supersedes: None in this repository.
 - Superseded by:

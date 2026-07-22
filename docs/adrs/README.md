@@ -10,6 +10,7 @@ ADRs explain durable technical choices for GraphiteMD. Epics and Stories remain 
 | [Capability-mediated plugin platform](2026-07-18-capability-mediated-plugin-platform.md) | Accepted | Bundled and future plugins use one production SDK and capability broker without privileged access to raw process, storage, or credential boundaries. |
 | [Filesystem-canonical workspace state](2026-07-18-filesystem-canonical-workspace-state.md) | Accepted | Keep notes and durable AI/plugin state as inspectable workspace files; databases remain disposable projections. |
 | [Proposal-first agent authority](2026-07-18-proposal-first-agent-authority.md) | Accepted | Assistant writes default to reviewable proposals; autonomous action requires an explicit, bounded, run-scoped grant. |
+| [Pi-backed Assistant runtime and Codex credential boundary](2026-07-19-pi-backed-assistant-runtime.md) | Accepted | Run Pi behind service-owned model/auth capabilities, keep Codex credentials machine-local, and give the bundled Assistant only brokered read-only workspace tools. |
 
 ## Status Values
 

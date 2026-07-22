@@ -1,0 +1,103 @@
+.oauth-selection-form {
+  display: grid;
+  gap: .9rem;
+}
+
+.oauth-selection-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.oauth-selection-form legend {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.oauth-selection-help {
+  margin: .3rem 0 0;
+  color: var(--muted);
+  font-size: .8rem;
+  line-height: 1.4;
+}
+
+.oauth-option-list {
+  display: grid;
+  gap: .5rem;
+  margin-top: .75rem;
+}
+
+.oauth-option {
+  min-height: 3.25rem;
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  padding: .65rem .75rem;
+  border: 1px solid var(--line);
+  border-radius: .55rem;
+  background: var(--surface-raised);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.oauth-option:hover {
+  border-color: var(--control-boundary);
+}
+
+.oauth-option.selected {
+  border-color: var(--action);
+  background: color-mix(in srgb, var(--action) 14%, var(--surface-raised));
+}
+
+.oauth-option:focus-within {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
+}
+
+.oauth-option input {
+  width: 1.1rem;
+  min-height: 1.1rem;
+  margin: 0;
+  accent-color: var(--action);
+}
+
+.oauth-option span {
+  font-weight: 600;
+}
+
+.settings-form .oauth-selection-form .primary-button {
+  margin-top: 0;
+}
+
+.oauth-browser-login {
+  display: grid;
+  gap: .3rem;
+  margin: 0;
+}
+
+.oauth-browser-login a {
+  width: fit-content;
+  color: var(--action-text);
+  font-weight: 650;
+}
+
+.oauth-browser-login a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.settings-form .oauth-cancel-button {
+  width: auto;
+  min-height: 2.5rem;
+  justify-self: start;
+  margin-top: .1rem;
+  padding-inline: .25rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.settings-form .oauth-cancel-button:hover {
+  color: var(--text);
+  background: var(--surface-raised);
+}

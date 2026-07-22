@@ -33,8 +33,8 @@ describe('GMD-002/S3 R2 confined local search rebuild', () => {
     await writeFile(join(root, 'Note.md'), '# Searchable\nneedle\n')
     const authority = new ConfiguredWorkspaceAuthority(root)
     await authority.openConfigured()
-    const cache = join(root, '.graphite', 'cache')
-    const retained = join(root, '.graphite', 'cache-retained')
+    const cache = join(root, '.graphitemd', 'cache')
+    const retained = join(root, '.graphitemd', 'cache-retained')
     const service = new LocalSearchService(root, authority, {
       beforeCommit: async () => {
         await rename(cache, retained)
@@ -63,7 +63,7 @@ describe('GMD-002/S3 R2 confined local search rebuild', () => {
       name: 'WorkspaceUnavailableError',
       reason: 'identity_changed',
     })
-    await expect(stat(join(root, '.graphite'))).rejects.toMatchObject({ code: 'ENOENT' })
-    await expect(readFile(join(root, '.graphite', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(join(root, '.graphitemd'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(root, '.graphitemd', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

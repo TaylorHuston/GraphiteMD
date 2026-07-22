@@ -79,7 +79,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
       name: 'WorkspaceUnavailableError',
       reason: 'identity_changed',
     })
-    await expect(readFile(join(workspaceRoot, '.graphite', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(workspaceRoot, '.graphitemd', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('GMD-002/S1/R1-S2 fails closed for missing, non-directory, and unreadable roots', async () => {
@@ -127,16 +127,16 @@ describe('ConfiguredWorkspaceAuthority', () => {
 
     expect(restarted.workspaceId).toBe(first.workspaceId)
     expect(restarted.notes[0]?.resourceId).toBe(first.notes[0]?.resourceId)
-    expect(JSON.parse(await readFile(join(workspaceRoot, '.graphite', 'workspace.json'), 'utf8')))
+    expect(JSON.parse(await readFile(join(workspaceRoot, '.graphitemd', 'workspace.json'), 'utf8')))
       .toEqual({ schemaVersion: 1, workspaceId: first.workspaceId })
-    expect(await readFile(join(workspaceRoot, '.graphite', '.gitignore'), 'utf8'))
+    expect(await readFile(join(workspaceRoot, '.graphitemd', '.gitignore'), 'utf8'))
       .toBe('/cache/\n/operations/\n')
   })
 
   it('GMD-002/S1/R1-S1 fails closed for malformed persisted workspace identity', async () => {
     const workspaceRoot = await createWorkspace()
-    await mkdir(join(workspaceRoot, '.graphite'))
-    await writeFile(join(workspaceRoot, '.graphite', 'workspace.json'), '{"schemaVersion":2,"workspaceId":"bad"}')
+    await mkdir(join(workspaceRoot, '.graphitemd'))
+    await writeFile(join(workspaceRoot, '.graphitemd', 'workspace.json'), '{"schemaVersion":2,"workspaceId":"bad"}')
 
     await expect(new ConfiguredWorkspaceAuthority(workspaceRoot).openConfigured()).rejects.toMatchObject({
       name: 'WorkspaceUnavailableError',
@@ -146,7 +146,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
 
   it('GMD-002/S1/R1-S3 preserves an existing installation across open and restart', async () => {
     const workspaceRoot = await createWorkspace()
-    const graphite = join(workspaceRoot, '.graphite')
+    const graphite = join(workspaceRoot, '.graphitemd')
     const pluginState = join(graphite, 'plugins', 'system-status', 'state.json')
     await mkdir(join(graphite, 'plugins', 'system-status'), { recursive: true })
     await writeFile(join(graphite, 'workspace.json'), JSON.stringify({
@@ -165,6 +165,48 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(join(graphite, 'plugins.json'), 'utf8'))
       .toBe('{"schemaVersion":1,"enabled":{"system-status":false}}\n')
     expect(await readFile(pluginState, 'utf8')).toBe('{"schemaVersion":1,"value":{"healthy":true}}\n')
+  })
+
+  it('GMD-004/S2 R2-S1 atomically migrates a safe legacy workspace vault without altering its files', async () => {
+    const workspaceRoot = await createWorkspace()
+    const legacy = join(workspaceRoot, '.graphite')
+    await mkdir(join(legacy, 'plugins', 'system-status'), { recursive: true })
+    await writeFile(join(legacy, 'workspace.json'), JSON.stringify({
+      schemaVersion: 1, workspaceId: 'wrk_0123456789abcdef0123456789abcdef',
+    }))
+    await writeFile(join(legacy, 'plugins', 'system-status', 'state.json'), '{"healthy":true}\n')
+    await writeFile(join(legacy, 'Hidden.md'), '# Hidden\nnever an eligible note\n')
+
+    const opened = await new ConfiguredWorkspaceAuthority(workspaceRoot).openConfigured()
+
+    expect(opened.workspaceId).toBe('wrk_0123456789abcdef0123456789abcdef')
+    expect(opened.notes).toEqual([])
+    await expect(readFile(join(workspaceRoot, '.graphite', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(join(workspaceRoot, '.graphitemd', 'plugins', 'system-status', 'state.json'), 'utf8'))
+      .toBe('{"healthy":true}\n')
+  })
+
+  it.each([
+    ['destination already exists', async (root: string) => {
+      await mkdir(join(root, '.graphite'))
+      await mkdir(join(root, '.graphitemd'))
+    }],
+    ['legacy path is a symbolic link', async (root: string) => {
+      const outside = await createWorkspace()
+      await symlink(outside, join(root, '.graphite'))
+    }],
+    ['destination path is a symbolic link', async (root: string) => {
+      const outside = await createWorkspace()
+      await mkdir(join(root, '.graphite'))
+      await symlink(outside, join(root, '.graphitemd'))
+    }],
+  ])('GMD-004/S2 R2-S1 fails closed when %s', async (_case, arrange) => {
+    const workspaceRoot = await createWorkspace()
+    await arrange(workspaceRoot)
+
+    await expect(new ConfiguredWorkspaceAuthority(workspaceRoot).openConfigured()).rejects.toMatchObject({
+      name: 'WorkspaceUnavailableError', reason: 'unavailable',
+    })
   })
 
   it('GMD-002/S1/R2-S1 inventories nested Markdown in deterministic tree order', async () => {
@@ -208,9 +250,9 @@ describe('ConfiguredWorkspaceAuthority', () => {
   it('GMD-002/S1/R2-S2 excludes internal, configured, symlinked, unsupported, and oversized sources', async () => {
     const workspaceRoot = await createWorkspace()
     const outsideRoot = await createWorkspace()
-    await mkdir(join(workspaceRoot, '.graphite'))
+    await mkdir(join(workspaceRoot, '.graphitemd'))
     await mkdir(join(workspaceRoot, 'private'))
-    await writeFile(join(workspaceRoot, '.graphite', 'Internal.md'), '# Internal\n', 'utf8')
+    await writeFile(join(workspaceRoot, '.graphitemd', 'Internal.md'), '# Internal\n', 'utf8')
     await writeFile(join(workspaceRoot, 'private', 'Ignored.md'), '# Ignored\n', 'utf8')
     await writeFile(join(workspaceRoot, 'binary.md'), Buffer.from([0xff, 0xfe, 0xfd]))
     await writeFile(join(workspaceRoot, 'large.md'), '123456789')
@@ -238,8 +280,8 @@ describe('ConfiguredWorkspaceAuthority', () => {
 
   it('GMD-002/S1/R2-S3 returns an honest empty inventory for a workspace without eligible Markdown', async () => {
     const workspaceRoot = await createWorkspace()
-    await mkdir(join(workspaceRoot, '.graphite'))
-    await writeFile(join(workspaceRoot, '.graphite', 'Internal.md'), '# Internal\n', 'utf8')
+    await mkdir(join(workspaceRoot, '.graphitemd'))
+    await writeFile(join(workspaceRoot, '.graphitemd', 'Internal.md'), '# Internal\n', 'utf8')
     await writeFile(join(workspaceRoot, 'Readme.txt'), 'Not a note\n', 'utf8')
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
 
@@ -468,7 +510,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
 
     expect(reconciled.note).toMatchObject({ displayPath: 'After.md', source: '# Exact\n' })
     expect(JSON.parse(await readFile(
-      join(workspaceRoot, '.graphite', 'operations', 'renames', `${note.resourceId}.json`), 'utf8',
+      join(workspaceRoot, '.graphitemd', 'operations', 'renames', `${note.resourceId}.json`), 'utf8',
     ))).toMatchObject({ schemaVersion: 1, resourceId: note.resourceId, status: 'committed' })
   })
 
@@ -545,7 +587,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     const item = opened.notes.find(({ displayPath }) => displayPath === 'Before.md')!
     const note = await authority.readNote(item.resourceId)
 
-    for (const name of ['', '../Escape.md', '.graphite.md', 'Existing.md']) {
+    for (const name of ['', '../Escape.md', '.graphitemd.md', 'Existing.md']) {
       await expect(authority.renameNote(note.resourceId, note.revision, name)).rejects.toBeInstanceOf(Error)
     }
     await writeFile(join(workspaceRoot, 'Before.md'), '# External\n', 'utf8')
@@ -673,7 +715,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
     const opened = await authority.openConfigured()
     const note = await authority.readNote(opened.notes[0]!.resourceId)
-    await symlink(outsideRoot, join(workspaceRoot, '.graphite', 'operations'))
+    await symlink(outsideRoot, join(workspaceRoot, '.graphitemd', 'operations'))
 
     await expect(authority.renameNote(note.resourceId, note.revision, 'After.md')).rejects.toMatchObject({
       code: 'indeterminate',

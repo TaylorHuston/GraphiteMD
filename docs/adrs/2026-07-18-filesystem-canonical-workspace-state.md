@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-18
-- Related Change: [Foundation Workspace Slice](../changes/2026-07-18-foundation-workspace-slice/proposal.md)
+- Related Change: [Foundation Workspace Slice](../changes/closed/2026-07-18-foundation-workspace-slice/proposal.md)
 - Related Epics / Stories: [GMD-002 Markdown Workbench](../epics/gmd-002-markdown-workbench/epic.md), [GMD-003/S1 Bundled Plugin Platform](../epics/gmd-003-bundled-plugin-platform/epic.md#story-s1-inspect-control-and-trust-bundled-plugins)
 - Supersedes: None in this repository.
 - Superseded by:
@@ -17,7 +17,7 @@ The application still needs fast search, relations, caches, runtime coordination
 
 The workspace filesystem SHALL be canonical for Markdown content and durable GraphiteMD state.
 
-Each workspace SHALL contain a reserved internal dot-directory, provisionally `.graphite/`, analogous to Obsidian's `.obsidian/`. It SHALL store documented, inspectable files for workspace configuration, conversations, AI/work sessions, memories, run manifests and events, tool activity, proposals, approvals, grant records, and durable plugin state.
+Each workspace SHALL contain the reserved internal `.graphitemd/` directory, analogous to Obsidian's `.obsidian/`. It SHALL store documented, inspectable files for workspace configuration, conversations, AI/work sessions, memories, run manifests and events, tool activity, proposals, approvals, grant records, and durable plugin state. Legacy `.graphite/` state migrates only through the fail-closed, atomic workspace bootstrap path.
 
 Human-oriented state SHOULD use Markdown. Structured records MAY use versioned JSON, JSONL, or similarly transparent formats. Durable knowledge promoted from a session SHALL become an ordinary Markdown note rather than remaining trapped in internal session state.
 
@@ -62,7 +62,7 @@ Inspectable grant files record intent and evidence but SHALL NOT authorize thems
 - Positive: Workspaces can move between GraphiteMD installations with their durable context intact.
 - Negative: File schema evolution, retention, compaction, concurrency, and partial-write recovery become first-class engineering concerns.
 - Negative: Careless version-control defaults could create noise or expose sensitive conversations.
-- Follow-up: The foundation Change must define the initial `.graphite/` layout, schema versions, atomic-write rules, retention behavior, backup guidance, and selective ignore defaults.
+- Follow-up: Future Changes may extend `.graphitemd/` schemas, retention, compaction, and backup guidance without weakening the existing atomic-write and selective-ignore defaults.
 
 ## Validation
 

@@ -7,7 +7,7 @@ export default async function setup() {
   await mkdir(e2eRoot, { recursive: false })
   await mkdir(e2eWorkspace)
   await mkdir(`${e2eWorkspace}/Projects`)
-  await writeFile(`${e2eWorkspace}/Welcome.md`, '---\nstatus: active\n---\n# Welcome\n\nGraphite foundation workspace.\n')
+  await writeFile(`${e2eWorkspace}/Welcome.md`, `---\nstatus: active\n---\n# Welcome\n\nUnique grounded fact: cobalt otter.\n${'Long grounded evidence stays inside the Context surface.\n'.repeat(500)}`)
   await writeFile(`${e2eWorkspace}/Projects/Plan.md`, '# Plan\n\nDeterministic search phrase: silver graphite.\n')
   await new OwnerSetupService(e2eState).createOwner(initialPassword)
 }

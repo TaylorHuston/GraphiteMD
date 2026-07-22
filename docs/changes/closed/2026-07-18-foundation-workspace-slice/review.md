@@ -82,7 +82,7 @@ None.
 - Candidate files: 114 from `develop`
 - Conflict check: clean
 - Branch policy: release-prepared `develop` source targeting stable `main`
-- Remote/PR/merge/closeout: release PR [#1](https://github.com/TaylorHuston/GraphiteMD/pull/1) is open; provider merge was not performed and still requires explicit user approval.
+- Remote/PR/merge/closeout: release PR [#1](https://github.com/TaylorHuston/GraphiteMD/pull/1) subsequently merged into `main` as `7988fb2578f2fbaf0744d0b5a39e6251da575c5b` on 2026-07-20; this review did not perform deployment or branch deletion.
 
 ## Reverse Traceability
 
@@ -103,8 +103,8 @@ None.
 ## PR / Merge Readiness
 
 - Technical branch readiness: pass
-- PR status: [#1](https://github.com/TaylorHuston/GraphiteMD/pull/1) is open from `develop` into `main`; final merge still requires explicit user approval after remote checks and threads are clean.
-- Merge status: not performed; `/sdd-pr` stewardship stops before provider merge.
+- PR status: [#1](https://github.com/TaylorHuston/GraphiteMD/pull/1) merged from `develop` into `main` on 2026-07-20.
+- Merge status: completed by the owner after review stewardship, as merge commit `7988fb2578f2fbaf0744d0b5a39e6251da575c5b`.
 - Closeout status: complete; remaining manual checks are accepted gaps.
 
 ## Review Log

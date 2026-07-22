@@ -26,7 +26,13 @@ const note = {
 const activePlugin = {
   id: 'system-status', status: 'active',
   manifest: { name: 'System Status', version: '0.1.0', permissions: ['status:read'] },
-  contributions: { views: [{ id: 'system-status', title: 'System Status' }] },
+  contributions: { views: [{ id: 'system-status', title: 'System Status', surface: 'context', renderer: 'system-status' }] },
+}
+
+const assistantPlugin = {
+  id: 'assistant', status: 'active',
+  manifest: { name: 'Assistant', version: '0.1.0', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'] },
+  contributions: { views: [{ id: 'assistant-context', title: 'Assistant', surface: 'context', renderer: 'assistant-conversation' }] },
 }
 
 function handlers(options: {
@@ -309,6 +315,31 @@ export const SettingsAndPluginLifecycle: Story = {
     await expect(await within(dialog).findByRole('article', { name: 'System Status plugin' })).toBeVisible()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Disable System Status' }))
     await expect(await within(dialog).findByText('Disabled')).toBeVisible()
+  },
+}
+
+export const AssistantCancellationRecovery: Story = {
+  parameters: { msw: { handlers: [
+    ...handlers({ plugins: [assistantPlugin] }),
+    http.get('/api/v1/assistant/provider', () => HttpResponse.json({ provider: 'openai-codex', status: 'disconnected', model: null })),
+    http.post('/api/v1/assistant/oauth', () => HttpResponse.json({
+      flowId: 'flow_story', provider: 'openai-codex', status: 'awaiting_provider',
+      createdAt: '2026-07-22T00:00:00.000Z', updatedAt: '2026-07-22T00:00:00.000Z', authorization: null, input: null, error: null,
+    })),
+    http.post('/api/v1/assistant/oauth/flow_story/cancel', () => HttpResponse.json({
+      flowId: 'flow_story', provider: 'openai-codex', status: 'cancelled',
+      createdAt: '2026-07-22T00:00:00.000Z', updatedAt: '2026-07-22T00:00:01.000Z', authorization: null, input: null,
+      error: { code: 'cancelled', message: 'Codex authorization was cancelled.', retryable: true },
+    })),
+  ] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Settings' }))
+    const dialog = await canvas.findByRole('dialog', { name: 'Settings' })
+    await userEvent.click(within(dialog).getByRole('tab', { name: 'Assistant' }))
+    await userEvent.click(await within(dialog).findByRole('button', { name: 'Connect Codex' }))
+    await userEvent.click(await within(dialog).findByRole('button', { name: 'Cancel connection' }))
+    await expect(await within(dialog).findByRole('button', { name: 'Connect Codex' })).toBeVisible()
   },
 }
 

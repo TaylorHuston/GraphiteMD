@@ -239,6 +239,6 @@ Record one row per meaningful transplant or Requirement slice. Include both the 
 - `review.md` findings resolved: Yes in the immutable implementation commit; accepted workspace identity and plugin lifecycle remain fail-closed, and the current shell passes direct rendered inspection.
 - Planning updates resolved: Yes for the accepted Change scope; accepted manual gaps and deferred product scope remain explicit.
 - Manual UI confirmation status: accepted gap; deterministic desktop/narrow browser evidence passes, while terminal, real-device, and screen-reader checks remain unperformed.
-- PR / merge state: The foundation was merged locally into `develop` as `48392e8f00cc4ad044000e8412644dc9f1dcc1ec`; release PR [#1](https://github.com/TaylorHuston/GraphiteMD/pull/1) is open from `develop` into `main`. Provider merge, deployment, and branch deletion have not been performed.
+- PR / merge state: The foundation was merged locally into `develop` as `48392e8f00cc4ad044000e8412644dc9f1dcc1ec`; release PR [#1](https://github.com/TaylorHuston/GraphiteMD/pull/1) merged into `main` as `7988fb2578f2fbaf0744d0b5a39e6251da575c5b` on 2026-07-20. Deployment and branch deletion have not been performed.
 - Deferred scope accepted: Recorded in proposal/design/Epics.
 - Change moved to `docs/changes/closed/`: Yes; closed through `sdd change close` under explicit user authorization.

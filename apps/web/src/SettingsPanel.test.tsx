@@ -32,6 +32,9 @@ describe('owner Settings', () => {
     expect(within(areas).getByRole('tab', { name: 'Account' })).toHaveFocus()
     expect(within(areas).getByRole('tab', { name: 'Account' })).toHaveAttribute('aria-selected', 'true')
     await user.keyboard('{ArrowRight}')
+    expect(within(areas).getByRole('tab', { name: 'Assistant' })).toHaveFocus()
+    expect(within(areas).getByRole('tab', { name: 'Assistant' })).toHaveAttribute('aria-selected', 'true')
+    await user.keyboard('{ArrowRight}')
     expect(within(areas).getByRole('tab', { name: 'Plugins' })).toHaveFocus()
     expect(within(areas).getByRole('tab', { name: 'Plugins' })).toHaveAttribute('aria-selected', 'true')
   })
@@ -47,6 +50,124 @@ describe('owner Settings', () => {
     render(<SettingsPanel onSessionExpired={vi.fn()} />)
 
     expect(screen.getByRole('tablist', { name: 'Settings areas' })).toHaveAttribute('aria-orientation', 'horizontal')
+  })
+
+  it('GMD-004/S1 R1-S2a makes the OAuth choice and continuation action explicit', async () => {
+    const flow = {
+      flowId: 'flow_choice', provider: 'openai-codex', status: 'awaiting_input',
+      createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z',
+      input: {
+        kind: 'selection', label: 'Select an authorization option', required: true,
+        options: [{ id: 'browser', label: 'Browser login' }, { id: 'device', label: 'Use a device code' }],
+      }, authorization: null, error: null,
+    }
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/v1/plugins') return response(200, { plugins: [] })
+      if (url === '/api/v1/assistant/provider') return response(200, { provider: 'openai-codex', status: 'disconnected', model: null })
+      if (url === '/api/v1/assistant/oauth' && init?.method === 'POST') return response(200, flow)
+      if (url === '/api/v1/assistant/oauth/flow_choice/answer') return response(200, flow)
+      if (url === '/api/v1/assistant/oauth/flow_choice/cancel') return response(200, { ...flow, status: 'cancelled', input: null })
+      return response(404)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={vi.fn()} />)
+
+    await user.click(screen.getByRole('tab', { name: 'Assistant' }))
+    await user.click(await screen.findByRole('button', { name: 'Connect Codex' }))
+
+    const choices = await screen.findByRole('group', { name: 'Choose how to connect' })
+    expect(within(choices).getByRole('radio', { name: 'Browser login' })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Continue with Browser login' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Cancel connection' })).toBeVisible()
+
+    await user.click(within(choices).getByRole('radio', { name: 'Use a device code' }))
+    await user.click(screen.getByRole('button', { name: 'Continue with Use a device code' }))
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/assistant/oauth/flow_choice/answer', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ value: 'device' }),
+    }))
+  })
+
+  it('GMD-004/S1 R1-S2 clears a cancelled flow, refreshes status, and restores Connect', async () => {
+    const flow = {
+      flowId: 'flow_cancel', provider: 'openai-codex', status: 'awaiting_provider',
+      createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z', input: null, authorization: null, error: null,
+    }
+    let providerCalls = 0
+    const changed = vi.fn()
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/v1/plugins') return response(200, { plugins: [] })
+      if (url === '/api/v1/assistant/provider') {
+        providerCalls++
+        return response(200, { provider: 'openai-codex', status: 'disconnected', model: null })
+      }
+      if (url === '/api/v1/assistant/oauth' && init?.method === 'POST') return response(200, flow)
+      if (url === '/api/v1/assistant/oauth/flow_cancel/cancel') return response(200, { ...flow, status: 'cancelled' })
+      return response(404)
+    }))
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={vi.fn()} onAssistantChanged={changed} />)
+    await user.click(screen.getByRole('tab', { name: 'Assistant' }))
+    await user.click(await screen.findByRole('button', { name: 'Connect Codex' }))
+    await user.click(await screen.findByRole('button', { name: 'Cancel connection' }))
+
+    expect(await screen.findByRole('button', { name: 'Connect Codex' })).toBeVisible()
+    expect(providerCalls).toBe(2)
+    expect(changed).toHaveBeenCalledOnce()
+  })
+
+  it('GMD-004/S1 R1-S2 restores an active OAuth choice after Settings remounts', async () => {
+    const flow = {
+      flowId: 'flow_recover', provider: 'openai-codex', status: 'awaiting_input',
+      createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z',
+      input: {
+        kind: 'selection', label: 'Select an authorization option', required: true,
+        options: [{ id: 'browser', label: 'Browser login (default)' }],
+      }, authorization: null, error: null,
+    }
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/v1/plugins') return response(200, { plugins: [] })
+      if (url === '/api/v1/assistant/provider') return response(200, { provider: 'openai-codex', status: 'connecting', model: null })
+      if (url === '/api/v1/assistant/oauth/active') return response(200, flow)
+      return response(404)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={vi.fn()} />)
+
+    await user.click(screen.getByRole('tab', { name: 'Assistant' }))
+
+    expect(await screen.findByRole('group', { name: 'Choose how to connect' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Continue with Browser login (default)' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Connect Codex' })).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/assistant/oauth/active', expect.objectContaining({ credentials: 'same-origin' }))
+  })
+
+  it('GMD-004/S1 R1-S1 presents Pi’s browser authorization link before the manual fallback', async () => {
+    const flow = {
+      flowId: 'flow_browser', provider: 'openai-codex', status: 'awaiting_input',
+      createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z',
+      authorization: { url: 'https://auth.example.test/authorize', instructions: 'Complete login in your browser.' },
+      input: { kind: 'text', label: 'Authorization response', secret: true, required: true }, error: null,
+    }
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/v1/plugins') return response(200, { plugins: [] })
+      if (url === '/api/v1/assistant/provider') return response(200, { provider: 'openai-codex', status: 'connecting', model: null })
+      if (url === '/api/v1/assistant/oauth/active') return response(200, flow)
+      return response(404)
+    }))
+    const user = userEvent.setup()
+    render(<SettingsPanel onSessionExpired={vi.fn()} />)
+
+    await user.click(screen.getByRole('tab', { name: 'Assistant' }))
+
+    const login = await screen.findByRole('link', { name: 'Open secure OpenAI login' })
+    expect(login).toHaveAttribute('href', 'https://auth.example.test/authorize')
+    expect(login).toHaveAttribute('target', '_blank')
+    expect(screen.getByText('Complete login in your browser.')).toBeVisible()
+    expect(screen.getByLabelText('Authorization response')).toBeVisible()
+    expect(screen.getByText('Status: connecting.')).toBeVisible()
   })
 
   it('GMD-001/S2 R1 changes a confirmed password and returns to sign in', async () => {
