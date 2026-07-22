@@ -29,6 +29,7 @@ type EnablementDocument = Readonly<{
 
 const DEFAULT_ENABLEMENT: EnablementDocument = { schemaVersion: 1, enabled: {} }
 const PLUGIN_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const BUNDLED_PLUGINS = [systemStatusPlugin, assistantPlugin] as const
 
 export interface AtomicPluginWriteOptions {
   /** Test seam immediately before the temporary file is created. */
@@ -316,7 +317,7 @@ export class PluginRuntimeService {
       provider,
       stateBackend: this.#state,
     })
-    await this.#host.load([systemStatusPlugin, assistantPlugin])
+    await this.#host.load(BUNDLED_PLUGINS)
   }
 
   list(): readonly PluginInventoryItem[] {

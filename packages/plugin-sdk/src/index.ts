@@ -250,6 +250,9 @@ export class PluginHost {
       return
     }
     try {
+      if (await this.options.stateBackend.recovery(id) === 'failed') {
+        throw new Error('Plugin state recovery failed.')
+      }
       const capabilities = createCapabilityBroker(plugin.manifest, this.options.provider)
       const activationCapabilities: ReturnType<typeof createCapabilityBroker> = Object.freeze({
         perform: (operation) => operation.permission === 'assistant:model-session'

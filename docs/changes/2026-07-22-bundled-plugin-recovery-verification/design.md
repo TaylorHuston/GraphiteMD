@@ -2,7 +2,7 @@
 
 ## Context
 
-`runPluginConformance` uses an in-memory backend. It cannot prove persisted enablement or interrupted-state recovery for Assistant, despite GMD-003/S1/R4-S3 claiming that it does.
+`runPluginConformance` uses an in-memory backend. It cannot prove persisted enablement or interrupted-state recovery for Assistant, despite GMD-003/S1/R4-S3 claiming that it does. Production activation also needed an explicit recovery check: Assistant has no state read/write during activation, so passive state-adapter recovery was insufficient.
 
 ## Goals / Non-Goals
 
@@ -13,19 +13,19 @@
 
 **Non-Goals:**
 
-- Do not alter plugin capability, UI, provider, or workspace behavior.
+- Do not alter plugin capability, UI, provider, or workspace authority behavior.
 - Do not claim process-kill durability beyond the existing explicit gap.
 
 ## Planning Interview / Story Refinement
 
-- Scope boundary reviewed:
-- User decisions:
-- Assumptions:
-- Deferred scope:
-- Story boundaries challenged:
-- Requirements refined:
-- Scenario gaps considered:
-- Open questions that block implementation:
+- Scope boundary reviewed: GMD-003/S1/R4-S3 only; Assistant product behavior remains GMD-004.
+- User decisions: recovery evidence must include every current bundled manifest, not only System Status.
+- Assumptions: disposable workspace fixtures exercise the production host without a provider credential.
+- Deferred scope: process-kill durability and the existing pathname-race limit remain R4-S2 gaps.
+- Story boundaries challenged: no new Story; recovery is shared platform behavior.
+- Requirements refined: a malformed temporary state must make only its plugin activation fail closed with no contributions.
+- Scenario gaps considered: persisted explicit `true` and `false`, complete temporary state, and malformed temporary state for both bundle IDs.
+- Open questions that block implementation: none.
 
 ## Epic Changes
 
@@ -38,8 +38,8 @@ Use this section only when the change proposes edits to an existing Epic.
 
 #### Story Changes
 
-- Added: focused R4-S3 recovery proof.
-- Modified: `Verified By` and `Verification Gaps` for R4-S3.
+- Added: focused R4-S3 runtime recovery proof.
+- Modified: `PluginHost.enable`, `Verified By`, and `Verification Gaps` for R4-S3.
 - Removed: no product behavior.
 
 #### Supersedes / Reconciles
@@ -100,38 +100,11 @@ Use this section for non-trivial changes. If only one path is reasonable, record
 
 ## Selected Approach
 
-Prefer the production-runtime fixture: it proves the persisted behavior GMD-003 claims, without treating an in-memory simulation as operational recovery proof. The test fixture stays disposable, local, and provider-free.
+Use the production-runtime fixture and make `PluginHost.enable` perform the production state-backend recovery before activation. A failed recovery becomes the existing isolated `activation_failed` inventory state, avoiding a whole-service outage or an in-memory-only claim. The test fixture stays disposable, local, and provider-free.
 
 ## Experience Design
 
-Use this section only when the Change has material UI or interaction design. Remove it when it does not apply; use `/sdd-design` when the direction needs user-guided convergence.
-
-- Applicability: not required
-- Confirmed direction:
-- User confirmation:
-- Reference artifacts:
-
-### User Flow And Information Architecture
-
-### Responsive Composition
-
-### Component And State Contract
-
-#### Component Strategy
-
-Record only materially affected components or patterns. Use `existing application component`, `adopted reference`, `application-specific`, `reference candidate`, or `deliberate divergence`. A reference candidate does not create a cross-repository dependency unless this Change explicitly says so.
-
-`Required Preview States` names the states that need evidence, not a required tool. Evidence may come from component previews, rendered routes or fixtures, browser checks, or a manual walkthrough.
-
-| Component Or Pattern | Strategy | Initial Owner Or Reference | Required Preview States | Follow-Up |
-|---|---|---|---|---|
-| TBD | TBD | TBD | TBD | TBD |
-
-### Accessibility And Interaction
-
-### Visual Direction
-
-### Open Design Questions
+Not applicable: this change alters host activation and focused server tests only; no browser-visible component or interaction changes.
 
 ## Client And API Boundary
 
@@ -166,7 +139,7 @@ Explain why the chosen approach is the right fit for this change.
 
 ## Verification Strategy
 
-- Focused automated tests: one exact persisted enablement/restart/recovery case per bundled plugin.
+- Focused automated tests: exact cases collectively enumerate every bundled plugin for persisted explicit enablement, complete temporary-state recovery, and malformed-state isolation.
 - Separate evidence types instead of treating all proof as interchangeable:
   - Focused automated tests:
   - Broad supporting gates:
