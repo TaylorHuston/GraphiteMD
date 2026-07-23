@@ -108,6 +108,17 @@ export type PluginResponse = Static<typeof PluginResponse>
 export const OwnerResponse = Type.Object({ owner: Type.Object({ id: Type.Literal('owner') }) })
 export type OwnerResponse = Static<typeof OwnerResponse>
 
+/** Minimal unauthenticated state needed to choose first-owner setup or sign-in. */
+export const AuthBootstrapResponse = Type.Object({
+  state: Type.Union([Type.Literal('setup_required'), Type.Literal('login_required')]),
+}, { additionalProperties: false })
+export type AuthBootstrapResponse = Static<typeof AuthBootstrapResponse>
+
+export const FirstOwnerSetupRequest = Type.Object({
+  password: Type.String(),
+}, { additionalProperties: false })
+export type FirstOwnerSetupRequest = Static<typeof FirstOwnerSetupRequest>
+
 export const ErrorResponse = Type.Object({
   error: Type.Object({ code: Type.String(), message: Type.Optional(Type.String()) }),
   currentRevision: Type.Optional(NoteRevision),

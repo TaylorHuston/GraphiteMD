@@ -8,6 +8,8 @@ import {
   AssistantQuestion,
   AssistantSource,
   AssistantTurn,
+  AuthBootstrapResponse,
+  FirstOwnerSetupRequest,
   matchesContract,
   MarkdownNoteResponse,
   PluginsResponse,
@@ -22,6 +24,19 @@ describe('public contracts', () => {
     expect(serviceDescriptor).toEqual({ name: 'AnthraciteMD', apiVersion: 'v1' })
     expect(Check(WorkspaceId, 'wrk_primary')).toBe(true)
     expect(Check(WorkspaceId, '/Users/taylor/notes')).toBe(false)
+  })
+
+  it('AMD-001/S3 R1 accepts only the binary bootstrap state', () => {
+    expect(matchesContract(AuthBootstrapResponse, { state: 'setup_required' })).toBe(true)
+    expect(matchesContract(AuthBootstrapResponse, { state: 'login_required' })).toBe(true)
+    expect(matchesContract(AuthBootstrapResponse, { state: 'setup_required', owner: { id: 'owner' } })).toBe(false)
+    expect(matchesContract(AuthBootstrapResponse, { state: 'unknown' })).toBe(false)
+  })
+
+  it('AMD-001/S3 R2 accepts only the first-owner setup password envelope', () => {
+    expect(matchesContract(FirstOwnerSetupRequest, { password: 'correct horse battery staple' })).toBe(true)
+    expect(matchesContract(FirstOwnerSetupRequest, { password: 'correct horse battery staple', confirmation: 'not a server field' })).toBe(false)
+    expect(matchesContract(FirstOwnerSetupRequest, { password: 42 })).toBe(false)
   })
 
   it('validates browser workspace and note responses at runtime', () => {

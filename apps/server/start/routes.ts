@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router'
-import { AssistantQuestion as AssistantQuestionContract, matchesContract, serviceDescriptor, type AssistantQuestion } from '@anthracitemd/contracts'
+import { AssistantQuestion as AssistantQuestionContract, FirstOwnerSetupRequest, matchesContract, serviceDescriptor, type AssistantQuestion, type AuthBootstrapResponse } from '@anthracitemd/contracts'
 import { AssistantModelSessionError } from '@anthracitemd/plugin-sdk'
 import {
   ConfiguredWorkspaceAuthority,
@@ -13,6 +13,7 @@ import Owner from '#models/owner'
 import {
   acceptsPasswordInput,
   AUTH_REVOCATION_GENERATION_SESSION_KEY,
+  OwnerAlreadyExistsError,
   OwnerSetupService,
   PasswordPolicyError,
   resolveSecurityStateDirectory,
@@ -25,9 +26,11 @@ import { AssistantQuestionError, AssistantQuestionService, type AssistantRunRunt
 import { ConversationStore } from '../app/assistant/conversation_store.js'
 import { AssistantWorkspaceContext } from '../app/assistant/workspace_context.js'
 import { anthraciteEnvironmentValue, assistantTestRuntimeEnabled } from '../config/environment.js'
+import { configuredOrigins } from '../config/cors.js'
 
 const workspaceRoot = anthraciteEnvironmentValue(process.env, 'WORKSPACE_ROOT')
 const ownerSetup = new OwnerSetupService(resolveSecurityStateDirectory())
+const ownerSetupReady = ownerSetup.hasOwner()
 const workspace = new ConfiguredWorkspaceAuthority(workspaceRoot)
 const search = workspaceRoot
   ? new LocalSearchService(workspaceRoot, workspace)
@@ -46,6 +49,7 @@ const plugins = workspaceRoot
   : undefined
 let pluginsStarted: Promise<void> | undefined
 const loginAttempts = new LoginAttemptLimiter()
+const setupAttempts = new LoginAttemptLimiter()
 let assistantOAuth: Promise<AssistantOAuthFlowManager> | undefined
 let assistantBoundary: Promise<PiRuntimeBoundary> | undefined
 let assistantQuestions: Promise<AssistantQuestionService> | undefined
@@ -175,11 +179,53 @@ router.post('/api/v1/auth/login', async ({ auth, request, response, session }) =
 })
 
 router.get('/api/v1/auth/current', async ({ auth, response }) => {
+  await ownerSetupReady
   try {
     await auth.use('web').authenticate()
     return { owner: { id: 'owner' } }
   } catch {
     return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
+  }
+})
+
+router.get('/api/v1/auth/bootstrap', async () => {
+  const response: AuthBootstrapResponse = { state: await ownerSetup.hasOwner() ? 'login_required' : 'setup_required' }
+  return response
+})
+
+router.post('/api/v1/auth/setup', async ({ auth, request, response, session }) => {
+  const origin = request.header('origin')
+  if (typeof origin !== 'string' || !configuredOrigins().includes(origin)) {
+    return response.forbidden({ error: { code: 'invalid_request', message: 'Invalid request.' } })
+  }
+  const attempt = setupAttempts.acquire(`setup:${request.ip()}`)
+  if (!attempt) return response.tooManyRequests({ error: { code: 'owner_setup_unavailable', message: 'Owner setup is unavailable.' } })
+
+  const payload = request.all()
+  if (!matchesContract(FirstOwnerSetupRequest, payload)) {
+    attempt.cancelled()
+    return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
+  }
+  try {
+    await ownerSetup.createOwner(payload.password)
+    const owner = await Owner.find(1)
+    if (!owner) throw new Error('Created owner is unavailable')
+    await auth.use('web').login(owner)
+    session.put(AUTH_REVOCATION_GENERATION_SESSION_KEY, 0)
+    await session.commit()
+    attempt.succeeded()
+    return { owner: { id: 'owner' } }
+  } catch (error) {
+    if (error instanceof PasswordPolicyError) {
+      attempt.cancelled()
+      return response.badRequest({ error: { code: 'invalid_request', message: 'Invalid request.' } })
+    }
+    if (error instanceof OwnerAlreadyExistsError) {
+      attempt.failed()
+      return response.conflict({ error: { code: 'owner_setup_unavailable', message: 'Owner setup is unavailable.' } })
+    }
+    attempt.cancelled()
+    throw error
   }
 })
 

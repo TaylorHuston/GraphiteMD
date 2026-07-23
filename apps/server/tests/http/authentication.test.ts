@@ -10,6 +10,7 @@ import { OwnerSetupService } from '../../app/security/owner_setup_service.js'
 
 const port = 34_000 + Math.floor(Math.random() * 1_000)
 const origin = `http://127.0.0.1:${port}`
+const allowedOrigin = 'http://127.0.0.1:5173'
 let stateDirectory: string
 let workspaceRoot: string
 let retainedWorkspaceRoot: string | undefined
@@ -67,6 +68,32 @@ async function loginOwner(): Promise<{ cookie: string; token: string }> {
   return { cookie, token: anonymous.token }
 }
 
+async function clearOwner(): Promise<void> {
+  const database = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+  database.exec('DELETE FROM sessions; DELETE FROM owners')
+  database.close()
+}
+
+async function restoreOwner(): Promise<void> {
+  const service = new OwnerSetupService(stateDirectory)
+  if (!(await service.hasOwner())) await service.createOwner('correct horse battery staple')
+}
+
+async function setupOwner(
+  anonymous: { cookie: string; token: string },
+  password: string,
+  originHeader = allowedOrigin,
+): Promise<Response> {
+  return fetch(`${origin}/api/v1/auth/setup`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json', cookie: anonymous.cookie,
+      'x-xsrf-token': anonymous.token, origin: originHeader,
+    },
+    body: JSON.stringify({ password }),
+  })
+}
+
 async function waitForInProgressAssistantTurn(): Promise<void> {
   const directory = join(workspaceRoot, '.anthracitemd', 'conversations')
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -116,6 +143,138 @@ afterAll(async () => {
     rm(workspaceRoot, { recursive: true, force: true }),
     ...(retainedWorkspaceRoot ? [rm(retainedWorkspaceRoot, { recursive: true, force: true })] : []),
   ])
+})
+
+describe('AMD-001/S3 R1 browser setup discovery', () => {
+  it('R1-S1 and R1-S2 disclose only the required setup state', async () => {
+    const database = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+    database.exec('DELETE FROM sessions; DELETE FROM owners')
+    database.close()
+
+    try {
+      const fresh = await fetch(`${origin}/api/v1/auth/bootstrap`)
+      expect(fresh.status).toBe(200)
+      expect(await fresh.json()).toEqual({ state: 'setup_required' })
+
+      await new OwnerSetupService(stateDirectory).createOwner('correct horse battery staple')
+
+      const claimed = await fetch(`${origin}/api/v1/auth/bootstrap`)
+      expect(claimed.status).toBe(200)
+      expect(await claimed.json()).toEqual({ state: 'login_required' })
+    } finally {
+      const restore = new OwnerSetupService(stateDirectory)
+      if (!(await restore.hasOwner())) await restore.createOwner('correct horse battery staple')
+    }
+  })
+})
+
+describe('AMD-001/S3 R2 and R3 browser owner setup', () => {
+  it('R2-S1 creates the owner once and establishes the normal protected session', async () => {
+    await clearOwner()
+    try {
+      const anonymous = await csrfSession()
+      const setup = await setupOwner(anonymous, 'correct horse battery staple')
+      expect(setup.status).toBe(200)
+      expect(await setup.json()).toEqual({ owner: { id: 'owner' } })
+      const cookie = sessionCookie(setup)
+      expect((await fetch(`${origin}/api/v1/auth/current`, { headers: { cookie } })).status).toBe(200)
+      expect((await fetch(`${origin}/api/v1/workspace`, { headers: { cookie } })).status).toBe(200)
+    } finally {
+      await restoreOwner()
+    }
+  })
+
+  it('R2-S2 rejects an invalid password without claiming the host', async () => {
+    await clearOwner()
+    try {
+      const response = await setupOwner(await csrfSession(), 'short')
+      expect(response.status).toBe(400)
+      expect(await response.json()).toEqual({ error: { code: 'invalid_request', message: 'Invalid request.' } })
+      await expect(new OwnerSetupService(stateDirectory).hasOwner()).resolves.toBe(false)
+    } finally {
+      await restoreOwner()
+    }
+  })
+
+  it('R2-S3 lets one concurrent setup claim win without giving the loser a session', async () => {
+    await clearOwner()
+    try {
+      const [first, second] = await Promise.all([
+        setupOwner(await csrfSession(), 'first correct horse battery staple'),
+        setupOwner(await csrfSession(), 'second correct horse battery staple'),
+      ])
+      expect([first.status, second.status].sort()).toEqual([200, 409])
+      const service = new OwnerSetupService(stateDirectory)
+      const validPasswords = await Promise.all([
+        service.verifyPassword('first correct horse battery staple'),
+        service.verifyPassword('second correct horse battery staple'),
+      ])
+      expect(validPasswords.filter(Boolean)).toHaveLength(1)
+      const loser = first.status === 409 ? first : second
+      expect((await fetch(`${origin}/api/v1/auth/current`, { headers: { cookie: sessionCookie(loser) } })).status).toBe(401)
+    } finally {
+      await restoreOwner()
+    }
+  })
+
+  it('R2-S4 keeps a committed owner usable when session issuance fails', async () => {
+    await clearOwner()
+    const anonymous = await csrfSession()
+    const database = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+    database.exec("CREATE TRIGGER reject_first_owner_session BEFORE INSERT ON sessions BEGIN SELECT RAISE(ABORT, 'session failure'); END")
+    database.close()
+    try {
+      const setup = await setupOwner(anonymous, 'correct horse battery staple')
+      expect(setup.status).toBeGreaterThanOrEqual(500)
+      const persisted = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+      expect((persisted.prepare('SELECT count(*) AS count FROM owners').get() as { count: number }).count).toBe(1)
+      persisted.close()
+    } finally {
+      const cleanup = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+      cleanup.exec('DROP TRIGGER IF EXISTS reject_first_owner_session')
+      cleanup.close()
+    }
+    try {
+      expect(await new OwnerSetupService(stateDirectory).verifyPassword('correct horse battery staple')).toBe(true)
+      await expect(loginOwner()).resolves.toBeDefined()
+    } finally {
+      await restoreOwner()
+    }
+  })
+
+  it('R3-S1 rejects missing XSRF proof and an untrusted Origin without mutation', async () => {
+    await clearOwner()
+    try {
+      const anonymous = await csrfSession()
+      const missingXsrf = await fetch(`${origin}/api/v1/auth/setup`, {
+        method: 'POST', headers: { 'content-type': 'application/json', cookie: anonymous.cookie, origin: allowedOrigin },
+        body: JSON.stringify({ password: 'correct horse battery staple' }),
+      })
+      expect(missingXsrf.status).toBe(403)
+      const untrusted = await setupOwner(anonymous, 'correct horse battery staple', 'https://untrusted.example')
+      expect(untrusted.status).toBe(403)
+      await expect(new OwnerSetupService(stateDirectory).hasOwner()).resolves.toBe(false)
+    } finally {
+      await restoreOwner()
+    }
+  })
+
+  it('R3-S2 bounds repeated claimed-host setup attempts without replacing the credential', async () => {
+    const service = new OwnerSetupService(stateDirectory)
+    await clearOwner()
+    await service.createOwner('correct horse battery staple')
+    try {
+      const anonymous = await csrfSession()
+      const attempts = await Promise.all(Array.from({ length: 6 }, () => setupOwner(anonymous, 'another correct horse battery staple')))
+      expect(attempts.map((response) => response.status)).toContain(429)
+      expect(attempts.filter((response) => response.status === 409).length).toBeGreaterThan(0)
+      expect(attempts.every((response) => response.status === 409 || response.status === 429)).toBe(true)
+      expect(await service.verifyPassword('correct horse battery staple')).toBe(true)
+      expect(await service.verifyPassword('another correct horse battery staple')).toBe(false)
+    } finally {
+      await restoreOwner()
+    }
+  })
 })
 
 describe('AMD-001/S1 R2 browser session authentication', () => {

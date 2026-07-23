@@ -28,9 +28,17 @@ async function signIn(page: import('@playwright/test').Page, password: string) {
   await expect(page.getByRole('heading', { name: 'Your workspace' })).toBeVisible()
 }
 
+async function createOwner(page: import('@playwright/test').Page, password: string) {
+  await expect(page.getByRole('heading', { name: 'Set up AnthraciteMD' })).toBeVisible()
+  await page.getByLabel('Create owner password').fill(password)
+  await page.getByLabel('Confirm owner password').fill(password)
+  await page.getByRole('button', { name: 'Create owner' }).click()
+  await expect(page.getByRole('heading', { name: 'Your workspace' })).toBeVisible()
+}
+
 test('foundation owner path works on desktop and a narrow mobile browser', async ({ page, context }) => {
   await page.goto('/')
-  await signIn(page, initialPassword)
+  await createOwner(page, initialPassword)
 
   const desktopContext = page.locator('.context-panel')
   await expect(desktopContext.getByRole('textbox', { name: 'Ask Codex' })).toBeVisible()

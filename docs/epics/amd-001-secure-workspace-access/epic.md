@@ -8,6 +8,7 @@ last_verified: 2026-07-22
 stories:
   - S1
   - S2
+  - S3
 ---
 
 # AMD-001 Secure Workspace Access
@@ -22,11 +23,11 @@ AnthraciteMD runs where the user's files live and is accessed from other browser
 
 ## Outcome
 
-A self-hosting owner will be able to establish one local AnthraciteMD account, sign in securely from an authorized browser, reconnect without restarting service-owned work, change the password, and recover access from the host machine without email or an external identity provider.
+A self-hosting owner will be able to establish one local AnthraciteMD account from a fresh browser or the host CLI, sign in securely from an authorized browser, reconnect without restarting service-owned work, change the password, and recover access from the host machine without email or an external identity provider.
 
 ## Current Scope
 
-- Host-local initial owner setup and password reset.
+- Browser-first and host-local initial owner setup, plus host-local password reset.
 - Same-site browser login, logout, current-session restoration, and password change.
 - Secure cookie sessions, session fixation protection, CSRF protection, exact origin checks, and invalidation of prior sessions after password changes or resets.
 - Machine-local security state outside the workspace content tree.
@@ -51,6 +52,7 @@ A self-hosting owner will be able to establish one local AnthraciteMD account, s
 |---|---|---|---|---|---|
 | S1 | implemented | partial | Establish an owner account and authenticate a browser session. | 2026-07-22 | Host-local setup, generation-bound browser sessions, compatible configuration/state migration, XSRF enforcement, and exact credentialed origins are implemented; terminal masking awaits manual confirmation. |
 | S2 | implemented | partial | Maintain and recover access without weakening session boundaries. | 2026-07-19 | Password maintenance, owner-facing change form, cross-process global revocation, host reset, and reconnect boundaries are implemented; manual host/browser confirmation remains. |
+| S3 | implemented | partial | Set up a fresh host from the browser. | 2026-07-22 | Browser setup, protected atomic claim, and typed discovery are implemented; rendered fresh-state and manual confirmation remain. |
 
 ## Stories
 
@@ -277,6 +279,120 @@ The system SHALL restore an authenticated browser from valid service-owned sessi
 #### Story Notes
 
 - Password hashes, session rows, and revocation state are machine-local security authority, not workspace content and not rebuildable search projections.
+
+### Story S3: Set Up A Fresh Host From The Browser
+
+Implementation: implemented
+Verification: partial
+Created: 2026-07-22
+Modified: 2026-07-22
+Last verified: 2026-07-22
+
+As a self-hosting owner opening a fresh AnthraciteMD installation, I want to create the first owner password in the browser, so that I can begin securely without running a host CLI command.
+
+#### Requirements And Scenarios
+
+##### Requirement R1: Browser Setup Discovery
+
+The system SHALL present first-owner setup only when authoritative machine-local security state has no owner, while disclosing no protected workspace or security data.
+
+###### Scenario R1-S1: Fresh Host Presents Setup
+
+- WHEN an unauthenticated browser at the configured application origin opens a host with no owner
+- THEN AnthraciteMD presents the first-owner password setup experience instead of normal sign-in
+- AND the response exposes only the minimum setup-versus-sign-in state needed by the client.
+
+###### Scenario R1-S2: Existing Owner Presents Sign-In
+
+- WHEN an unauthenticated browser opens a host whose owner already exists
+- THEN AnthraciteMD presents normal sign-in
+- AND does not expose or enable the first-owner setup form.
+
+##### Requirement R2: Atomic Browser Owner Creation
+
+The system SHALL validate a confirmed password, create the only owner through an atomic create-only-if-absent transition, and establish the normal protected browser session after successful creation.
+
+###### Scenario R2-S1: Valid Password Creates And Authenticates Owner
+
+- WHEN a fresh-host browser submits matching password values that satisfy the existing password policy
+- THEN the service stores only the approved password hash in machine-local security state
+- AND establishes the same regenerated, generation-bound session used by normal login
+- AND opens the authenticated workspace.
+
+###### Scenario R2-S2: Invalid Or Mismatched Password Preserves Empty State
+
+- WHEN the setup password is invalid or its browser confirmation does not match
+- THEN AnthraciteMD reports actionable validation without submitting or committing an owner
+- AND the host remains available for a corrected setup attempt.
+
+###### Scenario R2-S3: Concurrent Or Stale Setup Cannot Replace Owner
+
+- WHEN multiple browsers submit setup while the host is unclaimed, or a stale setup form submits after another request succeeds
+- THEN exactly one request can create the owner
+- AND every losing request is refused without replacing the credential or receiving an authenticated session
+- AND the losing browser can refresh into normal sign-in.
+
+###### Scenario R2-S4: Committed Owner Survives Session Or Response Failure
+
+- WHEN owner creation commits but browser-session establishment or response delivery does not complete
+- THEN the created credential remains valid and is never rolled back into an ambiguous partial account
+- AND the next browser load presents sign-in, where the chosen password can authenticate normally.
+
+##### Requirement R3: First-Claim Request Protection
+
+The system SHALL protect browser owner setup with the configured exact-origin, CSRF, bounded-request, generic-error, and password-secrecy controls applicable to the authentication boundary.
+
+###### Scenario R3-S1: Untrusted Or Unproved Mutation Is Rejected
+
+- WHEN a setup request comes from an untrusted origin or lacks valid CSRF proof
+- THEN the service rejects the request
+- AND no owner, session, workspace, or other security state changes.
+
+###### Scenario R3-S2: Repeated Setup Requests Are Bounded
+
+- WHEN one source repeatedly submits setup requests
+- THEN the service bounds expensive password-processing attempts and responds without exposing password, hash, session, or workspace data
+- AND a rate-limited request does not create or replace the owner.
+
+#### Implemented By
+
+| Requirement / Scenario | Location / Anchor | Kind | Responsibility |
+|---|---|---|---|
+| S3/R1 | `apps/server/start/routes.ts#/api/v1/auth/bootstrap` | primary | Exposes only the typed setup-required versus login-required state from authoritative owner existence. |
+| S3/R1 | `apps/server/app/security/owner_setup_service.ts#hasOwner` | supporting | Reads the machine-local owner authority without exposing credential or workspace data. |
+| S3/R1 | `packages/contracts/src/index.ts#AuthBootstrapResponse` | supporting | Defines the closed runtime contract used by browser clients. |
+| S3/R2-S1, S3/R2-S3, S3/R2-S4 | `apps/server/start/routes.ts#/api/v1/auth/setup` | primary | Creates the first owner, issues the normal generation-bound session, rejects stale claimers, and preserves a committed owner when session issuance fails. |
+| S3/R2 | `packages/contracts/src/index.ts#FirstOwnerSetupRequest` | supporting | Defines the closed browser setup request envelope. |
+| S3/R2-S1, S3/R2-S2, S3/R2-S3 | `apps/server/app/security/owner_setup_service.ts#createOwner` | supporting | Enforces password policy and atomic create-only-if-absent ownership. |
+| S3/R3 | `apps/server/start/routes.ts#/api/v1/auth/setup` | primary | Rejects non-configured Origins before credential work and bounds setup attempts independently from login. |
+| S3/R1-S2, S3/R2-S1, S3/R2-S2, S3/R2-S3 | `apps/web/src/App.tsx#App` and `apps/web/src/App.tsx#FirstOwnerSetup` | primary | Selects authoritative setup/sign-in state, confirms locally, prevents duplicate submission, and reloads bootstrap after a claimed race. |
+| S3/R1-S1, S3/R2-S2 | `apps/web/src/App.stories.tsx#FirstOwnerSetup`, `#FirstOwnerSetupPending`, and `#FirstOwnerSetupServerError` | supporting | Provides deterministic rendered setup, pending, and server-validation states for Storybook review. |
+
+#### Implementation Gaps
+
+- None.
+
+#### Verified By
+
+| Requirement / Scenario | Evidence | Proves | Status |
+|---|---|---|---|
+| S3/R1-S1, S3/R1-S2 | `packages/contracts/src/index.test.ts#AMD-001/S3 R1 accepts only the binary bootstrap state` and `apps/server/tests/http/authentication.test.ts#R1-S1 and R1-S2 disclose only the required setup state` | The contract rejects extra state, a fresh host returns only `setup_required`, and a claimed host returns only `login_required`. | passing |
+| S3/R2-S1 | `apps/server/tests/http/authentication.test.ts#R2-S1 creates the owner once and establishes the normal protected session` | A valid first claim returns the owner, regenerates an authenticated session, and opens the protected workspace. | passing |
+| S3/R2-S2 | `apps/server/tests/http/authentication.test.ts#R2-S2 rejects an invalid password without claiming the host` | Server policy rejects invalid input without owner mutation. | passing |
+| S3/R2-S3 | `apps/server/tests/http/authentication.test.ts#R2-S3 lets one concurrent setup claim win without giving the loser a session` and `apps/web/src/App.test.tsx#AMD-001/S3 R2-S3 refreshes a stale first-owner claim into normal sign-in` | One concurrent claimant wins; the loser cannot use its anonymous cookie as an authenticated session, and a stale browser form returns to sign-in. | passing |
+| S3/R2-S4 | `apps/server/tests/http/authentication.test.ts#R2-S4 keeps a committed owner usable when session issuance fails` | Session failure does not roll back the committed credential; normal sign-in recovers. | passing |
+| S3/R3-S1 | `apps/server/tests/http/authentication.test.ts#R3-S1 rejects missing XSRF proof and an untrusted Origin without mutation` | Shield CSRF and the explicit exact-Origin guard reject without creating an owner. | passing |
+| S3/R3-S2 | `apps/server/tests/http/authentication.test.ts#R3-S2 bounds repeated claimed-host setup attempts without replacing the credential` | Bounded repeated attempts never replace an existing credential. | passing |
+| S3/R1-S1, S3/R1-S2, S3/R2-S2 | `apps/web/src/App.test.tsx#AMD-001/S3 R1-S1 renders first-owner setup after authoritative fresh-host discovery`, `apps/web/src/App.test.tsx#AMD-001/S3 R1-S2 renders sign-in only after authoritative claimed-host discovery`, and `apps/web/src/App.test.tsx#AMD-001/S3 R2-S2 keeps a mismatched owner password in the browser without submitting it` | The browser uses the typed state, focuses setup, hides it on claimed hosts, and never sends mismatched credentials. | passing |
+| S3/R1-S1, S3/R2-S1 | `tests/e2e/foundation.spec.ts#foundation owner path works on desktop and a narrow mobile browser` | The production artifact begins with no owner, creates it in the browser, and then continues through authenticated desktop/mobile coverage. | passing |
+
+#### Verification Gaps
+
+- Manual owner acceptance remains pending for the disposable fresh-state walkthrough: create a valid password, then confirm reload/sign-in never reopens setup. Automated rendered desktop/mobile inspection, network/console review, Storybook, and deterministic production E2E are complete.
+
+#### Story Notes
+
+- S1's host-local setup command remains an alternative first-setup path; it is not a browser prerequisite.
 
 ## Cross-Story Concerns
 

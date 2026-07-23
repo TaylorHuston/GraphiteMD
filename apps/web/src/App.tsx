@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from '
 import { FileText, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, X } from 'lucide-react'
 import {
   MarkdownNoteResponse as MarkdownNoteSchema,
+  AuthBootstrapResponse,
   OwnerResponse,
   PluginsResponse,
   RenameNoteResponse,
@@ -26,6 +27,7 @@ type InventoryItem = NoteItem | FolderItem
 type AppState =
   | { kind: 'loading' }
   | { kind: 'login'; expired: boolean; error?: string }
+  | { kind: 'setup'; error?: string }
   | { kind: 'unavailable'; message: string }
   | { kind: 'ready'; workspace: Workspace }
 
@@ -191,6 +193,43 @@ function Login({ expired, initialError, onAuthenticated }: {
     <input id="password" name="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
     {error && <p className="form-error" role="alert">{error}</p>}
     <button className="primary-button" type="submit" disabled={pending}>{pending ? 'Signing in…' : 'Sign in'}</button>
+  </form></main>
+}
+
+function FirstOwnerSetup({ initialError, onAuthenticated, onClaimed }: {
+  initialError?: string; onAuthenticated: () => void; onClaimed: () => void
+}) {
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const [password, setPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [error, setError] = useState(initialError)
+  const [pending, setPending] = useState(false)
+  useEffect(() => { passwordRef.current?.focus() }, [])
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setError(undefined)
+    if (password !== confirmation) { setError('The passwords do not match.'); return }
+    setPending(true)
+    try {
+      const result = await requestJson('/api/v1/auth/setup', OwnerResponse, {
+        method: 'POST', headers: { 'content-type': 'application/json', 'x-xsrf-token': xsrfToken() },
+        body: JSON.stringify({ password }),
+      })
+      if (result.status === 409) { onClaimed(); return }
+      if (!result.ok) { setError(result.status === 400 ? 'Choose a password with at least 12 bytes.' : 'The owner password could not be created.'); return }
+      onAuthenticated()
+    } catch { setError('AnthraciteMD could not reach the service.') }
+    finally { setPending(false) }
+  }
+  return <main className="centered-state"><form name="first-owner-setup" className="login-panel" onSubmit={submit}>
+    <div className="brand-mark" aria-hidden="true">A</div><p className="eyebrow">AnthraciteMD</p>
+    <h1>Set up AnthraciteMD</h1><p>Create the owner password for this fresh host.</p>
+    <label htmlFor="first-owner-password">Create owner password</label>
+    <input ref={passwordRef} id="first-owner-password" name="password" type="password" autoComplete="new-password" aria-describedby="first-owner-guidance" required value={password} onChange={(event) => setPassword(event.target.value)} />
+    <p id="first-owner-guidance" className="field-guidance">Use at least 12 bytes. Keep this password with your host secrets.</p>
+    <label htmlFor="first-owner-confirmation">Confirm owner password</label>
+    <input id="first-owner-confirmation" name="confirmation" type="password" autoComplete="new-password" required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
+    {error && <p className="form-error" role="alert">{error}</p>}
+    <button className="primary-button" type="submit" disabled={pending}>{pending ? 'Creating owner…' : 'Create owner'}</button>
   </form></main>
 }
 
@@ -535,7 +574,12 @@ export function App() {
     setState({ kind: 'loading' })
     try {
       const auth = await requestJson('/api/v1/auth/current', OwnerResponse)
-      if (auth.status === 401) { setState({ kind: 'login', expired: false }); return }
+      if (auth.status === 401) {
+        const bootstrap = await requestJson('/api/v1/auth/bootstrap', AuthBootstrapResponse)
+        if (!bootstrap.ok) { setState({ kind: 'unavailable', message: 'The authentication service is unavailable.' }); return }
+        setState(bootstrap.data.state === 'setup_required' ? { kind: 'setup' } : { kind: 'login', expired: false })
+        return
+      }
       if (!auth.ok) { setState({ kind: 'unavailable', message: 'The authentication service is unavailable.' }); return }
       const workspace = await requestJson('/api/v1/workspace', WorkspaceResponse)
       if (workspace.status === 401) { setState({ kind: 'login', expired: true }); return }
@@ -554,6 +598,7 @@ export function App() {
 
   if (state.kind === 'loading') return <main className="centered-state" aria-busy="true"><p className="eyebrow">AnthraciteMD</p><h1>Opening your workspace…</h1></main>
   if (state.kind === 'login') return <Login expired={state.expired} {...(state.error ? { initialError: state.error } : {})} onAuthenticated={() => void load()} />
+  if (state.kind === 'setup') return <FirstOwnerSetup {...(state.error ? { initialError: state.error } : {})} onAuthenticated={() => void load()} onClaimed={() => void load()} />
   if (state.kind === 'unavailable') return <main className="centered-state"><div className="service-error"><p className="eyebrow">Service unavailable</p><h1>Workspace unavailable</h1><p>{state.message}</p><button className="primary-button" type="button" onClick={() => void load()}>Try again</button></div></main>
   return <Workbench workspace={state.workspace} onSessionExpired={() => setState({ kind: 'login', expired: true })} onSignedOut={() => setState({ kind: 'login', expired: false })} />
 }

@@ -74,13 +74,52 @@ export const Loading: Story = {
 }
 
 export const AuthenticationRequired: Story = {
-  parameters: { msw: { handlers: [http.get('/api/v1/auth/current', () => HttpResponse.json({}, { status: 401 }))] } },
+  parameters: { msw: { handlers: [http.get('/api/v1/auth/current', () => HttpResponse.json({}, { status: 401 })), http.get('/api/v1/auth/bootstrap', () => HttpResponse.json({ state: 'login_required' }))] } },
   play: async ({ canvasElement }) => expect(await within(canvasElement).findByRole('heading', { name: 'Sign in to AnthraciteMD' })).toBeVisible(),
+}
+
+export const FirstOwnerSetup: Story = {
+  parameters: { msw: { handlers: [
+    http.get('/api/v1/auth/current', () => HttpResponse.json({}, { status: 401 })),
+    http.get('/api/v1/auth/bootstrap', () => HttpResponse.json({ state: 'setup_required' })),
+  ] } },
+  play: async ({ canvasElement }) => expect(await within(canvasElement).findByRole('heading', { name: 'Set up AnthraciteMD' })).toBeVisible(),
+}
+
+export const FirstOwnerSetupPending: Story = {
+  parameters: { msw: { handlers: [
+    http.get('/api/v1/auth/current', () => HttpResponse.json({}, { status: 401 })),
+    http.get('/api/v1/auth/bootstrap', () => HttpResponse.json({ state: 'setup_required' })),
+    http.post('/api/v1/auth/setup', async () => { await delay('infinite') }),
+  ] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(await canvas.findByLabelText('Create owner password'), 'correct horse battery staple')
+    await userEvent.type(canvas.getByLabelText('Confirm owner password'), 'correct horse battery staple')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create owner' }))
+    await expect(canvas.getByRole('button', { name: 'Creating owner…' })).toBeDisabled()
+  },
+}
+
+export const FirstOwnerSetupServerError: Story = {
+  parameters: { msw: { handlers: [
+    http.get('/api/v1/auth/current', () => HttpResponse.json({}, { status: 401 })),
+    http.get('/api/v1/auth/bootstrap', () => HttpResponse.json({ state: 'setup_required' })),
+    http.post('/api/v1/auth/setup', () => HttpResponse.json({ error: { code: 'invalid_request' } }, { status: 400 })),
+  ] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(await canvas.findByLabelText('Create owner password'), 'short')
+    await userEvent.type(canvas.getByLabelText('Confirm owner password'), 'short')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create owner' }))
+    await expect(await canvas.findByRole('alert')).toHaveTextContent('Choose a password')
+  },
 }
 
 export const InvalidCredentials: Story = {
   parameters: { msw: { handlers: [
     http.get('/api/v1/auth/current', () => HttpResponse.json({}, { status: 401 })),
+    http.get('/api/v1/auth/bootstrap', () => HttpResponse.json({ state: 'login_required' })),
     http.post('/api/v1/auth/login', () => HttpResponse.json({ error: { code: 'invalid_credentials' } }, { status: 401 })),
   ] } },
   play: async ({ canvasElement }) => {
@@ -94,6 +133,7 @@ export const InvalidCredentials: Story = {
 export const AuthenticationPending: Story = {
   parameters: { msw: { handlers: [
     http.get('/api/v1/auth/current', () => HttpResponse.json({}, { status: 401 })),
+    http.get('/api/v1/auth/bootstrap', () => HttpResponse.json({ state: 'login_required' })),
     http.post('/api/v1/auth/login', async () => { await delay('infinite') }),
   ] } },
   play: async ({ canvasElement }) => {

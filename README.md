@@ -35,7 +35,6 @@ export ANTHRACITEMD_WORKSPACE_ROOT="/absolute/path/to/a/test-workspace"
 export ANTHRACITEMD_STATE_DIR="/absolute/path/to/machine-local-state"
 export ANTHRACITEMD_ALLOWED_ORIGINS="http://127.0.0.1:5173"
 export APP_KEY="replace-with-a-persisted-random-secret-of-at-least-32-characters"
-pnpm --filter @anthracitemd/server exec node ace owner:setup
 pnpm dev
 pnpm lint
 pnpm typecheck
@@ -47,7 +46,7 @@ pnpm test:e2e
 pnpm start
 ```
 
-`pnpm dev` runs the service on `http://127.0.0.1:3333` and the web client on `http://127.0.0.1:5173`. The web development server proxies `/api` to the service. Use a disposable Markdown directory for development and tests.
+`pnpm dev` runs the service on `http://127.0.0.1:3333` and the web client on `http://127.0.0.1:5173`. The web development server proxies `/api` to the service. Use a disposable Markdown directory for development and tests. On a fresh machine-local security state, open the browser and create the first owner password in the setup form; `owner:setup` remains an optional host-local alternative.
 
 `pnpm build` compiles the web client, stages it into the AdonisJS public tree, and includes that tree in the deployable server build. `pnpm start` then serves the browser application, hashed assets, SPA history fallback, and `/api/v1` from one origin. The fallback never handles `/api/**`; unknown API routes remain JSON/HTTP 404 responses. `pnpm test:e2e` builds and exercises this same production server path rather than the Vite development proxy.
 
@@ -65,7 +64,7 @@ pnpm --filter @anthracitemd/server exec node ace owner:reset
 
 ## Self-Hosting Boundary
 
-The current target is a technically capable single owner on a trusted private network. Build the browser and service with `pnpm build`, configure the four environment variables above for the deployment origin, and run `pnpm start`. Set `ANTHRACITEMD_ALLOWED_ORIGINS` to the exact public HTTPS origin seen by the browser. A reverse proxy must preserve the original host/protocol information and forward cookies without rewriting their security attributes. Put TLS and private-network access controls in front of the service when traffic leaves loopback. Public Internet hardening, hosted tenancy, automated deployment, and managed backup automation are not delivered by this Change.
+The current target is a technically capable single owner on a trusted private network. Build the browser and service with `pnpm build`, configure the four environment variables above for the deployment origin, and run `pnpm start`. Set `ANTHRACITEMD_ALLOWED_ORIGINS` to the exact public HTTPS origin seen by the browser. The first browser that reaches an unclaimed host at that allowed origin can create its owner password, so do not expose an unclaimed host to an untrusted network. A reverse proxy must preserve the original host/protocol information and forward cookies without rewriting their security attributes. Put TLS and private-network access controls in front of the service when traffic leaves loopback. Public Internet hardening, hosted tenancy, automated deployment, and managed backup automation are not delivered by this Change.
 
 ## Packages
 
