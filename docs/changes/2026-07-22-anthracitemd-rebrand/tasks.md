@@ -5,8 +5,8 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: committed the application and topology candidate, passed final validation/self-check gates, and transitioned to `in_review`.
-- Next action: run independent `/sdd-review`; retain manual user UI confirmation as pending review evidence.
+- Last completed action: completed independent `/sdd-review`, remediated its consolidated findings in `5aa7af4`, and passed regression and aggregate gates on that exact candidate.
+- Next action: obtain manual user UI confirmation, then recheck review staleness before any authorized merge-and-close workflow.
 - Expected dirty files: none.
 - Known blockers: none.
 
@@ -41,6 +41,9 @@ status: in_progress
 | 2026-07-22 | `pnpm build`; `pnpm test:storybook`; `pnpm test:e2e`; `pnpm audit --audit-level high` | production build, rendered interaction automation, deterministic E2E, security gate | passed; 31 Storybook tests, 2 E2E tests, no known vulnerabilities |
 | 2026-07-22 | Storybook direct browser inspection | rendered UI verification | desktop/mobile sign-in and desktop/mobile workbench loaded with AnthraciteMD/A identity, meaningful content, no error overlay; one earlier invalid story-ID console error was explained and not present on inspected stories |
 | 2026-07-22 | GitHub API, Git origin, filesystem, and `sdd context` | topology evidence | `TaylorHuston/AnthraciteMD`, local/private `anthracitemd` paths, AnthraciteMD origin, and Space/repository ID all resolved |
+| 2026-07-22 | independent `/sdd-review` focused evidence | focused automated proof | passed on `5aa7af48216cf8c9390e3279ea4aa3a6138330bc`: 47 server migration/config/auth tests, 33 web config/identity tests, 40 workspace tests, and 17 plugin-SDK tests |
+| 2026-07-22 | independent `/sdd-review` aggregate candidate | fresh aggregate candidate gate | passed on `5aa7af48216cf8c9390e3279ea4aa3a6138330bc`: lint, typecheck, 256 tests, build, 31 Storybook tests, 2 E2E tests, and no known audit vulnerabilities |
+| 2026-07-22 | independent `/sdd-review` prospective integration | integration-candidate proof | clean merge tree `709051c63676dd3e8f56fba6f69ef71717e376b3`, identical to the reviewed source tree because `develop` is the merge base and source is not behind |
 
 ## Planning Updates
 
@@ -100,7 +103,7 @@ status: in_progress
 
 - Aggregate gate required: yes; the change crosses packages, persistence, auth, process-global configuration, UI, SDD truth, and repository topology.
 - Authoritative gates: root lint, typecheck, test, build, Storybook, E2E, audit, scoped SDD validation, stale-identifier inventory, and clean prospective integration tree.
-- Exact candidate and results: application implementation `fac4c2c` plus topology/evidence `046e82c`; all recorded gates passed.
+- Exact candidate and results: `5aa7af48216cf8c9390e3279ea4aa3a6138330bc`; fresh authoritative gates passed with 256 tests, 31 Storybook tests, 2 E2E tests, and a clean dependency audit. The following review-ledger/status-only commits require only artifact-observing validation and conflict/diff rechecks.
 - Remote CI role: corroborating.
 
 ## Manual UI Confirmation
@@ -124,12 +127,14 @@ status: in_progress
 ## Review Handoff Candidate
 
 - Integration target: `develop`
-- Candidate source commits: `fac4c2c`, `046e82c`
+- Candidate source commits: `fac4c2c`, `046e82c`, review remediation `5aa7af4`
 - Intended implementation and topology evidence committed: yes
-- Required risk, fan-out, environment, aggregate, reverse-traceability, and fresh-context self-check gates: passed
+- Required risk, fan-out, environment, aggregate, reverse-traceability, fresh-context review, regression rereview, and integration-candidate gates: passed
 
 ## Closeout
 
-- Change status: `in_review`; ready for independent `/sdd-review`.
+- Review verdict: `ready` at `5aa7af48216cf8c9390e3279ea4aa3a6138330bc`; no blocking or required findings remain after remediation.
+- Review record: task ledger (no separate `review.md` created); manual confirmation remains `pending user`.
+- Change status: transitioning back to `in_review` after review remediation.
 - Epic/current docs/topology reconciliation: complete. Historical GMD review reports remain provenance-preserving evidence and are not represented as fresh AMD verification reports.
-- Review, PR, merge, and closeout: pending.
+- PR, merge, and closeout: not authorized and pending manual confirmation.
