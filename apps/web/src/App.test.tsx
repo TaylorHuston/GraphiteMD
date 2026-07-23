@@ -144,6 +144,26 @@ describe('AMD-002/S1 responsive browse shell', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it('AMD-001/S3 R2-S3 refreshes a stale first-owner claim into normal sign-in', async () => {
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => response(401, { error: { code: 'unauthenticated', message: 'Authentication required.' } }))
+      .mockImplementationOnce(() => response(200, { state: 'setup_required' }))
+      .mockImplementationOnce(() => response(409, { error: { code: 'owner_setup_unavailable', message: 'Owner setup is unavailable.' } }))
+      .mockImplementationOnce(() => response(401, { error: { code: 'unauthenticated', message: 'Authentication required.' } }))
+      .mockImplementationOnce(() => response(200, { state: 'login_required' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(await screen.findByLabelText('Create owner password'), 'correct horse battery staple')
+    await user.type(screen.getByLabelText('Confirm owner password'), 'correct horse battery staple')
+    await user.click(screen.getByRole('button', { name: 'Create owner' }))
+
+    expect(await screen.findByRole('heading', { name: 'Sign in to AnthraciteMD' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Set up AnthraciteMD' })).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+  })
+
   it('fails closed with recovery when the workspace success payload is malformed', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))

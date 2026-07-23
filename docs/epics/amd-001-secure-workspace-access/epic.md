@@ -8,6 +8,7 @@ last_verified: 2026-07-22
 stories:
   - S1
   - S2
+  - S3
 ---
 
 # AMD-001 Secure Workspace Access
@@ -377,7 +378,7 @@ The system SHALL protect browser owner setup with the configured exact-origin, C
 | S3/R1-S1, S3/R1-S2 | `packages/contracts/src/index.test.ts#AMD-001/S3 R1 accepts only the binary bootstrap state` and `apps/server/tests/http/authentication.test.ts#R1-S1 and R1-S2 disclose only the required setup state` | The contract rejects extra state, a fresh host returns only `setup_required`, and a claimed host returns only `login_required`. | passing |
 | S3/R2-S1 | `apps/server/tests/http/authentication.test.ts#R2-S1 creates the owner once and establishes the normal protected session` | A valid first claim returns the owner, regenerates an authenticated session, and opens the protected workspace. | passing |
 | S3/R2-S2 | `apps/server/tests/http/authentication.test.ts#R2-S2 rejects an invalid password without claiming the host` | Server policy rejects invalid input without owner mutation. | passing |
-| S3/R2-S3 | `apps/server/tests/http/authentication.test.ts#R2-S3 lets one concurrent setup claim win without giving the loser a session` | One concurrent claimant wins; the loser cannot use its anonymous cookie as an authenticated session. | passing |
+| S3/R2-S3 | `apps/server/tests/http/authentication.test.ts#R2-S3 lets one concurrent setup claim win without giving the loser a session` and `apps/web/src/App.test.tsx#AMD-001/S3 R2-S3 refreshes a stale first-owner claim into normal sign-in` | One concurrent claimant wins; the loser cannot use its anonymous cookie as an authenticated session, and a stale browser form returns to sign-in. | passing |
 | S3/R2-S4 | `apps/server/tests/http/authentication.test.ts#R2-S4 keeps a committed owner usable when session issuance fails` | Session failure does not roll back the committed credential; normal sign-in recovers. | passing |
 | S3/R3-S1 | `apps/server/tests/http/authentication.test.ts#R3-S1 rejects missing XSRF proof and an untrusted Origin without mutation` | Shield CSRF and the explicit exact-Origin guard reject without creating an owner. | passing |
 | S3/R3-S2 | `apps/server/tests/http/authentication.test.ts#R3-S2 bounds repeated claimed-host setup attempts without replacing the credential` | Bounded repeated attempts never replace an existing credential. | passing |
@@ -386,9 +387,7 @@ The system SHALL protect browser owner setup with the configured exact-origin, C
 
 #### Verification Gaps
 
-- `S3/R1-S1`: Rendered browser setup presentation remains unverified.
-- `S3/R1-S2`: Rendered browser sign-in selection remains unverified.
-- Stale-claim UI recovery and direct fresh-state rendered network/log inspection remain pending; the required production E2E and Storybook checks pass.
+- Manual owner acceptance remains pending for the disposable fresh-state walkthrough: create a valid password, then confirm reload/sign-in never reopens setup. Automated rendered desktop/mobile inspection, network/console review, Storybook, and deterministic production E2E are complete.
 
 #### Story Notes
 
