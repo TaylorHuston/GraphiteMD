@@ -1,13 +1,13 @@
 ---
-status: in_progress
+status: in_review
 ---
 # Tasks: AnthraciteMD Rebrand
 
 ## Resume Here
 
-- Last completed action: committed R1-R4 as `fac4c2c`, completed R5 topology cutover, and directly inspected desktop/mobile branding.
-- Next action: commit reconciled topology evidence, record the immutable candidate, and transition to `in_review`.
-- Expected dirty files: `.sdd/config.yaml` and this task ledger only.
+- Last completed action: committed the application and topology candidate, passed final validation/self-check gates, and transitioned to `in_review`.
+- Next action: run independent `/sdd-review`; retain manual user UI confirmation as pending review evidence.
+- Expected dirty files: none.
 - Known blockers: none.
 
 ## Task Checklist
@@ -20,7 +20,7 @@ status: in_progress
 - [x] R5 reconcile README, changelog, current ADRs, canonical Epics/IDs/directories, current private planning truth, repository guidance, and SDD config.
 - [x] Render desktop/mobile sign-in and workbench identity; inspect accessibility, console, and network state.
 - [x] Run focused and aggregate verification, stale-identifier inventory, reverse traceability, and implementation self-check.
-- [ ] Transition the recorded candidate to `in_review` and hand off to `/sdd-review`.
+- [x] Transition the recorded candidate to `in_review` and hand off to `/sdd-review`.
 
 ## Implementation Ledger
 
@@ -130,6 +130,6 @@ status: in_progress
 
 ## Closeout
 
-- Change status: `in_progress`; transition to `in_review` follows the final evidence commit.
+- Change status: `in_review`; ready for independent `/sdd-review`.
 - Epic/current docs/topology reconciliation: complete. Historical GMD review reports remain provenance-preserving evidence and are not represented as fresh AMD verification reports.
 - Review, PR, merge, and closeout: pending.
