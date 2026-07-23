@@ -7,7 +7,7 @@ status: in_progress
 
 - Last completed action: promoted, transitioned to `in_progress`, and completed the server-side R1 bootstrap contract/route slice with focused contract and real-HTTP proof.
 - Next action: implement the browser R1 state selection and first-owner setup presentation against the typed bootstrap contract.
-- Active branch/ref: AnthraciteMD `change/first-login-owner-setup` from `develop` at `d1d2e2a64b42c454eb635d308c027b77b9c13960`; phase commit pending.
+- Active branch/ref: AnthraciteMD `change/first-login-owner-setup` at `b6fddc9` (from `develop` at `d1d2e2a64b42c454eb635d308c027b77b9c13960`).
 - Expected dirty files: contracts, server routes/tests, AMD-001, and this Change ledger.
 - Known blockers: none.
 
@@ -92,7 +92,7 @@ status: in_progress
 
 | Date | Slice | Result | Artifact Reconciliation | Commit |
 |---|---|---|---|---|
-| 2026-07-22 | AMD-001/S3 R1 server bootstrap boundary | Added the closed binary bootstrap contract and unauthenticated owner-existence route; it reveals no owner, session, workspace, or path data. | Promoted Change, added S3 as partial/partial, reconciled S1 as an alternative CLI path, and recorded server-only R1 gaps. | pending |
+| 2026-07-22 | AMD-001/S3 R1 server bootstrap boundary | Added the closed binary bootstrap contract and unauthenticated owner-existence route; it reveals no owner, session, workspace, or path data. | Promoted Change, added S3 as partial/partial, reconciled S1 as an alternative CLI path, and recorded server-only R1 gaps. | `b6fddc9` |
 
 ## Verification Ledger
 
