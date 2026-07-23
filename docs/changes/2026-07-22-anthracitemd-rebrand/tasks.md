@@ -108,7 +108,7 @@ status: in_review
 
 ## Manual UI Confirmation
 
-- Status: pending user
+- Status: user confirmed
 - Route: sign-in and authenticated workbench.
 - Confirm AnthraciteMD name and `A` mark on desktop/mobile, normal sign-in after migration, and no former brand in current UI.
 - Defects include old branding outside declared compatibility/history, inaccessible labels, layout regression, or inability to sign in after migration.
@@ -134,7 +134,7 @@ status: in_review
 ## Closeout
 
 - Review verdict: `ready` at `5aa7af48216cf8c9390e3279ea4aa3a6138330bc`; no blocking or required findings remain after remediation.
-- Review record: task ledger (no separate `review.md` created); manual confirmation remains `pending user`.
-- Change status: `in_review`; technical review is ready while manual confirmation remains pending.
+- Review record: task ledger (no separate `review.md` created); manual confirmation was user confirmed on 2026-07-22.
+- Change status: `in_review`; review and acceptance gates are ready for the authorized local merge-and-close.
 - Epic/current docs/topology reconciliation: complete. Historical GMD review reports remain provenance-preserving evidence and are not represented as fresh AMD verification reports.
-- PR, merge, and closeout: not authorized and pending manual confirmation.
+- PR: not required for the authorized local integration path. Merge and closeout: authorized by the user and pending execution.
