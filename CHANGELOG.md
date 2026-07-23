@@ -2,7 +2,11 @@
 
 All notable user-facing changes to AnthraciteMD will be documented here.
 
-## Unreleased
+## 0.2.0 - 2026-07-22
+
+### Added
+
+- Added browser-based first-owner setup for fresh hosts, which creates and signs in the single owner without requiring a CLI command.
 
 ### Changed
 
