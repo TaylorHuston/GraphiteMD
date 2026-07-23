@@ -7,7 +7,7 @@ status: in_progress
 
 - Last completed action: implemented and rendered the browser first-owner flow against the protected server claim boundary.
 - Next action: run final aggregate/traceability/self-check evidence and reconcile the review handoff.
-- Active branch/ref: AnthraciteMD `change/first-login-owner-setup` (from `develop` at `d1d2e2a64b42c454eb635d308c027b77b9c13960`); browser phase commit pending.
+- Active branch/ref: AnthraciteMD `change/first-login-owner-setup` at `ffb4ac7` (from `develop` at `d1d2e2a64b42c454eb635d308c027b77b9c13960`).
 - Expected dirty files: web/client tests/stories, E2E fixture, server initialization, README, AMD-001, and this Change ledger.
 - Known blockers: none.
 
@@ -94,7 +94,7 @@ status: in_progress
 |---|---|---|---|---|
 | 2026-07-22 | AMD-001/S3 R1 server bootstrap boundary | Added the closed binary bootstrap contract and unauthenticated owner-existence route; it reveals no owner, session, workspace, or path data. | Promoted Change, added S3 as partial/partial, reconciled S1 as an alternative CLI path, and recorded server-only R1 gaps. | `b6fddc9` |
 | 2026-07-22 | AMD-001/S3 R2-R3 server claim boundary | Added the strict setup envelope, atomic owner claim, normal session issuance, explicit exact-Origin rejection, CSRF parity, and bounded attempt handling. | Expanded S3 implementation/evidence maps; browser-specific gaps remain explicit. | `d8ae369` |
-| 2026-07-22 | AMD-001/S3 browser setup and fresh-state initialization | Added authoritative browser state selection, focusable confirmation form, pending/error states, Storybook coverage, production E2E first claim, and security-store initialization before anonymous session handling. | README now documents browser-first setup, retained CLI alternative, and unclaimed-host private-network warning; AMD-001 maps browser owners and evidence. | pending |
+| 2026-07-22 | AMD-001/S3 browser setup and fresh-state initialization | Added authoritative browser state selection, focusable confirmation form, pending/error states, Storybook coverage, production E2E first claim, and security-store initialization before anonymous session handling. | README now documents browser-first setup, retained CLI alternative, and unclaimed-host private-network warning; AMD-001 maps browser owners and evidence. | `ffb4ac7` |
 
 ## Verification Ledger
 
