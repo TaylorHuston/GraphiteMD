@@ -5,9 +5,9 @@ status: in_review
 
 ## Resume Here
 
-- Last completed action: completed independent `/sdd-review`, remediated its consolidated findings in `5aa7af4`, and passed regression and aggregate gates on that exact candidate.
-- Next action: obtain manual user UI confirmation, then recheck review staleness before any authorized merge-and-close workflow.
-- Expected dirty files: none.
+- Last completed action: user confirmed manual acceptance, source `ecdf031` merged locally into `develop` as `882164b`, and the Change moved to the canonical closed location.
+- Next action: plan the requested first-login browser owner-setup behavior as a separate Change.
+- Expected dirty files: none after the closeout commit.
 - Known blockers: none.
 
 ## Task Checklist
@@ -133,8 +133,8 @@ status: in_review
 
 ## Closeout
 
-- Review verdict: `ready` at `5aa7af48216cf8c9390e3279ea4aa3a6138330bc`; no blocking or required findings remain after remediation.
+- Review verdict: `ready`; behavior candidate `5aa7af48216cf8c9390e3279ea4aa3a6138330bc`, accepted source `ecdf031`, and integrated merge `882164b` contain no unreviewed behavior changes.
 - Review record: task ledger (no separate `review.md` created); manual confirmation was user confirmed on 2026-07-22.
-- Change status: `in_review`; review and acceptance gates are ready for the authorized local merge-and-close.
+- Change status: closed by canonical folder location; retained frontmatter is `in_review` per SDD policy.
 - Epic/current docs/topology reconciliation: complete. Historical GMD review reports remain provenance-preserving evidence and are not represented as fresh AMD verification reports.
-- PR: not required for the authorized local integration path. Merge and closeout: authorized by the user and pending execution.
+- PR: not required for the authorized local integration path. Merge: complete locally into `develop` as `882164b`; actual tree `6583ef1e3c4f82d8d529e11362b2595a1a18a091` matches the pre-merge candidate tree. Closeout: complete in `docs/changes/closed/2026-07-22-anthracitemd-rebrand/`.
