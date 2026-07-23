@@ -5,9 +5,9 @@ status: in_progress
 
 ## Resume Here
 
-- Last completed action: implemented and verified R1-R4 plus current repository documentation and Epic identity.
-- Next action: commit the coherent application candidate, then perform R5 repository/private/SDD topology cutover and rendered verification.
-- Expected dirty files: application, tests, current docs/Epics, and this Change folder for the rebrand candidate.
+- Last completed action: committed R1-R4 as `fac4c2c`, completed R5 topology cutover, and directly inspected desktop/mobile branding.
+- Next action: commit reconciled topology evidence, record the immutable candidate, and transition to `in_review`.
+- Expected dirty files: `.sdd/config.yaml` and this task ledger only.
 - Known blockers: none.
 
 ## Task Checklist
@@ -17,9 +17,9 @@ status: in_progress
 - [x] R2 implement canonical environment variables with legacy fallback and precedence tests.
 - [x] R3 implement safe workspace and implicit machine-state migration with conflict/symlink tests.
 - [x] R4 migrate auth/session identity, preserve credentials/provider state, invalidate legacy sessions, and test sign-in recovery.
-- [ ] R5 reconcile README, changelog, current ADRs, canonical Epics/IDs/directories, current private planning truth, repository guidance, and SDD config.
-- [ ] Render desktop/mobile sign-in and workbench identity; inspect accessibility, console, and network state.
-- [ ] Run focused and aggregate verification, stale-identifier inventory, reverse traceability, and implementation self-check.
+- [x] R5 reconcile README, changelog, current ADRs, canonical Epics/IDs/directories, current private planning truth, repository guidance, and SDD config.
+- [x] Render desktop/mobile sign-in and workbench identity; inspect accessibility, console, and network state.
+- [x] Run focused and aggregate verification, stale-identifier inventory, reverse traceability, and implementation self-check.
 - [ ] Commit each verified phase, record the immutable candidate, transition to `in_review`, and hand off to `/sdd-review`.
 
 ## Implementation Ledger
@@ -27,15 +27,20 @@ status: in_progress
 | Date | Slice | Result | Commit / Ref |
 |---|---|---|---|
 | 2026-07-22 | Replan | Compatibility, migration, auth, topology, and verification obligations resolved. | planning only |
-| 2026-07-22 | R1-R4 | Canonical identity, configuration compatibility, safe state migration, and auth transition implemented; combined because package/config/migration imports overlap the same runtime files. | commit pending |
+| 2026-07-22 | R1-R4 | Canonical identity, configuration compatibility, safe state migration, and auth transition implemented; combined because package/config/migration imports overlap the same runtime files. | `fac4c2c` |
+| 2026-07-22 | R5 | GitHub repository, local checkout, origin, SDD IDs, private planning directory/current truth, Epic IDs/directories, and rendered identity reconciled. | evidence commit pending |
 
 ## Verification Ledger
 
 | Date | Check | Evidence Type | Result |
 |---|---|---|---|
-| 2026-07-22 | `sdd validate` after replan | structural planning gate | pending final run |
+| 2026-07-22 | `sdd validate` for Change and AMD-001 through AMD-004 | structural planning gate | passed; zero errors and zero warnings |
+| 2026-07-22 | reverse-traceability audit from `develop` | ownership evidence | passed; zero missing Implemented By or Verified By references; remaining candidates classified as cross-cutting configuration, presentation, fixtures, and test support |
+| 2026-07-22 | fresh-context code, docs/topology, and security self-check | implementation review | passed after reconciling design mappings, current topology links, changelog, and this ledger; no code or security findings |
 | 2026-07-22 | `pnpm lint`; `pnpm typecheck`; `pnpm test` | broad supporting gates | passed; 255 tests across contracts, domain, workspace, SDK, web, bundled plugins, and server |
 | 2026-07-22 | `pnpm build`; `pnpm test:storybook`; `pnpm test:e2e`; `pnpm audit --audit-level high` | production build, rendered interaction automation, deterministic E2E, security gate | passed; 31 Storybook tests, 2 E2E tests, no known vulnerabilities |
+| 2026-07-22 | Storybook direct browser inspection | rendered UI verification | desktop/mobile sign-in and desktop/mobile workbench loaded with AnthraciteMD/A identity, meaningful content, no error overlay; one earlier invalid story-ID console error was explained and not present on inspected stories |
+| 2026-07-22 | GitHub API, Git origin, filesystem, and `sdd context` | topology evidence | `TaylorHuston/AnthraciteMD`, local/private `anthracitemd` paths, AnthraciteMD origin, and Space/repository ID all resolved |
 
 ## Planning Updates
 
@@ -47,55 +52,55 @@ status: in_progress
 
 | Requirement / Surface | End-State Invariant | Risk / Failure Mode | Check Needed | Status |
 |---|---|---|---|---|
-| R1 packages/UI | AnthraciteMD is canonical and all imports/build conditions resolve. | split identity or broken production resolution | package tests, build, stale-name inventory, rendered UI | proved; direct visual inspection pending |
+| R1 packages/UI | AnthraciteMD is canonical and all imports/build conditions resolve. | split identity or broken production resolution | package tests, build, stale-name inventory, rendered UI | proved |
 | R2 environment | canonical wins; legacy is fallback only | invalid canonical silently masked or config drift | canonical-only, legacy-only, both-set, invalid-canonical tests | proved |
 | R3 state | data migrates atomically without merge/delete/symlink traversal | loss, unsafe traversal, conflicting sources | populated migration plus conflict and symlink tests | proved |
 | R4 auth | owner/provider state survives; legacy sessions fail; new login works | lockout or stale trigger/session acceptance | security migration and HTTP auth tests | proved |
-| R5 topology | GitHub/local/SDD/private paths agree | broken origin, context, links, or historical evidence | provider query, origin, context, validation, link scan | known |
+| R5 topology | GitHub/local/SDD/private paths agree | broken origin, context, links, or historical evidence | provider query, origin, context, validation, link scan | proved |
 
 ## Pattern Parity Matrix
 
 | Concern | Reference | New Contract | Proof | Status |
 |---|---|---|---|---|
-| workspace migration safety | existing `.graphite` -> `.graphitemd` migration | `.graphite` or `.graphitemd` -> `.anthracitemd` | focused workspace tests | pending |
-| machine state safety | workspace confinement rules | implicit default-only machine migration | focused security tests | pending |
+| workspace migration safety | existing `.graphite` -> `.graphitemd` migration | `.graphite` or `.graphitemd` -> `.anthracitemd` | focused workspace tests | proved |
+| machine state safety | workspace confinement rules | implicit default-only machine migration | focused security tests | proved |
 
 ## Boundary Contract Matrix
 
 | Producer | Boundary | Consumer | Mapping / Invariant | Evidence | Status |
 |---|---|---|---|---|---|
-| environment | server configuration | workspace/security/web runtime | canonical precedence and exact legacy fallback | focused configuration tests | pending |
-| package manifests | Node/pnpm resolution | server/web/plugins/tests | scope and production condition match everywhere | typecheck/build/import-boundary tests | pending |
-| security database | session payload/triggers | authenticated routes | new key accepted; old sessions invalid | security and HTTP tests | pending |
+| environment | server configuration | workspace/security/web runtime | canonical precedence and exact legacy fallback | focused configuration tests | proved |
+| package manifests | Node/pnpm resolution | server/web/plugins/tests | scope and production condition match everywhere | typecheck/build/import-boundary tests | proved |
+| security database | session payload/triggers | authenticated routes | new key accepted; old sessions invalid | security and HTTP tests | proved |
 
 ## Stateful Transition Matrix
 
 | Start State | Trigger | Expected Invariant | Proof | Result |
 |---|---|---|---|---|
-| legacy workspace only | first canonical startup | entire directory atomically becomes `.anthracitemd` | workspace migration test | pending |
-| canonical plus any legacy | startup | fail without mutation | conflict test | pending |
-| legacy machine state | implicit default startup | credentials/provider state move; sessions require re-login | security migration/auth test | pending |
+| legacy workspace only | first canonical startup | entire directory atomically becomes `.anthracitemd` | workspace migration test | passed |
+| canonical plus any legacy | startup | fail without mutation | conflict test | passed |
+| legacy machine state | implicit default startup | credentials/provider state move; sessions require re-login | security migration/auth test | passed |
 
 ## Decision Fan-Out Ledger
 
 | Date | Decision | Affected Surfaces | Status |
 |---|---|---|---|
-| 2026-07-22 | Rebrand everything; retain narrow legacy migration/config boundaries and historical evidence. | code, packages, env, persistence, auth, UI, tests, README, changelog, ADRs, Epics, SDD/private topology, GitHub/local path | planned |
+| 2026-07-22 | Rebrand everything; retain narrow legacy migration/config boundaries and historical evidence. | code, packages, env, persistence, auth, UI, tests, README, changelog, ADRs, Epics, SDD/private topology, GitHub/local path | applied and verified |
 
 ## Verification Environment
 
 | Obligation | Required Setup | Readiness | Resolution |
 |---|---|---|---|
-| migration/auth | disposable workspace, home/state root, and database | ready through test fixtures | pending run |
-| rendered identity | local Storybook or production app at desktop/mobile | available | pending run |
-| E2E | Playwright disposable roots | available | pending run |
-| topology | GitHub CLI plus local filesystem and SDD config | available; run last | pending run |
+| migration/auth | disposable workspace, home/state root, and database | ready through test fixtures | passed in focused and aggregate tests |
+| rendered identity | local Storybook or production app at desktop/mobile | available | passed in Storybook automation and direct inspection |
+| E2E | Playwright disposable roots | available | passed; 2 tests |
+| topology | GitHub CLI plus local filesystem and SDD config | available; run last | passed after coordinated cutover |
 
 ## Verification Scope Decision
 
 - Aggregate gate required: yes; the change crosses packages, persistence, auth, process-global configuration, UI, SDD truth, and repository topology.
 - Authoritative gates: root lint, typecheck, test, build, Storybook, E2E, audit, scoped SDD validation, stale-identifier inventory, and clean prospective integration tree.
-- Exact candidate and results: pending implementation commits.
+- Exact candidate and results: implementation `fac4c2c`; final topology/evidence commit recorded below after creation.
 - Remote CI role: corroborating.
 
 ## Manual UI Confirmation
@@ -109,8 +114,8 @@ status: in_progress
 
 | Surface | Viewport | State | Expected | Tool | Result |
 |---|---|---|---|---|---|
-| sign-in | 1440x900 and 390x844 | default/error | AnthraciteMD name and A mark; unchanged usable layout and accessible labels | Storybook/browser | pending |
-| workbench | 1440x900 and 390x844 | populated/settings | AnthraciteMD identity with no layout or interaction change | Storybook/browser | pending |
+| sign-in | 1440x900 and 390x844 | default | AnthraciteMD name and A mark; unchanged usable layout and accessible labels | Storybook/agent-browser; screenshots directly inspected | passed; no clipping/overlay, accessible password/button, clean inspected story |
+| workbench | 1440x900 and 390x844 | populated/files drawer | AnthraciteMD identity with no layout or interaction change | Storybook/agent-browser; screenshots directly inspected | passed; desktop A rail and AnthraciteMD note content, mobile drawer usable, no overlay |
 
 ## Blockers / Open Questions
 
@@ -119,12 +124,12 @@ status: in_progress
 ## Review Handoff Candidate
 
 - Integration target: `develop`
-- Candidate source commit: pending
-- Intended implementation committed: pending
-- Required risk, fan-out, environment, aggregate, reverse-traceability, and fresh-context self-check gates: pending
+- Candidate source commit: `fac4c2c` plus pending topology-evidence commit
+- Intended implementation committed: yes; topology evidence commit pending
+- Required risk, fan-out, environment, aggregate, reverse-traceability, and fresh-context self-check gates: passed
 
 ## Closeout
 
-- Change status: planned; Apply will later own `in_progress` and `in_review`.
-- Epic/current docs/topology reconciliation: pending implementation.
+- Change status: `in_progress`; transition to `in_review` follows the final evidence commit.
+- Epic/current docs/topology reconciliation: complete. Historical GMD review reports remain provenance-preserving evidence and are not represented as fresh AMD verification reports.
 - Review, PR, merge, and closeout: pending.

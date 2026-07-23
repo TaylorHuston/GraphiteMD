@@ -4,6 +4,12 @@ All notable user-facing changes to AnthraciteMD will be documented here.
 
 ## Unreleased
 
+### Changed
+
+- Rebranded the application, packages, workspace state, and repository as AnthraciteMD.
+- Added automatic migration from legacy `.graphitemd` and `.graphite` workspace state, with conflict and symlink safety checks.
+- Added `ANTHRACITEMD_*` configuration while retaining `GRAPHITEMD_*` as legacy fallback; existing owners sign in again after the session identity transition.
+
 ## 0.1.0 - 2026-07-22
 
 ### Added

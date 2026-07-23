@@ -31,10 +31,10 @@ Non-goals:
 
 Rename the four canonical Epic directories and IDs while preserving their Stories, Requirements, Scenarios, implementation maps, and evidence semantics:
 
-- `AMD-001` -> `AMD-001` Secure Workspace Access
-- `AMD-002` -> `AMD-002` Markdown Workbench
-- `AMD-003` -> `AMD-003` Bundled Plugin Platform
-- `AMD-004` -> `AMD-004` Workspace-Grounded Assistant
+- `GMD-001` -> `AMD-001` Secure Workspace Access
+- `GMD-002` -> `AMD-002` Markdown Workbench
+- `GMD-003` -> `AMD-003` Bundled Plugin Platform
+- `GMD-004` -> `AMD-004` Workspace-Grounded Assistant
 
 Current product prose, cross-links, state paths, and Story references become AnthraciteMD/AMD. Timestamped verification reports move with their Epic directories but retain contemporaneous evidence strings.
 
@@ -44,7 +44,7 @@ Current product prose, cross-links, state paths, and Story references become Ant
 
 The system SHALL present and publish AnthraciteMD identifiers across UI, packages, SDK contracts, runtime metadata, configuration examples, and current documentation.
 
-- R1-S1: WHEN a fresh build, test, or browser surface is inspected, THEN maintained current output contains AnthraciteMD identifiers and no AnthraciteMD identifier outside a declared compatibility or historical boundary.
+- R1-S1: WHEN a fresh build, test, or browser surface is inspected, THEN maintained current output contains AnthraciteMD identifiers and no former GraphiteMD identifier outside a declared compatibility or historical boundary.
 - R1-S2: WHEN package and production-condition resolution runs, THEN every workspace import resolves through `@anthracitemd/*` and `anthracitemd-production`.
 
 ### R2: Configuration compatibility
