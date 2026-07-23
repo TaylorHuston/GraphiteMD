@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, stat, symlink } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, stat, symlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -10,22 +10,75 @@ import {
   OwnerAlreadyExistsError,
   OwnerSetupService,
   PasswordPolicyError,
+  migrateImplicitSecurityStateDirectory,
   resolveSecurityStateDirectory,
 } from '../../app/security/owner_setup_service.js'
 
-describe('GMD-001/S1 R1 host-local owner setup', () => {
-  it('GMD-004/S1 R2-S1 defaults secret state to the machine vault and rejects workspace-local overrides', async () => {
-    const workspaceRoot = await mkdtemp(join(tmpdir(), 'graphitemd-workspace-'))
-    expect(resolveSecurityStateDirectory({})).toBe(join(homedir(), '.graphitemd'))
+describe('AMD-001/S1 R1 host-local owner setup', () => {
+  it('AMD-004/S1 R2-S1 defaults secret state to the machine vault and rejects workspace-local overrides', async () => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), 'anthracitemd-workspace-'))
+    expect(resolveSecurityStateDirectory({})).toBe(join(homedir(), '.anthracitemd'))
     expect(() => resolveSecurityStateDirectory({
       GRAPHITEMD_WORKSPACE_ROOT: workspaceRoot,
       GRAPHITEMD_STATE_DIR: join(workspaceRoot, '.graphitemd'),
     })).toThrow('must resolve outside')
   })
 
-  it('GMD-004/S1 R2-S1 rejects a state override whose symlinked ancestor enters the workspace', async () => {
-    const parent = await mkdtemp(join(tmpdir(), 'graphitemd-state-parent-'))
-    const workspaceRoot = await mkdtemp(join(tmpdir(), 'graphitemd-workspace-'))
+  it('AMD-001/S1 R4-S2 atomically migrates the implicit machine state and preserves provider files', async () => {
+    const fakeHome = await mkdtemp(join(tmpdir(), 'anthracitemd-home-'))
+    const legacy = join(fakeHome, '.graphitemd')
+    await mkdir(join(legacy, 'assistant', 'pi'), { recursive: true })
+    await writeFile(join(legacy, 'assistant', 'pi', 'auth.json'), '{"provider":"preserved"}\n')
+    await new OwnerSetupService(legacy).createOwner('preserved owner password')
+
+    expect(migrateImplicitSecurityStateDirectory(fakeHome)).toBe(join(fakeHome, '.anthracitemd'))
+    expect(await readFile(join(fakeHome, '.anthracitemd', 'assistant', 'pi', 'auth.json'), 'utf8'))
+      .toBe('{"provider":"preserved"}\n')
+    await expect(new OwnerSetupService(join(fakeHome, '.anthracitemd')).verifyPassword('preserved owner password'))
+      .resolves.toBe(true)
+    await expect(stat(legacy)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it.each([
+    ['both paths exist', async (home: string) => {
+      await mkdir(join(home, '.graphitemd'))
+      await mkdir(join(home, '.anthracitemd'))
+    }],
+    ['legacy is a symlink', async (home: string) => {
+      const outside = await mkdtemp(join(tmpdir(), 'anthracitemd-outside-'))
+      await symlink(outside, join(home, '.graphitemd'))
+    }],
+    ['canonical is a symlink', async (home: string) => {
+      const outside = await mkdtemp(join(tmpdir(), 'anthracitemd-outside-'))
+      await mkdir(join(home, '.graphitemd'))
+      await symlink(outside, join(home, '.anthracitemd'))
+    }],
+  ])('AMD-001/S1 R4-S2 fails closed when %s', async (_case, arrange) => {
+    const fakeHome = await mkdtemp(join(tmpdir(), 'anthracitemd-home-'))
+    await arrange(fakeHome)
+    expect(() => migrateImplicitSecurityStateDirectory(fakeHome)).toThrow()
+    await expect(stat(join(fakeHome, '.graphitemd'))).resolves.toBeDefined()
+  })
+
+  it('AMD-001/S1 R4-S2 keeps explicit state overrides exact', () => {
+    const explicit = join(tmpdir(), 'operator-owned-anthracitemd-state')
+    expect(resolveSecurityStateDirectory({ ANTHRACITEMD_STATE_DIR: explicit })).toBe(explicit)
+  })
+
+  it('AMD-001/S1 R4-S2 rejects unsafe implicit placement before migrating legacy state', async () => {
+    const fakeHome = await mkdtemp(join(tmpdir(), 'anthracitemd-home-'))
+    const legacy = join(fakeHome, '.graphitemd')
+    await mkdir(legacy)
+    await writeFile(join(legacy, 'preserved.txt'), 'legacy state\n')
+
+    expect(() => migrateImplicitSecurityStateDirectory(fakeHome, fakeHome)).toThrow('must resolve outside')
+    await expect(readFile(join(legacy, 'preserved.txt'), 'utf8')).resolves.toBe('legacy state\n')
+    await expect(stat(join(fakeHome, '.anthracitemd'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('AMD-004/S1 R2-S1 rejects a state override whose symlinked ancestor enters the workspace', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'anthracitemd-state-parent-'))
+    const workspaceRoot = await mkdtemp(join(tmpdir(), 'anthracitemd-workspace-'))
     const linked = join(parent, 'linked')
     await symlink(workspaceRoot, linked)
 
@@ -34,7 +87,7 @@ describe('GMD-001/S1 R1 host-local owner setup', () => {
   })
 
   it('R1-S1 stores only a password hash in machine-local security state', async () => {
-    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-security-'))
     const service = new OwnerSetupService(stateDirectory)
     const password = 'correct horse battery staple'
 
@@ -51,7 +104,7 @@ describe('GMD-001/S1 R1 host-local owner setup', () => {
   })
 
   it('R1-S2 refuses to overwrite an existing owner', async () => {
-    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-security-'))
     const service = new OwnerSetupService(stateDirectory)
 
     await service.createOwner('original password')
@@ -64,9 +117,9 @@ describe('GMD-001/S1 R1 host-local owner setup', () => {
   })
 })
 
-describe('GMD-001/S2 owner credential maintenance', () => {
+describe('AMD-001/S2 owner credential maintenance', () => {
   it('R2-S1 upgrades legacy owner/session tables before installing generation guards', async () => {
-    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-security-'))
     const databasePath = join(stateDirectory, 'security.sqlite')
     const legacy = new DatabaseSync(databasePath)
     legacy.exec(`
@@ -81,6 +134,11 @@ describe('GMD-001/S2 owner credential maintenance', () => {
         expires_at TEXT NOT NULL
       ) STRICT
     `)
+    legacy.prepare('INSERT INTO sessions (id, data, expires_at) VALUES (?, ?, ?)').run(
+      'legacy-session',
+      JSON.stringify({ message: { auth_web: 1, graphitemd_auth_generation: 0 } }),
+      new Date(Date.now() + 60_000).toISOString(),
+    )
     legacy.close()
 
     await expect(new OwnerSetupService(stateDirectory).hasOwner()).resolves.toBe(false)
@@ -88,16 +146,18 @@ describe('GMD-001/S2 owner credential maintenance', () => {
     const migrated = new DatabaseSync(databasePath)
     const ownerColumns = migrated.prepare('PRAGMA table_info(owners)').all() as Array<{ name: string }>
     const triggers = migrated.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as Array<{ name: string }>
+    const sessions = migrated.prepare('SELECT id FROM sessions').all()
     migrated.close()
     expect(ownerColumns.map(({ name }) => name)).toContain('revocation_generation')
+    expect(sessions).toEqual([])
     expect(triggers.map(({ name }) => name)).toEqual(expect.arrayContaining([
-      'reject_revoked_session_insert',
-      'reject_revoked_session_update',
+      'anthracitemd_reject_revoked_session_insert',
+      'anthracitemd_reject_revoked_session_update',
     ]))
   })
 
   it('R1-S1 does not let an old-password authentication complete after credential revocation', async () => {
-    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-security-'))
     const loginService = new OwnerSetupService(stateDirectory)
     const maintenanceService = new OwnerSetupService(stateDirectory)
     await loginService.createOwner('original password')
@@ -134,7 +194,7 @@ describe('GMD-001/S2 owner credential maintenance', () => {
   })
 
   it('R2-S1 rejects and cleans up a session issued across a host-reset generation change', async () => {
-    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-security-'))
     const service = new OwnerSetupService(stateDirectory)
     await service.createOwner('original password')
     let sessionWasInvalidated = false
@@ -158,7 +218,7 @@ describe('GMD-001/S2 owner credential maintenance', () => {
   })
 
   it('R1-S1 atomically replaces a proven password and invalidates every session', async () => {
-    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-security-'))
     const service = new OwnerSetupService(stateDirectory)
     await service.createOwner('original password')
 
@@ -169,7 +229,7 @@ describe('GMD-001/S2 owner credential maintenance', () => {
   })
 
   it('R2-S1 atomically replaces a forgotten password', async () => {
-    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-security-'))
     const service = new OwnerSetupService(stateDirectory)
     await service.createOwner('forgotten password')
 
@@ -180,7 +240,7 @@ describe('GMD-001/S2 owner credential maintenance', () => {
   })
 
   it('R2-S2 rolls back the credential when session invalidation fails before commit', async () => {
-    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-security-'))
     const service = new OwnerSetupService(stateDirectory)
     await service.createOwner('existing password')
     const database = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
@@ -205,9 +265,9 @@ describe('GMD-001/S2 owner credential maintenance', () => {
   })
 })
 
-describe('GMD-001 password input policy', () => {
+describe('AMD-001 password input policy', () => {
   it('applies one UTF-8 byte policy to setup, verification, change, and reset', async () => {
-    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-security-'))
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-security-'))
     const service = new OwnerSetupService(stateDirectory)
     await expect(service.createOwner('short')).rejects.toBeInstanceOf(PasswordPolicyError)
     await service.createOwner('valid password')

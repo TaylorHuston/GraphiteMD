@@ -13,13 +13,13 @@ afterEach(async () => {
 })
 
 async function createWorkspace(): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), 'graphitemd-workspace-'))
+  const directory = await mkdtemp(join(tmpdir(), 'anthracitemd-workspace-'))
   temporaryDirectories.push(directory)
   return directory
 }
 
 describe('ConfiguredWorkspaceAuthority', () => {
-  it('GMD-002/S1/R1-S1 opens the configured directory without exposing its host path', async () => {
+  it('AMD-002/S1/R1-S1 opens the configured directory without exposing its host path', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Welcome.md'), '# Welcome\n', 'utf8')
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
@@ -40,7 +40,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(JSON.stringify(workspace)).not.toContain(workspaceRoot)
   })
 
-  it('GMD-002/S1/R1-S2 clears authority when the configured root changes identity', async () => {
+  it('AMD-002/S1/R1-S2 clears authority when the configured root changes identity', async () => {
     const workspaceRoot = await createWorkspace()
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
     const opened = await authority.openConfigured()
@@ -58,7 +58,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(JSON.stringify(await authority.current())).not.toContain(opened.workspaceId)
   })
 
-  it('GMD-002/S1/R1-S2 never reauthorizes a replacement root in the same service lifetime', async () => {
+  it('AMD-002/S1/R1-S2 never reauthorizes a replacement root in the same service lifetime', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Original.md'), '# Original\n', 'utf8')
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
@@ -79,10 +79,10 @@ describe('ConfiguredWorkspaceAuthority', () => {
       name: 'WorkspaceUnavailableError',
       reason: 'identity_changed',
     })
-    await expect(readFile(join(workspaceRoot, '.graphitemd', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(workspaceRoot, '.anthracitemd', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('GMD-002/S1/R1-S2 fails closed for missing, non-directory, and unreadable roots', async () => {
+  it('AMD-002/S1/R1-S2 fails closed for missing, non-directory, and unreadable roots', async () => {
     const fixture = await createWorkspace()
     const missingRoot = join(fixture, 'missing')
     const fileRoot = join(fixture, 'note.md')
@@ -108,7 +108,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     }
   })
 
-  it('GMD-002/S1/R1-S3 reconnects to the service-owned workspace identity', async () => {
+  it('AMD-002/S1/R1-S3 reconnects to the service-owned workspace identity', async () => {
     const workspaceRoot = await createWorkspace()
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
 
@@ -118,7 +118,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     await expect(authority.current()).resolves.toBe(opened)
   })
 
-  it('GMD-002/S1/R1-S3 keeps workspace and note identities stable across service restart', async () => {
+  it('AMD-002/S1/R1-S3 keeps workspace and note identities stable across service restart', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Welcome.md'), '# Welcome\n', 'utf8')
 
@@ -127,16 +127,16 @@ describe('ConfiguredWorkspaceAuthority', () => {
 
     expect(restarted.workspaceId).toBe(first.workspaceId)
     expect(restarted.notes[0]?.resourceId).toBe(first.notes[0]?.resourceId)
-    expect(JSON.parse(await readFile(join(workspaceRoot, '.graphitemd', 'workspace.json'), 'utf8')))
+    expect(JSON.parse(await readFile(join(workspaceRoot, '.anthracitemd', 'workspace.json'), 'utf8')))
       .toEqual({ schemaVersion: 1, workspaceId: first.workspaceId })
-    expect(await readFile(join(workspaceRoot, '.graphitemd', '.gitignore'), 'utf8'))
+    expect(await readFile(join(workspaceRoot, '.anthracitemd', '.gitignore'), 'utf8'))
       .toBe('/cache/\n/operations/\n')
   })
 
-  it('GMD-002/S1/R1-S1 fails closed for malformed persisted workspace identity', async () => {
+  it('AMD-002/S1/R1-S1 fails closed for malformed persisted workspace identity', async () => {
     const workspaceRoot = await createWorkspace()
-    await mkdir(join(workspaceRoot, '.graphitemd'))
-    await writeFile(join(workspaceRoot, '.graphitemd', 'workspace.json'), '{"schemaVersion":2,"workspaceId":"bad"}')
+    await mkdir(join(workspaceRoot, '.anthracitemd'))
+    await writeFile(join(workspaceRoot, '.anthracitemd', 'workspace.json'), '{"schemaVersion":2,"workspaceId":"bad"}')
 
     await expect(new ConfiguredWorkspaceAuthority(workspaceRoot).openConfigured()).rejects.toMatchObject({
       name: 'WorkspaceUnavailableError',
@@ -144,9 +144,9 @@ describe('ConfiguredWorkspaceAuthority', () => {
     })
   })
 
-  it('GMD-002/S1/R1-S3 preserves an existing installation across open and restart', async () => {
+  it('AMD-002/S1/R1-S3 preserves an existing installation across open and restart', async () => {
     const workspaceRoot = await createWorkspace()
-    const graphite = join(workspaceRoot, '.graphitemd')
+    const graphite = join(workspaceRoot, '.anthracitemd')
     const pluginState = join(graphite, 'plugins', 'system-status', 'state.json')
     await mkdir(join(graphite, 'plugins', 'system-status'), { recursive: true })
     await writeFile(join(graphite, 'workspace.json'), JSON.stringify({
@@ -167,9 +167,9 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(pluginState, 'utf8')).toBe('{"schemaVersion":1,"value":{"healthy":true}}\n')
   })
 
-  it('GMD-004/S2 R2-S1 atomically migrates a safe legacy workspace vault without altering its files', async () => {
+  it.each(['.graphitemd', '.graphite'])('AMD-002/S1 R5-S1 atomically migrates safe %s workspace state without altering its files', async (legacyName) => {
     const workspaceRoot = await createWorkspace()
-    const legacy = join(workspaceRoot, '.graphite')
+    const legacy = join(workspaceRoot, legacyName)
     await mkdir(join(legacy, 'plugins', 'system-status'), { recursive: true })
     await writeFile(join(legacy, 'workspace.json'), JSON.stringify({
       schemaVersion: 1, workspaceId: 'wrk_0123456789abcdef0123456789abcdef',
@@ -181,15 +181,19 @@ describe('ConfiguredWorkspaceAuthority', () => {
 
     expect(opened.workspaceId).toBe('wrk_0123456789abcdef0123456789abcdef')
     expect(opened.notes).toEqual([])
-    await expect(readFile(join(workspaceRoot, '.graphite', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
-    expect(await readFile(join(workspaceRoot, '.graphitemd', 'plugins', 'system-status', 'state.json'), 'utf8'))
+    await expect(readFile(join(workspaceRoot, legacyName, 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(join(workspaceRoot, '.anthracitemd', 'plugins', 'system-status', 'state.json'), 'utf8'))
       .toBe('{"healthy":true}\n')
   })
 
   it.each([
     ['destination already exists', async (root: string) => {
-      await mkdir(join(root, '.graphite'))
       await mkdir(join(root, '.graphitemd'))
+      await mkdir(join(root, '.anthracitemd'))
+    }],
+    ['both legacy directories exist', async (root: string) => {
+      await mkdir(join(root, '.graphitemd'))
+      await mkdir(join(root, '.graphite'))
     }],
     ['legacy path is a symbolic link', async (root: string) => {
       const outside = await createWorkspace()
@@ -198,18 +202,20 @@ describe('ConfiguredWorkspaceAuthority', () => {
     ['destination path is a symbolic link', async (root: string) => {
       const outside = await createWorkspace()
       await mkdir(join(root, '.graphite'))
-      await symlink(outside, join(root, '.graphitemd'))
+      await symlink(outside, join(root, '.anthracitemd'))
     }],
-  ])('GMD-004/S2 R2-S1 fails closed when %s', async (_case, arrange) => {
+  ])('AMD-002/S1 R5-S2 fails closed without mutation when %s', async (_case, arrange) => {
     const workspaceRoot = await createWorkspace()
     await arrange(workspaceRoot)
+    const before = await readdir(workspaceRoot)
 
     await expect(new ConfiguredWorkspaceAuthority(workspaceRoot).openConfigured()).rejects.toMatchObject({
       name: 'WorkspaceUnavailableError', reason: 'unavailable',
     })
+    expect(await readdir(workspaceRoot)).toEqual(before)
   })
 
-  it('GMD-002/S1/R2-S1 inventories nested Markdown in deterministic tree order', async () => {
+  it('AMD-002/S1/R2-S1 inventories nested Markdown in deterministic tree order', async () => {
     const workspaceRoot = await createWorkspace()
     await mkdir(join(workspaceRoot, 'Zulu'))
     await mkdir(join(workspaceRoot, 'alpha'))
@@ -247,12 +253,12 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(JSON.stringify(workspace)).not.toContain(workspaceRoot)
   })
 
-  it('GMD-002/S1/R2-S2 excludes internal, configured, symlinked, unsupported, and oversized sources', async () => {
+  it('AMD-002/S1/R2-S2 excludes internal, configured, symlinked, unsupported, and oversized sources', async () => {
     const workspaceRoot = await createWorkspace()
     const outsideRoot = await createWorkspace()
-    await mkdir(join(workspaceRoot, '.graphitemd'))
+    await mkdir(join(workspaceRoot, '.anthracitemd'))
     await mkdir(join(workspaceRoot, 'private'))
-    await writeFile(join(workspaceRoot, '.graphitemd', 'Internal.md'), '# Internal\n', 'utf8')
+    await writeFile(join(workspaceRoot, '.anthracitemd', 'Internal.md'), '# Internal\n', 'utf8')
     await writeFile(join(workspaceRoot, 'private', 'Ignored.md'), '# Ignored\n', 'utf8')
     await writeFile(join(workspaceRoot, 'binary.md'), Buffer.from([0xff, 0xfe, 0xfd]))
     await writeFile(join(workspaceRoot, 'large.md'), '123456789')
@@ -278,10 +284,10 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(JSON.stringify(workspace)).not.toContain(outsideRoot)
   })
 
-  it('GMD-002/S1/R2-S3 returns an honest empty inventory for a workspace without eligible Markdown', async () => {
+  it('AMD-002/S1/R2-S3 returns an honest empty inventory for a workspace without eligible Markdown', async () => {
     const workspaceRoot = await createWorkspace()
-    await mkdir(join(workspaceRoot, '.graphitemd'))
-    await writeFile(join(workspaceRoot, '.graphitemd', 'Internal.md'), '# Internal\n', 'utf8')
+    await mkdir(join(workspaceRoot, '.anthracitemd'))
+    await writeFile(join(workspaceRoot, '.anthracitemd', 'Internal.md'), '# Internal\n', 'utf8')
     await writeFile(join(workspaceRoot, 'Readme.txt'), 'Not a note\n', 'utf8')
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
 
@@ -291,7 +297,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(workspace.inventory).toEqual([])
   })
 
-  it('GMD-002/S1/R3-S1 reads exact source, generic YAML properties, and a content revision', async () => {
+  it('AMD-002/S1/R3-S1 reads exact source, generic YAML properties, and a content revision', async () => {
     const workspaceRoot = await createWorkspace()
     const source = [
       '---\r\n',
@@ -323,7 +329,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(JSON.stringify(note)).not.toContain(workspaceRoot)
   })
 
-  it('GMD-002/S1/R3-S1 reports malformed YAML while preserving exact source', async () => {
+  it('AMD-002/S1/R3-S1 reports malformed YAML while preserving exact source', async () => {
     const workspaceRoot = await createWorkspace()
     const source = '---\ntags: [graphite\n---\n# Broken\n'
     await writeFile(join(workspaceRoot, 'Broken.md'), source, 'utf8')
@@ -337,7 +343,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     })
   })
 
-  it('GMD-002/S1/R3-S1 changes the revision after an external edit', async () => {
+  it('AMD-002/S1/R3-S1 changes the revision after an external edit', async () => {
     const workspaceRoot = await createWorkspace()
     const notePath = join(workspaceRoot, 'External.md')
     await writeFile(notePath, '# Before\n', 'utf8')
@@ -354,7 +360,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(after.resourceId).toBe(resourceId)
   })
 
-  it('GMD-002/S1/R3-S2 rejects unknown resource identities without guessing a path', async () => {
+  it('AMD-002/S1/R3-S2 rejects unknown resource identities without guessing a path', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Known.md'), '# Known\n', 'utf8')
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
@@ -368,7 +374,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     await expect(authority.readNote(stableResourceId)).resolves.toMatchObject({ displayPath: 'Known.md' })
   })
 
-  it('GMD-002/S1/R3-S2 fails closed when the opened root is replaced', async () => {
+  it('AMD-002/S1/R3-S2 fails closed when the opened root is replaced', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Original.md'), '# Original\n', 'utf8')
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
@@ -386,7 +392,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     })
   })
 
-  it('GMD-002/S1/R3-S2 rejects an issued note replaced by a symlink', async () => {
+  it('AMD-002/S1/R3-S2 rejects an issued note replaced by a symlink', async () => {
     const workspaceRoot = await createWorkspace()
     const outsideRoot = await createWorkspace()
     const notePath = join(workspaceRoot, 'Issued.md')
@@ -403,7 +409,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     })
   })
 
-  it('GMD-002/S2/R2-S1 saves exact mixed-line-ending source and preserves file mode', async () => {
+  it('AMD-002/S2/R2-S1 saves exact mixed-line-ending source and preserves file mode', async () => {
     const workspaceRoot = await createWorkspace()
     const notePath = join(workspaceRoot, 'Exact.md')
     await writeFile(notePath, '# Before\r\nline\n', { encoding: 'utf8', mode: 0o640 })
@@ -419,7 +425,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect((await stat(notePath)).mode & 0o777).toBe(0o640)
   })
 
-  it('GMD-002/S2/R2-S3 rejects a stale save without changing canonical source', async () => {
+  it('AMD-002/S2/R2-S3 rejects a stale save without changing canonical source', async () => {
     const workspaceRoot = await createWorkspace()
     const notePath = join(workspaceRoot, 'Conflict.md')
     await writeFile(notePath, '# Opened\n', 'utf8')
@@ -434,7 +440,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(notePath, 'utf8')).toBe('# External\n')
   })
 
-  it('GMD-002/S2/R3-S1 renames without overwrite and issues one reconciled identity', async () => {
+  it('AMD-002/S2/R3-S1 renames without overwrite and issues one reconciled identity', async () => {
     const workspaceRoot = await createWorkspace()
     await mkdir(join(workspaceRoot, 'Notes'))
     await writeFile(join(workspaceRoot, 'Notes', 'Before.md'), '# Exact\r\n', 'utf8')
@@ -452,7 +458,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     await expect(readFile(join(workspaceRoot, 'Notes', 'Before.md'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('GMD-002/S2/R3-S3 blocks writes after an indeterminate committed rename and reconciles on retry', async () => {
+  it('AMD-002/S2/R3-S3 blocks writes after an indeterminate committed rename and reconciles on retry', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Exact\n', 'utf8')
     let interruptAfterCommit = true
@@ -492,7 +498,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(join(workspaceRoot, 'After.md'), 'utf8')).toBe('# Reconciled\n')
   })
 
-  it('GMD-002/S2/R3-S3 reconciles a committed rename after service restart', async () => {
+  it('AMD-002/S2/R3-S3 reconciles a committed rename after service restart', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Exact\n', 'utf8')
     const first = new ConfiguredWorkspaceAuthority(workspaceRoot, {
@@ -510,11 +516,11 @@ describe('ConfiguredWorkspaceAuthority', () => {
 
     expect(reconciled.note).toMatchObject({ displayPath: 'After.md', source: '# Exact\n' })
     expect(JSON.parse(await readFile(
-      join(workspaceRoot, '.graphitemd', 'operations', 'renames', `${note.resourceId}.json`), 'utf8',
+      join(workspaceRoot, '.anthracitemd', 'operations', 'renames', `${note.resourceId}.json`), 'utf8',
     ))).toMatchObject({ schemaVersion: 1, resourceId: note.resourceId, status: 'committed' })
   })
 
-  it('GMD-002/S2/R3-S3 returns the authoritative edited target when the original rename is retried', async () => {
+  it('AMD-002/S2/R3-S3 returns the authoritative edited target when the original rename is retried', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Before\n', 'utf8')
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
@@ -529,7 +535,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(retried.note.revision).not.toBe(renamed.note.revision)
   })
 
-  it('GMD-002/S2/R3-S3 keeps a committed retry bound to its target when the source path is recreated', async () => {
+  it('AMD-002/S2/R3-S3 keeps a committed retry bound to its target when the source path is recreated', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Original\n', 'utf8')
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
@@ -546,7 +552,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(join(workspaceRoot, 'Before.md'), 'utf8')).toBe('# Replacement\n')
   })
 
-  it('GMD-002/S2/R3-S3 finishes a prepared native rename after restart', async () => {
+  it('AMD-002/S2/R3-S3 finishes a prepared native rename after restart', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Exact\n', 'utf8')
     const first = new ConfiguredWorkspaceAuthority(workspaceRoot, {
@@ -564,7 +570,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     await expect(readFile(join(workspaceRoot, 'Before.md'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('GMD-002/S2/R3-S3 never adopts an external move without a pending rename operation', async () => {
+  it('AMD-002/S2/R3-S3 never adopts an external move without a pending rename operation', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Exact\n', 'utf8')
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
@@ -578,7 +584,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(join(workspaceRoot, 'After.md'), 'utf8')).toBe('# Exact\n')
   })
 
-  it('GMD-002/S2/R3-S2 rejects invalid, colliding, and stale renames without mutation', async () => {
+  it('AMD-002/S2/R3-S2 rejects invalid, colliding, and stale renames without mutation', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Before\n', 'utf8')
     await writeFile(join(workspaceRoot, 'Existing.md'), '# Existing\n', 'utf8')
@@ -587,7 +593,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     const item = opened.notes.find(({ displayPath }) => displayPath === 'Before.md')!
     const note = await authority.readNote(item.resourceId)
 
-    for (const name of ['', '../Escape.md', '.graphitemd.md', 'Existing.md']) {
+    for (const name of ['', '../Escape.md', '.anthracitemd.md', 'Existing.md']) {
       await expect(authority.renameNote(note.resourceId, note.revision, name)).rejects.toBeInstanceOf(Error)
     }
     await writeFile(join(workspaceRoot, 'Before.md'), '# External\n', 'utf8')
@@ -598,7 +604,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(join(workspaceRoot, 'Before.md'), 'utf8')).toBe('# External\n')
   })
 
-  it('GMD-002/S2/R3-S2 clears prepared intent after a known link collision so retry can succeed', async () => {
+  it('AMD-002/S2/R3-S2 clears prepared intent after a known link collision so retry can succeed', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Before\n', 'utf8')
     await writeFile(join(workspaceRoot, 'After.md'), '# Collision\n', 'utf8')
@@ -617,7 +623,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     })
   })
 
-  it('GMD-002/S2/R3-S3 clears prepared intent after a failed unlink is rolled back so retry can succeed', async () => {
+  it('AMD-002/S2/R3-S3 clears prepared intent after a failed unlink is rolled back so retry can succeed', async () => {
     const workspaceRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Before\n', 'utf8')
     let interrupt = true
@@ -642,7 +648,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     })
   })
 
-  it('GMD-002/S2/R4-S1 rejects writes after root or resource symlink replacement', async () => {
+  it('AMD-002/S2/R4-S1 rejects writes after root or resource symlink replacement', async () => {
     const workspaceRoot = await createWorkspace()
     const outsideRoot = await createWorkspace()
     const notePath = join(workspaceRoot, 'Safe.md')
@@ -659,7 +665,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(outsidePath, 'utf8')).toBe('# Outside\n')
   })
 
-  it('GMD-002/S2/R4-S1 rejects a save when its parent is swapped immediately before commit', async () => {
+  it('AMD-002/S2/R4-S1 rejects a save when its parent is swapped immediately before commit', async () => {
     const workspaceRoot = await createWorkspace()
     const outsideRoot = await createWorkspace()
     const notes = join(workspaceRoot, 'Notes')
@@ -684,7 +690,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(join(outsideRoot, 'Safe.md'), 'utf8')).toBe('# Outside\n')
   })
 
-  it('GMD-002/S2/R4-S1 rejects a save when its parent is swapped before temporary creation', async () => {
+  it('AMD-002/S2/R4-S1 rejects a save when its parent is swapped before temporary creation', async () => {
     const workspaceRoot = await createWorkspace()
     const outsideRoot = await createWorkspace()
     const notes = join(workspaceRoot, 'Notes')
@@ -708,14 +714,14 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(join(retained, 'Safe.md'), 'utf8')).toBe('# Safe\n')
   })
 
-  it('GMD-002/S2/R3-S3 refuses rename receipts through a symlinked operations ancestor', async () => {
+  it('AMD-002/S2/R3-S3 refuses rename receipts through a symlinked operations ancestor', async () => {
     const workspaceRoot = await createWorkspace()
     const outsideRoot = await createWorkspace()
     await writeFile(join(workspaceRoot, 'Before.md'), '# Safe\n', 'utf8')
     const authority = new ConfiguredWorkspaceAuthority(workspaceRoot)
     const opened = await authority.openConfigured()
     const note = await authority.readNote(opened.notes[0]!.resourceId)
-    await symlink(outsideRoot, join(workspaceRoot, '.graphitemd', 'operations'))
+    await symlink(outsideRoot, join(workspaceRoot, '.anthracitemd', 'operations'))
 
     await expect(authority.renameNote(note.resourceId, note.revision, 'After.md')).rejects.toMatchObject({
       code: 'indeterminate',
@@ -724,7 +730,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(join(workspaceRoot, 'Before.md'), 'utf8')).toBe('# Safe\n')
   })
 
-  it('GMD-002/S2/R3-S2 rejects rename after root replacement or resource symlink escape', async () => {
+  it('AMD-002/S2/R3-S2 rejects rename after root replacement or resource symlink escape', async () => {
     const workspaceRoot = await createWorkspace()
     const outsideRoot = await createWorkspace()
     const notePath = join(workspaceRoot, 'Safe.md')

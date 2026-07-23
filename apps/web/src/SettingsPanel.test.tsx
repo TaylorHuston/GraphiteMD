@@ -52,7 +52,7 @@ describe('owner Settings', () => {
     expect(screen.getByRole('tablist', { name: 'Settings areas' })).toHaveAttribute('aria-orientation', 'horizontal')
   })
 
-  it('GMD-004/S1 R1-S2a makes the OAuth choice and continuation action explicit', async () => {
+  it('AMD-004/S1 R1-S2a makes the OAuth choice and continuation action explicit', async () => {
     const flow = {
       flowId: 'flow_choice', provider: 'openai-codex', status: 'awaiting_input',
       createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z',
@@ -89,7 +89,7 @@ describe('owner Settings', () => {
     }))
   })
 
-  it('GMD-004/S1 R1-S2 clears a cancelled flow, refreshes status, and restores Connect', async () => {
+  it('AMD-004/S1 R1-S2 clears a cancelled flow, refreshes status, and restores Connect', async () => {
     const flow = {
       flowId: 'flow_cancel', provider: 'openai-codex', status: 'awaiting_provider',
       createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z', input: null, authorization: null, error: null,
@@ -117,7 +117,7 @@ describe('owner Settings', () => {
     expect(changed).toHaveBeenCalledOnce()
   })
 
-  it('GMD-004/S1 R1-S2 restores an active OAuth choice after Settings remounts', async () => {
+  it('AMD-004/S1 R1-S2 restores an active OAuth choice after Settings remounts', async () => {
     const flow = {
       flowId: 'flow_recover', provider: 'openai-codex', status: 'awaiting_input',
       createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z',
@@ -144,7 +144,7 @@ describe('owner Settings', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/assistant/oauth/active', expect.objectContaining({ credentials: 'same-origin' }))
   })
 
-  it('GMD-004/S1 R1-S1 presents Pi’s browser authorization link before the manual fallback', async () => {
+  it('AMD-004/S1 R1-S1 presents Pi’s browser authorization link before the manual fallback', async () => {
     const flow = {
       flowId: 'flow_browser', provider: 'openai-codex', status: 'awaiting_input',
       createdAt: '2026-07-20T12:00:00.000Z', updatedAt: '2026-07-20T12:00:00.000Z',
@@ -170,7 +170,7 @@ describe('owner Settings', () => {
     expect(screen.getByText('Status: connecting.')).toBeVisible()
   })
 
-  it('GMD-001/S2 R1 changes a confirmed password and returns to sign in', async () => {
+  it('AMD-001/S2 R1 changes a confirmed password and returns to sign in', async () => {
     document.cookie = 'XSRF-TOKEN=settings-token'
     const fetchMock = vi.fn()
       .mockImplementationOnce(() => response(200, { plugins: [] }))
@@ -209,7 +209,7 @@ describe('owner Settings', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('GMD-003/S1 presents inventory, status, permissions, and active contributions', async () => {
+  it('AMD-003/S1 presents inventory, status, permissions, and active contributions', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementationOnce(() => response(200, { plugins: [{
       id: 'system-status', status: 'active',
       manifest: { name: 'System Status', version: '0.1.0', permissions: ['workspace:read'] },

@@ -1,7 +1,7 @@
 kind: repository
 version: 1
 schema: sdd-repository-v1
-id: graphitemd
+id: anthracitemd
 artifacts:
   activeChanges: docs/changes
   closedChanges: docs/changes/closed

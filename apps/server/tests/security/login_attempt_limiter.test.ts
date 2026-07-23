@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LoginAttemptLimiter } from '../../app/security/login_attempt_limiter.js'
 
-describe('GMD-001/S1 R2 login throttling', () => {
+describe('AMD-001/S1 R2 login throttling', () => {
   it('atomically bounds parallel authentication attempts per source', () => {
     const limiter = new LoginAttemptLimiter(2)
 

@@ -1,7 +1,8 @@
 import { defineConfig } from '@adonisjs/cors'
+import { anthraciteEnvironmentValue, type RuntimeEnvironment } from './environment.js'
 
-function configuredOrigins(): string[] {
-  return (process.env.GRAPHITEMD_ALLOWED_ORIGINS ?? '')
+export function configuredOrigins(environment: RuntimeEnvironment = process.env): string[] {
+  return (anthraciteEnvironmentValue(environment, 'ALLOWED_ORIGINS') ?? '')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean)

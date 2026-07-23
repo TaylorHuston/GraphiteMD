@@ -5,7 +5,7 @@ afterEach(() => vi.useRealTimers())
 
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>((done) => { resolve = done }); return { promise, resolve } }
 
-describe('GMD-002/S2 conflict-safe autosave', () => {
+describe('AMD-002/S2 conflict-safe autosave', () => {
   it('R2-S1 debounces the latest eligible exact draft with its expected revision', async () => {
     vi.useFakeTimers(); const requests: AutosaveRequest[] = []
     const autosave = new AutosaveCoordinator(50)

@@ -9,7 +9,7 @@ import {
   resourceId,
   validatePluginManifest,
   type AssistantQuestion,
-  type GraphitePlugin,
+  type AnthracitePlugin,
   type PluginManifest,
   type PluginStateBackend,
 } from './index.js'
@@ -30,7 +30,7 @@ function memoryState(): PluginStateBackend & { values: Map<string, unknown> } {
   }
 }
 
-describe('GMD-003/S1 R1 manifest validation', () => {
+describe('AMD-003/S1 R1 manifest validation', () => {
   it('accepts a complete compatible versioned manifest', () => {
     const result = validatePluginManifest({
       schemaVersion: 1,
@@ -63,11 +63,11 @@ describe('GMD-003/S1 R1 manifest validation', () => {
   })
 })
 
-describe('GMD-003/S1 R2 plugin lifecycle', () => {
+describe('AMD-003/S1 R2 plugin lifecycle', () => {
   it('applies persisted disablement before activation and removes contributions on disable', async () => {
     let activations = 0
     let disposed = false
-    const plugin: GraphitePlugin = { manifest, async activate() { activations++; return () => { disposed = true } } }
+    const plugin: AnthracitePlugin = { manifest, async activate() { activations++; return () => { disposed = true } } }
     const backend = memoryState()
     const disabledHost = new PluginHost({ hostVersion: '1.0.0', enabled: { 'system-status': false }, provider: { async perform() {} }, stateBackend: backend })
     await disabledHost.load([plugin])
@@ -83,8 +83,8 @@ describe('GMD-003/S1 R2 plugin lifecycle', () => {
   })
 
   it('fails duplicate and unresolved dependency plugins closed', async () => {
-    const plugin: GraphitePlugin = { manifest, async activate() {} }
-    const missing: GraphitePlugin = { manifest: { ...manifest, id: 'dependent', dependencies: [{ id: 'absent', version: '^1.0.0' }] }, async activate() {} }
+    const plugin: AnthracitePlugin = { manifest, async activate() {} }
+    const missing: AnthracitePlugin = { manifest: { ...manifest, id: 'dependent', dependencies: [{ id: 'absent', version: '^1.0.0' }] }, async activate() {} }
     const host = new PluginHost({ hostVersion: '1.0.0', enabled: {}, provider: { async perform() {} }, stateBackend: memoryState() })
     await host.load([plugin, plugin, missing])
     expect(host.list().find((item) => item.id === 'system-status')).toEqual(expect.objectContaining({ status: 'duplicate', contributions: {} }))
@@ -92,17 +92,17 @@ describe('GMD-003/S1 R2 plugin lifecycle', () => {
   })
 
   it('does not resolve a dependency from an invalid or version-mismatched candidate', async () => {
-    const dependency: GraphitePlugin = { manifest: { ...manifest, id: 'dependency', version: '1.0.0' }, async activate() {} }
-    const dependent: GraphitePlugin = { manifest: { ...manifest, id: 'dependent', dependencies: [{ id: 'dependency', version: '^2.0.0' }] }, async activate() {} }
+    const dependency: AnthracitePlugin = { manifest: { ...manifest, id: 'dependency', version: '1.0.0' }, async activate() {} }
+    const dependent: AnthracitePlugin = { manifest: { ...manifest, id: 'dependent', dependencies: [{ id: 'dependency', version: '^2.0.0' }] }, async activate() {} }
     const host = new PluginHost({ hostVersion: '1.0.0', enabled: {}, provider: { async perform() {} }, stateBackend: memoryState() })
     await host.load([dependency, dependent])
     expect(host.list().find((item) => item.id === 'dependent')?.status).toBe('dependency_missing')
   })
 
   it('does not activate a dependent when its dependency identity is duplicated', async () => {
-    const dependency: GraphitePlugin = { manifest: { ...manifest, id: 'dependency' }, async activate() {} }
+    const dependency: AnthracitePlugin = { manifest: { ...manifest, id: 'dependency' }, async activate() {} }
     let dependentActivated = false
-    const dependent: GraphitePlugin = {
+    const dependent: AnthracitePlugin = {
       manifest: { ...manifest, id: 'dependent', dependencies: [{ id: 'dependency', version: '^1.0.0' }] },
       async activate() { dependentActivated = true },
     }
@@ -115,8 +115,8 @@ describe('GMD-003/S1 R2 plugin lifecycle', () => {
 
   it('activates dependencies before dependents and fails closed when dependency activation fails', async () => {
     const activationOrder: string[] = []
-    const dependency: GraphitePlugin = { manifest: { ...manifest, id: 'dependency' }, async activate() { activationOrder.push('dependency'); throw new Error('Dependency failed.') } }
-    const dependent: GraphitePlugin = {
+    const dependency: AnthracitePlugin = { manifest: { ...manifest, id: 'dependency' }, async activate() { activationOrder.push('dependency'); throw new Error('Dependency failed.') } }
+    const dependent: AnthracitePlugin = {
       manifest: { ...manifest, id: 'dependent', dependencies: [{ id: 'dependency', version: '^1.0.0' }] },
       async activate() { activationOrder.push('dependent') },
     }
@@ -130,8 +130,8 @@ describe('GMD-003/S1 R2 plugin lifecycle', () => {
 
   it('fails a dependency cycle closed without activating either plugin', async () => {
     let activations = 0
-    const first: GraphitePlugin = { manifest: { ...manifest, id: 'first', dependencies: [{ id: 'second', version: '^1.0.0' }] }, async activate() { activations++ } }
-    const second: GraphitePlugin = { manifest: { ...manifest, id: 'second', dependencies: [{ id: 'first', version: '^1.0.0' }] }, async activate() { activations++ } }
+    const first: AnthracitePlugin = { manifest: { ...manifest, id: 'first', dependencies: [{ id: 'second', version: '^1.0.0' }] }, async activate() { activations++ } }
+    const second: AnthracitePlugin = { manifest: { ...manifest, id: 'second', dependencies: [{ id: 'first', version: '^1.0.0' }] }, async activate() { activations++ } }
     const host = new PluginHost({ hostVersion: '1.0.0', enabled: {}, provider: { async perform() {} }, stateBackend: memoryState() })
     await host.load([first, second])
 
@@ -141,11 +141,11 @@ describe('GMD-003/S1 R2 plugin lifecycle', () => {
 
   it('disables active dependents before their dependency', async () => {
     const disposalOrder: string[] = []
-    const dependency: GraphitePlugin = {
+    const dependency: AnthracitePlugin = {
       manifest: { ...manifest, id: 'dependency' },
       async activate() { return () => { disposalOrder.push('dependency') } },
     }
-    const dependent: GraphitePlugin = {
+    const dependent: AnthracitePlugin = {
       manifest: { ...manifest, id: 'dependent', dependencies: [{ id: 'dependency', version: '^1.0.0' }] },
       async activate() { return () => { disposalOrder.push('dependent') } },
     }
@@ -160,7 +160,7 @@ describe('GMD-003/S1 R2 plugin lifecycle', () => {
   })
 })
 
-describe('GMD-003/S1 R3 capability mediation', () => {
+describe('AMD-003/S1 R3 capability mediation', () => {
   it('permits declared opaque operations and normalizes undeclared or raw-path denial', async () => {
     const broker = createCapabilityBroker(manifest, { async perform(operation) { return { resource: operation.resource, healthy: true } } })
     await expect(broker.perform({ permission: 'status:read', resource: resourceId('workspace-root') })).resolves.toEqual({ resource: 'workspace-root', healthy: true })
@@ -171,7 +171,7 @@ describe('GMD-003/S1 R3 capability mediation', () => {
 
 })
 
-describe('GMD-004/S2 R1-S1 Assistant context handler', () => {
+describe('AMD-004/S2 R1-S1 Assistant context handler', () => {
   const question: AssistantQuestion = { question: 'What changed?' }
   const sessionResult = { turnId: 'turn_alpha', conversationId: 'conv_alpha', status: 'completed' as const, question: 'What changed?', provider: 'openai-codex' as const, model: 'gpt-5.4', createdAt: '2026-07-20T12:00:00.000Z', completedAt: '2026-07-20T12:00:01.000Z', answer: 'Nothing yet.', error: null, sources: [] }
 
@@ -179,7 +179,7 @@ describe('GMD-004/S2 R1-S1 Assistant context handler', () => {
 
   it('registers one exact Context handler, runs its declared policy only during dispatch, and removes it when disabled', async () => {
     const handler = vi.fn(async (_input, runModelSession) => runModelSession({ question: 'What changed?', policy }))
-    const assistantPlugin: GraphitePlugin = {
+    const assistantPlugin: AnthracitePlugin = {
       manifest: {
         ...manifest, id: 'assistant', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'],
         contributions: { views: [{ id: 'assistant-context', title: 'Assistant', surface: 'context', renderer: 'assistant-conversation' }] },
@@ -196,7 +196,7 @@ describe('GMD-004/S2 R1-S1 Assistant context handler', () => {
   })
 
   it('preserves a model-session failure code across the plugin dispatch boundary', async () => {
-    const assistantPlugin: GraphitePlugin = {
+    const assistantPlugin: AnthracitePlugin = {
       manifest: {
         ...manifest, id: 'assistant-errors', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'],
         contributions: { views: [{ id: 'assistant-context', title: 'Assistant', surface: 'context', renderer: 'assistant-conversation' }] },
@@ -211,7 +211,7 @@ describe('GMD-004/S2 R1-S1 Assistant context handler', () => {
   })
 
   it('does not trust a plugin-forged model-session failure carrier', async () => {
-    const assistantPlugin: GraphitePlugin = {
+    const assistantPlugin: AnthracitePlugin = {
       manifest: {
         ...manifest, id: 'assistant-forgery', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'],
         contributions: { views: [{ id: 'assistant-context', title: 'Assistant', surface: 'context', renderer: 'assistant-conversation' }] },
@@ -230,13 +230,13 @@ describe('GMD-004/S2 R1-S1 Assistant context handler', () => {
 
   it('rejects a handler that changes its registered policy or fabricates a turn', async () => {
     const descriptor = { views: [{ id: 'assistant-context', title: 'Assistant', surface: 'context' as const, renderer: 'assistant-conversation' as const }] }
-    const changedPolicy: GraphitePlugin = {
+    const changedPolicy: AnthracitePlugin = {
       manifest: { ...manifest, id: 'changed-policy', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'], contributions: descriptor },
       async activate(context) {
         context.registerAssistantQuestionHandler(policy, (_input, runModelSession) => runModelSession({ question: 'What changed?', policy: { ...policy, prompt: 'Different.' } }))
       },
     }
-    const fakeTurn: GraphitePlugin = {
+    const fakeTurn: AnthracitePlugin = {
       manifest: { ...manifest, id: 'fake-turn', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'], contributions: descriptor },
       async activate(context) { context.registerAssistantQuestionHandler(policy, async () => sessionResult) },
     }
@@ -252,19 +252,19 @@ describe('GMD-004/S2 R1-S1 Assistant context handler', () => {
   })
 
   it('refuses activation-time model sessions, undeclared policy/descriptor owners, and duplicate handlers', async () => {
-    const activationModelCall: GraphitePlugin = {
+    const activationModelCall: AnthracitePlugin = {
       manifest: { ...manifest, id: 'activation-model', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'] },
       async activate(context) { await context.capabilities.perform({ permission: 'assistant:model-session', resource: resourceId('assistant') }) },
     }
-    const noView: GraphitePlugin = {
+    const noView: AnthracitePlugin = {
       manifest: { ...manifest, id: 'no-view', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'] },
       async activate(context) { context.registerAssistantQuestionHandler(policy, async () => sessionResult) },
     }
-    const first: GraphitePlugin = {
+    const first: AnthracitePlugin = {
       manifest: { ...manifest, id: 'first', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'], contributions: { views: [{ id: 'assistant-context', title: 'Assistant', surface: 'context', renderer: 'assistant-conversation' }] } },
       async activate(context) { context.registerAssistantQuestionHandler(policy, async () => sessionResult) },
     }
-    const duplicate: GraphitePlugin = {
+    const duplicate: AnthracitePlugin = {
       manifest: { ...manifest, id: 'duplicate', permissions: ['assistant:model-session', 'workspace:search', 'workspace:read'], contributions: { views: [{ id: 'assistant-context', title: 'Assistant', surface: 'context', renderer: 'assistant-conversation' }] } },
       async activate(context) { context.registerAssistantQuestionHandler({ ...policy, prompt: 'A different prompt.' }, async () => sessionResult) },
     }
@@ -277,13 +277,13 @@ describe('GMD-004/S2 R1-S1 Assistant context handler', () => {
   })
 })
 
-describe('GMD-003/S1 R4 namespaced state', () => {
+describe('AMD-003/S1 R4 namespaced state', () => {
   it('binds state access to one namespace and commits versioned values transactionally', async () => {
     const backend = memoryState()
     const system = createPluginStateAdapter('system-status', 1, backend)
     const other = createPluginStateAdapter('other-plugin', 1, backend)
     await system.write({ lastCheck: 'ok' })
-    expect(system.namespace).toBe('.graphitemd/plugins/system-status/')
+    expect(system.namespace).toBe('.anthracitemd/plugins/system-status/')
     await expect(system.read()).resolves.toEqual({ lastCheck: 'ok' })
     await expect(other.read()).resolves.toBeUndefined()
     expect(backend.values.get('system-status')).toEqual({ schemaVersion: 1, value: { lastCheck: 'ok' } })

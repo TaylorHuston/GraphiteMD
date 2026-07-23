@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { lstat, mkdir, realpath, rename, rm, stat } from 'node:fs/promises'
 import { basename, join, relative } from 'node:path'
 import Database from 'better-sqlite3'
-import { WorkspaceResourceUnavailableError, type ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
+import { WorkspaceResourceUnavailableError, type ConfiguredWorkspaceAuthority } from '@anthracitemd/workspace'
 
 export interface LocalSearchResult {
   resourceId: string
@@ -26,13 +26,13 @@ export class LocalSearchService {
     private readonly workspace: ConfiguredWorkspaceAuthority,
     private readonly options: Readonly<{ beforeCommit?: () => Promise<void> }> = {},
   ) {
-    this.databasePath = join(workspaceRoot, '.graphitemd', 'cache', 'search.sqlite')
+    this.databasePath = join(workspaceRoot, '.anthracitemd', 'cache', 'search.sqlite')
   }
 
   async rebuild(): Promise<{ indexed: number }> {
     const snapshot = await this.workspace.refresh()
-    const cacheDirectory = join(this.workspaceRoot, '.graphitemd', 'cache')
-    const retainedCache = await ensureConfinedDirectory(this.workspaceRoot, ['.graphitemd', 'cache'])
+    const cacheDirectory = join(this.workspaceRoot, '.anthracitemd', 'cache')
+    const retainedCache = await ensureConfinedDirectory(this.workspaceRoot, ['.anthracitemd', 'cache'])
     await assertOrdinaryDatabase(this.databasePath)
     const temporaryPath = join(cacheDirectory, `.search.${randomUUID()}.sqlite`)
     const database = new Database(temporaryPath)

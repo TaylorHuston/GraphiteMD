@@ -1,25 +1,25 @@
 ---
 schema: sdd-epic-v2
-id: GMD-002
+id: AMD-002
 status: draft
 created: 2026-07-18
 modified: 2026-07-22
-last_verified: 2026-07-19
+last_verified: 2026-07-22
 stories:
   - S1
   - S2
   - S3
 ---
 
-# GMD-002 Markdown Workbench
+# AMD-002 Markdown Workbench
 
 ## Product Context
 
-- PRD: Private GraphiteMD Product Brief / PRD resolved through SDD workspace topology.
-- Related Epic: [GMD-001 Secure Workspace Access](../gmd-001-secure-workspace-access/epic.md)
+- PRD: Private AnthraciteMD Product Brief / PRD resolved through SDD workspace topology.
+- Related Epic: [AMD-001 Secure Workspace Access](../amd-001-secure-workspace-access/epic.md)
 - Related ADRs: [Service-First Web Architecture](../../adrs/2026-07-18-service-first-web-architecture.md), [Filesystem-Canonical Workspace State](../../adrs/2026-07-18-filesystem-canonical-workspace-state.md)
 
-GraphiteMD must provide an excellent browser-based Markdown loop before AI or specialized plugins are required. The Dashboard and Coordinator spikes already prove much of the editor, tree, guarded write, navigation, and index behavior; this Epic gives those proven behaviors a GraphiteMD-owned contract.
+AnthraciteMD must provide an excellent browser-based Markdown loop before AI or specialized plugins are required. The Dashboard and Coordinator spikes already prove much of the editor, tree, guarded write, navigation, and index behavior; this Epic gives those proven behaviors a AnthraciteMD-owned contract.
 
 ## Outcome
 
@@ -55,7 +55,7 @@ An authenticated owner will be able to browse, read, edit, rename, and search Ma
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | implemented | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-19 | Service-owned authority, validated browser contracts, confined inventory, exact reads, safe history, and responsive composition are implemented; visual confirmation remains. |
+| S1 | implemented | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-22 | Service-owned authority, safe legacy-state migration, validated browser contracts, confined inventory, exact reads, safe history, and responsive composition are implemented; visual confirmation remains. |
 | S2 | implemented | partial | Edit and rename a note with source and revision safety. | 2026-07-19 | Source-preserving Source/Rendered editing, response-bound autosave, confined atomic save, and authoritative no-overwrite rename retry are implemented; browser confirmation remains. |
 | S3 | implemented | partial | Search the workspace through a rebuildable local index. | 2026-07-19 | Local FTS, validated APIs, persistent desktop/mobile search states, rebuild, external reconciliation, and guarded result navigation are implemented; manual and egress confirmation remain. |
 
@@ -67,7 +67,7 @@ Implementation: implemented
 Verification: partial
 Created: 2026-07-18
 Modified: 2026-07-22
-Last verified: 2026-07-19
+Last verified: 2026-07-22
 
 As a workspace owner, I want to browse and open Markdown from any authenticated browser, so that I can reach my notes without synchronizing the underlying files to that device.
 
@@ -107,7 +107,7 @@ The system SHALL inventory eligible Markdown recursively, preserve directory str
 
 ###### Scenario R2-S2: Internal And Unsafe Content Is Excluded
 
-- WHEN the workspace contains `.graphitemd/`, ignored files, symlinks, non-files, unsupported encodings, or over-limit sources
+- WHEN the workspace contains `.anthracitemd/`, ignored files, symlinks, non-files, unsupported encodings, or over-limit sources
 - THEN those entries are excluded or shown as explicitly unavailable according to policy
 - AND no unsafe resource locator is issued.
 
@@ -130,7 +130,7 @@ The system SHALL open the exact UTF-8 Markdown for an authorized resource with i
 ###### Scenario R3-S2: Back Forward And Reload Restore Safely
 
 - WHEN the owner reloads or uses browser Back or Forward between valid opened resources
-- THEN GraphiteMD restores the corresponding note through the same authorization checks
+- THEN AnthraciteMD restores the corresponding note through the same authorization checks
 - AND invalid or stale history entries fail closed without opening another file by guess.
 
 ##### Requirement R4: Responsive Workspace Composition
@@ -148,6 +148,22 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 - THEN the document remains the primary surface
 - AND files, search, and context remain reachable through touch-sized, keyboard-accessible controls without horizontal page overflow.
 
+##### Requirement R5: Legacy Workspace-State Migration
+
+The system SHALL migrate one safe former workspace-state directory to `.anthracitemd` before workspace services use it, without merging, deleting conflicts, or traversing symlinks.
+
+###### Scenario R5-S1: One Safe Legacy Namespace Migrates Atomically
+
+- WHEN exactly one safe `.graphitemd` or `.graphite` directory exists and `.anthracitemd` does not
+- THEN the entire directory atomically becomes `.anthracitemd`
+- AND workspace identity, conversations, plugin state, receipts, caches, and other files remain intact.
+
+###### Scenario R5-S2: Ambiguous Or Unsafe State Fails Without Mutation
+
+- WHEN canonical and legacy directories coexist, both legacy directories exist, or a relevant path is a symlink or otherwise unsafe
+- THEN workspace startup fails closed
+- AND no state directory is merged, deleted, or renamed.
+
 #### Implemented By
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
@@ -156,6 +172,7 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 | S1/R2 | `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority` | primary | Governs confined inventory. |
 | S1/R3 | `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority` | primary | Governs opaque note reads. |
 | S1/R4 | `apps/web/src/App.tsx#Workbench` | primary | Governs responsive workbench navigation. |
+| S1/R5 | `packages/workspace/src/index.ts#migrateLegacyWorkspaceState` | primary | Governs atomic former-to-current workspace-state migration and fail-closed conflict handling. |
 
 #### Implementation Gaps
 
@@ -165,16 +182,18 @@ None.
 
 | Requirement / Scenario | Evidence | Proves | Status |
 |---|---|---|---|
-| S1/R1-S1 | `packages/workspace/src/index.test.ts#GMD-002/S1/R1-S1 opens the configured directory without exposing its host path` | Configured workspace opening. | passing |
-| S1/R1-S2 | `packages/workspace/src/index.test.ts#GMD-002/S1/R1-S2 clears authority when the configured root changes identity` | Invalid workspace fails closed. | passing |
-| S1/R1-S3 | `packages/workspace/src/index.test.ts#GMD-002/S1/R1-S3 reconnects to the service-owned workspace identity` | Service-state reconnection. | passing |
-| S1/R2-S1 | `packages/workspace/src/index.test.ts#GMD-002/S1/R2-S1 inventories nested Markdown in deterministic tree order` | Nested inventory. | passing |
-| S1/R2-S2 | `packages/workspace/src/index.test.ts#GMD-002/S1/R2-S2 excludes internal, configured, symlinked, unsupported, and oversized sources` | Exclusion boundary. | passing |
-| S1/R2-S3 | `packages/workspace/src/index.test.ts#GMD-002/S1/R2-S3 returns an honest empty inventory for a workspace without eligible Markdown` | Empty inventory. | passing |
-| S1/R3-S1 | `packages/workspace/src/index.test.ts#GMD-002/S1/R3-S1 reads exact source, generic YAML properties, and a content revision` | Exact note reading. | passing |
-| S1/R3-S2 | `packages/workspace/src/index.test.ts#GMD-002/S1/R3-S2 rejects unknown resource identities without guessing a path` | Opaque-resource denial. | passing |
+| S1/R1-S1 | `packages/workspace/src/index.test.ts#AMD-002/S1/R1-S1 opens the configured directory without exposing its host path` | Configured workspace opening. | passing |
+| S1/R1-S2 | `packages/workspace/src/index.test.ts#AMD-002/S1/R1-S2 clears authority when the configured root changes identity` | Invalid workspace fails closed. | passing |
+| S1/R1-S3 | `packages/workspace/src/index.test.ts#AMD-002/S1/R1-S3 reconnects to the service-owned workspace identity` | Service-state reconnection. | passing |
+| S1/R2-S1 | `packages/workspace/src/index.test.ts#AMD-002/S1/R2-S1 inventories nested Markdown in deterministic tree order` | Nested inventory. | passing |
+| S1/R2-S2 | `packages/workspace/src/index.test.ts#AMD-002/S1/R2-S2 excludes internal, configured, symlinked, unsupported, and oversized sources` | Exclusion boundary. | passing |
+| S1/R2-S3 | `packages/workspace/src/index.test.ts#AMD-002/S1/R2-S3 returns an honest empty inventory for a workspace without eligible Markdown` | Empty inventory. | passing |
+| S1/R3-S1 | `packages/workspace/src/index.test.ts#AMD-002/S1/R3-S1 reads exact source, generic YAML properties, and a content revision` | Exact note reading. | passing |
+| S1/R3-S2 | `packages/workspace/src/index.test.ts#AMD-002/S1/R3-S2 rejects unknown resource identities without guessing a path` | Opaque-resource denial. | passing |
 | S1/R4-S1 | `apps/web/src/App.test.tsx#R2-S1 presents a deterministic accessible tree with selection and collapse` | Desktop workbench controls. | passing |
 | S1/R4-S2 | `apps/web/src/App.test.tsx#R4-S2 opens keyboard-accessible narrow-layout drawers and closes them with Escape` | Narrow workbench controls. | passing |
+| S1/R5-S1 | `packages/workspace/src/index.test.ts#AMD-002/S1 R5-S1 atomically migrates safe %s workspace state without altering its files` | Each supported former namespace migrates atomically with nested state intact. | passing |
+| S1/R5-S2 | `packages/workspace/src/index.test.ts#AMD-002/S1 R5-S2 fails closed without mutation when %s` | Canonical conflicts, two legacy sources, and symlinked source/destination paths are rejected without mutation. | passing |
 
 #### Verification Gaps
 
@@ -237,13 +256,13 @@ The system SHALL save human-authored note changes through one version-bound, sin
 ###### Scenario R2-S3: External Edit Produces A Recoverable Conflict
 
 - WHEN canonical source changes after the browser's expected revision
-- THEN GraphiteMD rejects the stale save without overwriting canonical source
+- THEN AnthraciteMD rejects the stale save without overwriting canonical source
 - AND retains the local draft for explicit reload, comparison, or retry decisions.
 
 ###### Scenario R2-S4: Source Transition Protects Pending Work
 
 - WHEN navigation, reload, logout, or rename would leave a dirty or in-flight source
-- THEN GraphiteMD flushes safely or asks the owner to keep or discard the draft
+- THEN AnthraciteMD flushes safely or asks the owner to keep or discard the draft
 - AND late responses cannot attach to another resource.
 
 ##### Requirement R3: Safe Selected-Note Rename
@@ -274,7 +293,7 @@ The system SHALL confine every direct owner write to an authenticated, authorize
 
 ###### Scenario R4-S1: Traversal Or Symlink Escape Is Rejected
 
-- WHEN a write or rename attempts lexical traversal, symlink escape, replaced-root access, or internal `.graphitemd/` note access
+- WHEN a write or rename attempts lexical traversal, symlink escape, replaced-root access, or internal `.anthracitemd/` note access
 - THEN the operation fails before mutation
 - AND no outside file is read or changed.
 
@@ -307,17 +326,17 @@ None.
 | S2/R2-S2 | `apps/web/src/autosave.test.ts#R2-S2 permits one active save and queues only the newest draft` | Queued autosave. | passing |
 | S2/R2-S3 | `apps/web/src/autosave.test.ts#R2-S3 pauses on conflict and retains the local draft` | Conflict recovery. | passing |
 | S2/R2-S4 | `apps/web/src/autosave.test.ts#R2-S4 ignores a late response from a prior resource and guards transitions` | Pending-work transitions. | passing |
-| S2/R3-S1 | `packages/workspace/src/index.test.ts#GMD-002/S2/R3-S1 renames without overwrite and issues one reconciled identity` | Valid rename. | passing |
-| S2/R3-S2 | `packages/workspace/src/index.test.ts#GMD-002/S2/R3-S2 rejects invalid, colliding, and stale renames without mutation` | Recoverable rename failure. | passing |
-| S2/R3-S3 | `packages/workspace/src/index.test.ts#GMD-002/S2/R3-S3 blocks writes after an indeterminate committed rename and reconciles on retry` | Indeterminate rename reconciliation. | passing |
-| S2/R4-S1 | `packages/workspace/src/index.test.ts#GMD-002/S2/R4-S1 rejects writes after root or resource symlink replacement` | Mutation confinement. | passing |
+| S2/R3-S1 | `packages/workspace/src/index.test.ts#AMD-002/S2/R3-S1 renames without overwrite and issues one reconciled identity` | Valid rename. | passing |
+| S2/R3-S2 | `packages/workspace/src/index.test.ts#AMD-002/S2/R3-S2 rejects invalid, colliding, and stale renames without mutation` | Recoverable rename failure. | passing |
+| S2/R3-S3 | `packages/workspace/src/index.test.ts#AMD-002/S2/R3-S3 blocks writes after an indeterminate committed rename and reconciles on retry` | Indeterminate rename reconciliation. | passing |
+| S2/R4-S1 | `packages/workspace/src/index.test.ts#AMD-002/S2/R4-S1 rejects writes after root or resource symlink replacement` | Mutation confinement. | passing |
 | S2/R4-S2 | `apps/server/tests/http/authentication.test.ts#R2-S1 and R4-S2 saves an exact revision-bound owner draft over the authenticated route` | Owner-authorized human edit. | passing |
 
 #### Verification Gaps
 
 - `S2/R2-S4`: Navigation and late-response state-machine evidence passes; a browser-level dirty-navigation confirmation remains pending.
 - `S2/R3-S1`: Focused package, component, and E2E rename/reload/retry coverage passes; manual browser confirmation remains pending.
-- `S2/R4-S1`: Save and rename now cover resource symlink replacement and replaced-root denial; explicit `.graphitemd/` mutation remains structurally unreachable through issued opaque resources rather than separately exercised through an HTTP mutation case.
+- `S2/R4-S1`: Save and rename now cover resource symlink replacement and replaced-root denial; explicit `.anthracitemd/` mutation remains structurally unreachable through issued opaque resources rather than separately exercised through an HTTP mutation case.
 
 #### Story Notes
 
@@ -342,19 +361,19 @@ The system SHALL search eligible note titles, display paths, YAML frontmatter te
 ###### Scenario R1-S1: Query Returns Matching Notes
 
 - WHEN the owner enters a non-empty supported query
-- THEN GraphiteMD returns matching notes from the active workspace with title, display path, and a bounded snippet when available
+- THEN AnthraciteMD returns matching notes from the active workspace with title, display path, and a bounded snippet when available
 - AND selecting a result uses the existing guarded note transition.
 
 ###### Scenario R1-S2: Empty And No-Result States Are Recoverable
 
 - WHEN the query is empty or has no matches
-- THEN GraphiteMD shows the normal tree or an honest no-results state
+- THEN AnthraciteMD shows the normal tree or an honest no-results state
 - AND the selected note remains unchanged.
 
 ###### Scenario R1-S3: Search Failure Preserves Workspace State
 
 - WHEN the derived index cannot answer a query
-- THEN GraphiteMD shows a recoverable error and rebuild action
+- THEN AnthraciteMD shows a recoverable error and rebuild action
 - AND does not change canonical Markdown or discard the selected draft.
 
 ##### Requirement R2: Rebuildable Search Projection
@@ -369,13 +388,13 @@ The system SHALL treat the local SQLite catalog and full-text index as disposabl
 
 ###### Scenario R2-S2: Source Reconciliation Removes Stale Results
 
-- WHEN eligible Markdown is created, edited, renamed, moved, or deleted outside GraphiteMD
+- WHEN eligible Markdown is created, edited, renamed, moved, or deleted outside AnthraciteMD
 - THEN startup, watcher hints, periodic reconciliation, or explicit rebuild converges the index
 - AND stale paths stop appearing.
 
 ###### Scenario R2-S3: Internal State Is Never Indexed As Notes
 
-- WHEN `.graphitemd/` contains configuration, plugin state, caches, or later AI records
+- WHEN `.anthracitemd/` contains configuration, plugin state, caches, or later AI records
 - THEN baseline note search excludes that internal directory by default
 - AND the index cannot become an alternate path for leaking excluded content.
 
@@ -386,7 +405,7 @@ The system SHALL answer baseline search in the authoritative service without sen
 ###### Scenario R3-S1: Search Remains On The Host
 
 - WHEN the owner performs baseline search
-- THEN only the GraphiteMD service and its local derived index process the query
+- THEN only the AnthraciteMD service and its local derived index process the query
 - AND no AI provider or external search service receives it.
 
 #### Implemented By
@@ -410,7 +429,7 @@ None.
 | S3/R1-S3 | `apps/server/app/search/local_search_service.test.ts#R1-S3 reports a recoverable index failure when a refreshed note disappears before reading` | Failure recovery. | passing |
 | S3/R2-S1 | `apps/server/app/search/local_search_service.test.ts#R2-S1 rebuilds an equivalent disposable index after deletion` | Rebuild after index loss. | passing |
 | S3/R2-S2 | `apps/server/app/search/local_search_service.test.ts#R2-S2 reconciles external create, edit, rename, and delete before answering` | Source reconciliation. | passing |
-| S3/R2-S3 | `apps/server/app/search/local_search_service.test.ts#R2-S3 never indexes .graphitemd Markdown state` | Internal-state exclusion. | passing |
+| S3/R2-S3 | `apps/server/app/search/local_search_service.test.ts#R2-S3 never indexes .anthracitemd Markdown state` | Internal-state exclusion. | passing |
 | S3/R3-S1 | `apps/server/tests/http/authentication.test.ts#R1-S1 and R3-S1 protects host-local search and returns opaque results` | Host-local authenticated search. | passing |
 
 #### Verification Gaps
@@ -421,7 +440,7 @@ None.
 
 #### Story Notes
 
-- Adapt Dashboard's SQLite FTS schema, reconciliation, query normalization, snippets, and tests to the GraphiteMD service and `.graphitemd/cache/` namespace.
+- Adapt Dashboard's SQLite FTS schema, reconciliation, query normalization, snippets, and tests to the AnthraciteMD service and `.anthracitemd/cache/` namespace.
 
 ## Cross-Story Concerns
 
@@ -449,4 +468,4 @@ This Epic is healthy when:
 
 ## Notes
 
-- GraphiteMD reuses spike behavior and tests deliberately but does not preserve Dashboard or Coordinator Story IDs as canonical product truth.
+- AnthraciteMD reuses spike behavior and tests deliberately but does not preserve Dashboard or Coordinator Story IDs as canonical product truth.

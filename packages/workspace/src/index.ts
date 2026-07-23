@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { access, link, lstat, mkdir, open, readFile, readdir, realpath, rename, stat, unlink } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { basename, dirname, join, posix, relative } from 'node:path'
-import type { WorkspaceId } from '@graphitemd/contracts'
+import type { WorkspaceId } from '@anthracitemd/contracts'
 import { isMap, isScalar, parseDocument } from 'yaml'
 
 export type ResourceId = `res_${string}`
@@ -120,8 +120,8 @@ type NormalizedWorkspaceInventoryOptions = Required<Omit<WorkspaceInventoryOptio
 
 const DEFAULT_MAX_SOURCE_BYTES = 1024 * 1024
 const WORKSPACE_ID = /^wrk_[a-f0-9]{32}$/
-const WORKSPACE_STATE_DIRECTORY = '.graphitemd'
-const LEGACY_WORKSPACE_STATE_DIRECTORY = '.graphite'
+const WORKSPACE_STATE_DIRECTORY = '.anthracitemd'
+const LEGACY_WORKSPACE_STATE_DIRECTORIES = ['.graphitemd', '.graphite'] as const
 const GRAPHITE_GITIGNORE = '/cache/\n/operations/\n'
 
 export class WorkspaceUnavailableError extends Error {
@@ -155,7 +155,7 @@ export class WorkspaceInvalidMutationError extends Error {
 /** A legacy workspace namespace could not be migrated without risking data loss. */
 export class WorkspaceStateMigrationError extends Error {
   constructor(readonly code: 'conflict' | 'unsafe_legacy' | 'unsafe_destination') {
-    super('GraphiteMD could not safely migrate .graphite to .graphitemd. Resolve the workspace state layout and retry.')
+    super('AnthraciteMD could not safely migrate legacy workspace state to .anthracitemd. Resolve the workspace state layout and retry.')
     this.name = 'WorkspaceStateMigrationError'
   }
 }
@@ -718,15 +718,19 @@ async function provisionWorkspaceState(root: string): Promise<WorkspaceId> {
 }
 
 async function migrateLegacyWorkspaceState(root: string): Promise<void> {
-  const legacy = join(root, LEGACY_WORKSPACE_STATE_DIRECTORY)
   const destination = join(root, WORKSPACE_STATE_DIRECTORY)
-  const legacyMetadata = await lstat(legacy).catch((error: NodeJS.ErrnoException) => {
-    if (error.code === 'ENOENT') return undefined
-    throw error
-  })
-  if (!legacyMetadata) return
-  if (!legacyMetadata.isDirectory() || legacyMetadata.isSymbolicLink() || await realpath(legacy) !== legacy) {
-    throw new WorkspaceStateMigrationError('unsafe_legacy')
+  const legacyPaths: string[] = []
+  for (const directory of LEGACY_WORKSPACE_STATE_DIRECTORIES) {
+    const legacy = join(root, directory)
+    const metadata = await lstat(legacy).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return undefined
+      throw error
+    })
+    if (!metadata) continue
+    if (!metadata.isDirectory() || metadata.isSymbolicLink() || await realpath(legacy) !== legacy) {
+      throw new WorkspaceStateMigrationError('unsafe_legacy')
+    }
+    legacyPaths.push(legacy)
   }
   const destinationMetadata = await lstat(destination).catch((error: NodeJS.ErrnoException) => {
     if (error.code === 'ENOENT') return undefined
@@ -736,9 +740,11 @@ async function migrateLegacyWorkspaceState(root: string): Promise<void> {
     if (!destinationMetadata.isDirectory() || destinationMetadata.isSymbolicLink() || await realpath(destination) !== destination) {
       throw new WorkspaceStateMigrationError('unsafe_destination')
     }
-    throw new WorkspaceStateMigrationError('conflict')
+    if (legacyPaths.length > 0) throw new WorkspaceStateMigrationError('conflict')
+    return
   }
-  await rename(legacy, destination)
+  if (legacyPaths.length > 1) throw new WorkspaceStateMigrationError('conflict')
+  if (legacyPaths.length === 1) await rename(legacyPaths[0]!, destination)
 }
 
 async function atomicWorkspaceFile(path: string, source: string): Promise<void> {
@@ -930,7 +936,7 @@ async function inventoryMarkdown(
 }
 
 function normalizeExcludedPaths(paths: readonly string[]): readonly string[] {
-  return [WORKSPACE_STATE_DIRECTORY, LEGACY_WORKSPACE_STATE_DIRECTORY, ...paths]
+  return [WORKSPACE_STATE_DIRECTORY, ...LEGACY_WORKSPACE_STATE_DIRECTORIES, ...paths]
     .map((path) => path.replaceAll('\\', '/').replace(/^\.\//, '').replace(/\/$/, ''))
     .filter((path) => path.length > 0 && !posix.isAbsolute(path) && path !== '..' && !path.startsWith('../'))
 }

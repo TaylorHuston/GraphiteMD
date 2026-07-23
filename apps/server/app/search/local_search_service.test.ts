@@ -2,21 +2,21 @@ import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
+import { ConfiguredWorkspaceAuthority } from '@anthracitemd/workspace'
 import { LocalSearchService } from './local_search_service.js'
 
 const roots: string[] = []
 afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))))
 
 async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), 'graphitemd-search-'))
+  const root = await mkdtemp(join(tmpdir(), 'anthracitemd-search-'))
   roots.push(root)
   const authority = new ConfiguredWorkspaceAuthority(root)
   const service = new LocalSearchService(root, authority)
   return { root, authority, service }
 }
 
-describe('GMD-002/S3 local search', () => {
+describe('AMD-002/S3 local search', () => {
   it('R1-S1 searches title, path, frontmatter, and body with opaque bounded results', async () => {
     const { root, authority, service } = await fixture()
     await mkdir(join(root, 'Projects'))
@@ -87,10 +87,10 @@ describe('GMD-002/S3 local search', () => {
     await expect(service.rebuild()).rejects.toMatchObject({ name: 'LocalSearchUnavailableError' })
   })
 
-  it('R2-S3 never indexes .graphitemd Markdown state', async () => {
+  it('R2-S3 never indexes .anthracitemd Markdown state', async () => {
     const { root, authority, service } = await fixture()
-    await mkdir(join(root, '.graphitemd'))
-    await writeFile(join(root, '.graphitemd', 'Secret.md'), '# Secret\nforbiddenword\n')
+    await mkdir(join(root, '.anthracitemd'))
+    await writeFile(join(root, '.anthracitemd', 'Secret.md'), '# Secret\nforbiddenword\n')
     await writeFile(join(root, 'Visible.md'), '# Visible\nallowedword\n')
     await authority.openConfigured()
     await expect(service.search('forbiddenword')).resolves.toEqual([])
@@ -99,10 +99,10 @@ describe('GMD-002/S3 local search', () => {
 
   it('R2-S3 refuses a cache path redirected through a symbolic link', async () => {
     const { root, authority, service } = await fixture()
-    const outside = await mkdtemp(join(tmpdir(), 'graphitemd-search-outside-'))
+    const outside = await mkdtemp(join(tmpdir(), 'anthracitemd-search-outside-'))
     roots.push(outside)
     await writeFile(join(root, 'Visible.md'), '# Visible\nneedle\n')
-    await symlink(outside, join(root, '.graphitemd'))
+    await symlink(outside, join(root, '.anthracitemd'))
     await expect(authority.openConfigured()).rejects.toThrow('unavailable')
     await expect(service.search('needle')).rejects.toThrow('unavailable')
     await expect(readFile(join(outside, 'cache', 'search.sqlite'))).rejects.toMatchObject({ code: 'ENOENT' })

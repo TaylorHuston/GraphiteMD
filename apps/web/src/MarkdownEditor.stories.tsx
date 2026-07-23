@@ -30,7 +30,7 @@ export const ActiveSyntax: Story = {
 
 export const WideTableOverflow: Story = {
   args: {
-    source: '| Owner | Milestone | Repository | Change | Verification | Follow-up |\n| --- | --- | --- | --- | --- | --- |\n| Taylor | Foundation workspace | graphitemd | Browser response validation | Focused browser and contract suites | Independent review |\n',
+    source: '| Owner | Milestone | Repository | Change | Verification | Follow-up |\n| --- | --- | --- | --- | --- | --- |\n| Taylor | Foundation workspace | anthracitemd | Browser response validation | Focused browser and contract suites | Independent review |\n',
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)

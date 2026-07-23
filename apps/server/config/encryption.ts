@@ -1,7 +1,7 @@
 import { defineConfig, drivers } from '@adonisjs/core/encryption'
 
 const appKey = process.env.APP_KEY ?? (process.env.NODE_ENV === 'test'
-  ? 'graphitemd-explicit-test-environment-key'
+  ? 'anthracitemd-explicit-test-environment-key'
   : undefined)
 
 if (!appKey) {

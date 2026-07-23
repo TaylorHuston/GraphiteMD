@@ -9,7 +9,7 @@ import {
   type AssistantOAuthFlow as OAuthFlow,
   type AssistantProviderStatus as ProviderStatus,
   type PluginInventoryItem as Plugin,
-} from '@graphitemd/contracts'
+} from '@anthracitemd/contracts'
 import { readApiError, request, requestJson } from './api.js'
 import './AssistantSettings.css'
 
@@ -214,10 +214,10 @@ export function SettingsPanel({ onSessionExpired, onPluginsChanged, onAssistantC
         body: JSON.stringify({ enabled }),
       })
       if (response.status === 401) { onSessionExpired(); return }
-      if (!response.ok) { setPluginError(`GraphiteMD could not ${enabled ? 'enable' : 'disable'} ${plugin.manifest?.name ?? plugin.id}.`); return }
+      if (!response.ok) { setPluginError(`AnthraciteMD could not ${enabled ? 'enable' : 'disable'} ${plugin.manifest?.name ?? plugin.id}.`); return }
       setPlugins((current) => current?.map((item) => item.id === response.data.plugin.id ? response.data.plugin : item) ?? null)
       onPluginsChanged?.()
-    } catch { setPluginError(`GraphiteMD could not ${enabled ? 'enable' : 'disable'} ${plugin.manifest?.name ?? plugin.id}.`) }
+    } catch { setPluginError(`AnthraciteMD could not ${enabled ? 'enable' : 'disable'} ${plugin.manifest?.name ?? plugin.id}.`) }
     finally { setChangingPlugin(null) }
   }
 

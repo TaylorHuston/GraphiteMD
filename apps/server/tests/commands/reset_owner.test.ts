@@ -7,9 +7,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { OwnerSetupService } from '../../app/security/owner_setup_service.js'
 import { runOwnerReset } from '../../commands/reset_owner.js'
 
-describe('GMD-001/S2 R2 host-local owner reset command', () => {
+describe('AMD-001/S2 R2 host-local owner reset command', () => {
   it('R2-S1 requires explicit confirmation and matching secure password prompts', async () => {
-    const service = new OwnerSetupService(await mkdtemp(join(tmpdir(), 'graphitemd-security-')))
+    const service = new OwnerSetupService(await mkdtemp(join(tmpdir(), 'anthracitemd-security-')))
     await service.createOwner('forgotten password')
     const password = 'recovered password'
     const confirm = vi.fn().mockResolvedValue(true)
@@ -34,7 +34,7 @@ describe('GMD-001/S2 R2 host-local owner reset command', () => {
     ['cancelled', false, 'matching password', 'matching password'],
     ['mismatched', true, 'first password', 'different password'],
   ])('R2-S2 preserves the old credential when the reset is %s', async (_case, confirmed, first, second) => {
-    const service = new OwnerSetupService(await mkdtemp(join(tmpdir(), 'graphitemd-security-')))
+    const service = new OwnerSetupService(await mkdtemp(join(tmpdir(), 'anthracitemd-security-')))
     await service.createOwner('existing password')
     const secure = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(second)
 

@@ -3,8 +3,8 @@ import { constants } from 'node:fs'
 import { lstat, mkdir, open, readFile, readdir, realpath, rename, rm } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 
-import { AssistantTurn, matchesContract, type AssistantError, type AssistantTurn as AssistantTurnValue } from '@graphitemd/contracts'
-import { WorkspaceUnavailableError, type ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
+import { AssistantTurn, matchesContract, type AssistantError, type AssistantTurn as AssistantTurnValue } from '@anthracitemd/contracts'
+import { WorkspaceUnavailableError, type ConfiguredWorkspaceAuthority } from '@anthracitemd/workspace'
 
 const CONVERSATION_ID = /^conv_[a-z0-9]+$/
 
@@ -152,7 +152,7 @@ export class ConversationStore {
   }
 
   async #directory(): Promise<string> {
-    const graphite = join(this.#root, '.graphitemd')
+    const graphite = join(this.#root, '.anthracitemd')
     const directory = join(graphite, 'conversations')
     for (const path of [graphite, directory]) {
       let metadata

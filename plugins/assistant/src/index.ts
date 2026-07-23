@@ -1,4 +1,4 @@
-import type { GraphitePlugin } from '@graphitemd/plugin-sdk'
+import type { AnthracitePlugin } from '@anthracitemd/plugin-sdk'
 
 export const ASSISTANT_CONTEXT_VIEW_ID = 'assistant-context'
 
@@ -16,7 +16,7 @@ const ASSISTANT_TOOLS = ['workspace_search', 'workspace_read'] as const
  * and the exact read-only tool declaration, while the service owns the model,
  * workspace enforcement, provenance, persistence, and credential lifecycle.
  */
-export const assistantPlugin: GraphitePlugin = {
+export const assistantPlugin: AnthracitePlugin = {
   manifest: {
     schemaVersion: 1,
     id: 'assistant',

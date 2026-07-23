@@ -4,7 +4,7 @@ import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 const pluginsRoot = resolve(import.meta.dirname, '../../../../plugins')
-const productionAllowedImports = new Set(['@graphitemd/plugin-sdk'])
+const productionAllowedImports = new Set(['@anthracitemd/plugin-sdk'])
 const forbiddenGlobals = new Set([
   'process', 'global', 'globalThis', 'fetch', 'require', 'createRequire', 'module', 'eval', 'Function',
 ])
@@ -40,7 +40,7 @@ async function productionSources(directory: string): Promise<string[]> {
   return files
 }
 
-describe('GMD-003/S1 R3 bundled plugin build boundary', () => {
+describe('AMD-003/S1 R3 bundled plugin build boundary', () => {
   it('detects accidental bypasses that the former static-import regex missed', () => {
     expect(boundaryViolations(`
       const fs = await import('node:fs')
@@ -82,7 +82,7 @@ describe('GMD-003/S1 R3 bundled plugin build boundary', () => {
         dependencies?: Record<string, string>
         exports?: unknown
       }
-      expect(Object.keys(packageJson.dependencies ?? {}), plugin.name).toEqual(['@graphitemd/plugin-sdk'])
+      expect(Object.keys(packageJson.dependencies ?? {}), plugin.name).toEqual(['@anthracitemd/plugin-sdk'])
       expect(packageJson.exports, plugin.name).toBeDefined()
     }
   })

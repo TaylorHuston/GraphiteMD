@@ -5,7 +5,7 @@ import { markdownPresentationRanges } from './markdownPresentation.js'
 const ranges = (source: string, activeLines = new Set<number>()) =>
   markdownPresentationRanges(EditorState.create({ doc: source }), activeLines)
 
-describe('GMD-002/S2/R1-S2 rendered Markdown presentation', () => {
+describe('AMD-002/S2/R1-S2 rendered Markdown presentation', () => {
   it('presents supported headings, emphasis, lists, tasks, tables, and complete wikilinks from exact source', () => {
     const source = '# Heading\n**strong** and *emphasis*\n- item\n- [x] task\n| Name | State |\n| --- | --- |\n| Graphite | [[Ready Note|Ready]] |'
     expect(ranges(source)).toEqual(expect.arrayContaining([

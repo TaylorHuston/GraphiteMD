@@ -15,6 +15,7 @@ import {
   defineTool,
 } from '@earendil-works/pi-coding-agent'
 import { Type } from 'typebox'
+import { anthraciteEnvironmentValue } from '../../config/environment.js'
 import type {
   AssistantError,
   AssistantFlowId,
@@ -22,7 +23,7 @@ import type {
   AssistantOAuthFlow,
   AssistantOAuthInput,
   AssistantProviderStatus,
-} from '@graphitemd/contracts'
+} from '@anthracitemd/contracts'
 import { assertMachineLocalStateDirectory } from '../security/owner_setup_service.js'
 
 export const OPENAI_CODEX_PROVIDER = 'openai-codex' as const
@@ -103,7 +104,7 @@ export class PiRuntimeBoundary implements PiOAuthRuntime {
     this.#modelRegistry = ModelRegistry.create(this.#authStorage, paths.models)
   }
 
-  static async create(stateDirectory: string, workspaceRoot = process.env.GRAPHITEMD_WORKSPACE_ROOT): Promise<PiRuntimeBoundary> {
+  static async create(stateDirectory: string, workspaceRoot = anthraciteEnvironmentValue(process.env, 'WORKSPACE_ROOT')): Promise<PiRuntimeBoundary> {
     if (!isAbsolute(stateDirectory)) {
       throw new Error('Assistant state directory must be an absolute path.')
     }
@@ -174,7 +175,7 @@ export class PiRuntimeBoundary implements PiOAuthRuntime {
     if (!model) throw new Error('The configured Codex model is unavailable.')
 
     // Pi is an execution engine, not a second workspace configuration or
-    // transcript store. The GraphiteMD conversation store remains canonical.
+    // transcript store. The AnthraciteMD conversation store remains canonical.
     const settingsManager = SettingsManager.inMemory()
     const resourceLoader = new DefaultResourceLoader({
       cwd: workspaceCwd,

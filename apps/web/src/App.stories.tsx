@@ -19,7 +19,7 @@ const workspace = {
 
 const note = {
   resourceId: 'res_welcome', displayPath: 'Welcome.md',
-  source: '---\nstatus: active\n---\n# Welcome\n\nGraphiteMD keeps Markdown authoritative.\n',
+  source: '---\nstatus: active\n---\n# Welcome\n\nAnthraciteMD keeps Markdown authoritative.\n',
   revision: 'rev_storybook', yamlProperties: [{ name: 'status', value: 'active' }], yamlParseError: null,
 }
 
@@ -62,7 +62,7 @@ function handlers(options: {
 }
 
 const meta = {
-  title: 'Application/GraphiteMD Workbench', component: App,
+  title: 'Application/AnthraciteMD Workbench', component: App,
   parameters: { controls: { disable: true } },
 } satisfies Meta<typeof App>
 export default meta
@@ -75,7 +75,7 @@ export const Loading: Story = {
 
 export const AuthenticationRequired: Story = {
   parameters: { msw: { handlers: [http.get('/api/v1/auth/current', () => HttpResponse.json({}, { status: 401 }))] } },
-  play: async ({ canvasElement }) => expect(await within(canvasElement).findByRole('heading', { name: 'Sign in to GraphiteMD' })).toBeVisible(),
+  play: async ({ canvasElement }) => expect(await within(canvasElement).findByRole('heading', { name: 'Sign in to AnthraciteMD' })).toBeVisible(),
 }
 
 export const InvalidCredentials: Story = {
@@ -280,7 +280,7 @@ export const SearchNoResults: Story = {
 export const SearchLongPath: Story = {
   parameters: { msw: { handlers: handlers({ searchResults: [{
       resourceId: 'res_plan', title: 'Plan',
-      displayPath: 'Areas/Products/GraphiteMD/Foundation/Architecture/Decisions/Very-Long-Planning-Document.md',
+      displayPath: 'Areas/Products/AnthraciteMD/Foundation/Architecture/Decisions/Very-Long-Planning-Document.md',
       snippet: 'A long path remains readable without widening the navigation pane.',
     }] }) } },
   play: async ({ canvasElement }) => {

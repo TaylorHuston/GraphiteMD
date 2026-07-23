@@ -3,19 +3,19 @@
 - Status: Accepted
 - Date: 2026-07-18
 - Related Change: [Foundation Workspace Slice](../changes/closed/2026-07-18-foundation-workspace-slice/proposal.md)
-- Related Epics / Stories: [GMD-001 Secure Workspace Access](../epics/gmd-001-secure-workspace-access/epic.md), [GMD-002 Markdown Workbench](../epics/gmd-002-markdown-workbench/epic.md), [GMD-003 Bundled Plugin Platform](../epics/gmd-003-bundled-plugin-platform/epic.md)
+- Related Epics / Stories: [AMD-001 Secure Workspace Access](../epics/amd-001-secure-workspace-access/epic.md), [AMD-002 Markdown Workbench](../epics/amd-002-markdown-workbench/epic.md), [AMD-003 Bundled Plugin Platform](../epics/amd-003-bundled-plugin-platform/epic.md)
 - Supersedes: None in this repository.
 - Superseded by:
 
 ## Context
 
-GraphiteMD must work against files on a user's trusted machine or server while remaining accessible from personal computers, work devices, and mobile browsers without synchronizing the underlying workspace to every client. It also needs persistent indexing, agent runs, plugin capabilities, authentication, and future non-browser clients.
+AnthraciteMD must work against files on a user's trusted machine or server while remaining accessible from personal computers, work devices, and mobile browsers without synchronizing the underlying workspace to every client. It also needs persistent indexing, agent runs, plugin capabilities, authentication, and future non-browser clients.
 
 The earlier Markdown-editor spike proves useful editor and filesystem behavior, while the development-workbench spike proves a persistent service, contract, and adapter boundary. Neither spike should become the canonical implementation or constrain the new product's history.
 
 ## Decision
 
-GraphiteMD SHALL use a service-first TypeScript architecture in a new pnpm monorepo:
+AnthraciteMD SHALL use a service-first TypeScript architecture in a new pnpm monorepo:
 
 - an independently deployable AdonisJS service is the authoritative application and security boundary;
 - a React/Vite web client consumes runtime-validated shared contracts;
@@ -49,7 +49,7 @@ The first serious version SHALL include built-in single-user authentication, sec
 
 ### Option 4: Rework One Existing Spike In Place
 
-- Summary: Turn the editor or development-workbench spike into GraphiteMD.
+- Summary: Turn the editor or development-workbench spike into AnthraciteMD.
 - Pros: Reuses more scaffolding and Git history immediately.
 - Cons: Carries obsolete product assumptions, topology, and module boundaries into the new canonical product.
 

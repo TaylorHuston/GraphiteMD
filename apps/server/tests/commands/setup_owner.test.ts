@@ -7,9 +7,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { runOwnerSetup } from '../../commands/setup_owner.js'
 import { OwnerSetupService } from '../../app/security/owner_setup_service.js'
 
-describe('GMD-001/S1 R1 setup command adapter', () => {
+describe('AMD-001/S1 R1 setup command adapter', () => {
   it('R1-S1 prompts securely for confirmation and prints no credential material', async () => {
-    const service = new OwnerSetupService(await mkdtemp(join(tmpdir(), 'graphitemd-security-')))
+    const service = new OwnerSetupService(await mkdtemp(join(tmpdir(), 'anthracitemd-security-')))
     const password = 'command-only secret'
     const secure = vi.fn().mockResolvedValueOnce(password).mockResolvedValueOnce(password)
     const info = vi.fn()
@@ -27,7 +27,7 @@ describe('GMD-001/S1 R1 setup command adapter', () => {
   })
 
   it('R1-S2 refuses before prompting and directs the operator to reset', async () => {
-    const service = new OwnerSetupService(await mkdtemp(join(tmpdir(), 'graphitemd-security-')))
+    const service = new OwnerSetupService(await mkdtemp(join(tmpdir(), 'anthracitemd-security-')))
     await service.createOwner('existing password')
     const secure = vi.fn()
     const info = vi.fn()

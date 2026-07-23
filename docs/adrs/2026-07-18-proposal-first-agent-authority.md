@@ -3,13 +3,13 @@
 - Status: Accepted
 - Date: 2026-07-18
 - Related Change: [Foundation Workspace Slice](../changes/closed/2026-07-18-foundation-workspace-slice/proposal.md) (architectural constraint; agent behavior is deferred)
-- Related Epics / Stories: [GMD-004/S2 Ask The Workspace Through Codex](../epics/gmd-004-llm-assistant/epic.md#story-s2-ask-the-workspace-through-codex) owns the planned read-only foundation; proposals, grants, and autonomous runs remain deferred.
+- Related Epics / Stories: [AMD-004/S2 Ask The Workspace Through Codex](../epics/amd-004-llm-assistant/epic.md#story-s2-ask-the-workspace-through-codex) owns the planned read-only foundation; proposals, grants, and autonomous runs remain deferred.
 - Supersedes: None in this repository.
 - Superseded by:
 
 ## Context
 
-GraphiteMD treats AI interaction as a first-class product capability. The bundled Assistant needs enough workspace context to answer useful questions and maintain documents, but direct default write or tool authority would undermine user trust in canonical files. The product also needs a path to purposeful autonomous work without globally enabling unattended agents.
+AnthraciteMD treats AI interaction as a first-class product capability. The bundled Assistant needs enough workspace context to answer useful questions and maintain documents, but direct default write or tool authority would undermine user trust in canonical files. The product also needs a path to purposeful autonomous work without globally enabling unattended agents.
 
 Workspace content may be sent to external model providers, so read scope and exclusions are security boundaries rather than prompt suggestions. Agent tools may later include Git, SDD, web, email, calendar, shell, or other consequential systems supplied by plugins.
 
@@ -27,7 +27,7 @@ Direct autonomous action SHALL require an explicit one-run grant containing:
 - whether writes require review or may be applied directly;
 - automatic expiration when the run ends;
 - visible live activity and an immediate stop control;
-- a durable inspectable record under `.graphitemd/`.
+- a durable inspectable record under `.anthracitemd/`.
 
 Destructive actions and externally consequential operations SHALL require separate confirmation rather than being implied by a general grant. Edited Markdown or grant-record files SHALL NOT confer authority by themselves; the capability broker must validate the active grant.
 

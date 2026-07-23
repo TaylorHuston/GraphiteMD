@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-ADRs explain durable technical choices for GraphiteMD. Epics and Stories remain authoritative for accepted implemented behavior.
+ADRs explain durable technical choices for AnthraciteMD. Epics and Stories remain authoritative for accepted implemented behavior.
 
 ## Current Records
 

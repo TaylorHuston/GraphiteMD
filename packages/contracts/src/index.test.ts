@@ -19,7 +19,7 @@ import {
 
 describe('public contracts', () => {
   it('publishes a versioned service identity and opaque workspace IDs', () => {
-    expect(serviceDescriptor).toEqual({ name: 'GraphiteMD', apiVersion: 'v1' })
+    expect(serviceDescriptor).toEqual({ name: 'AnthraciteMD', apiVersion: 'v1' })
     expect(Check(WorkspaceId, 'wrk_primary')).toBe(true)
     expect(Check(WorkspaceId, '/Users/taylor/notes')).toBe(false)
   })
@@ -95,18 +95,18 @@ describe('public contracts', () => {
     })).toBe(false)
 
     expect(matchesContract(AssistantQuestion, {
-      conversationId: 'conv_alpha', question: 'Which note explains GraphiteMD?',
+      conversationId: 'conv_alpha', question: 'Which note explains AnthraciteMD?',
     })).toBe(true)
     expect(matchesContract(AssistantSource, {
-      resourceId: 'res_alpha', displayPath: 'Notes/GraphiteMD.md', revision: 'rev_alpha',
-      excerpt: 'GraphiteMD is a service-first workbench.', truncated: false,
+      resourceId: 'res_alpha', displayPath: 'Notes/AnthraciteMD.md', revision: 'rev_alpha',
+      excerpt: 'AnthraciteMD is a service-first workbench.', truncated: false,
     })).toBe(true)
     expect(matchesContract(AssistantTurn, {
       turnId: 'turn_alpha', conversationId: 'conv_alpha', status: 'completed',
-      question: 'Which note explains GraphiteMD?', provider: 'openai-codex', model: 'gpt-5.4',
+      question: 'Which note explains AnthraciteMD?', provider: 'openai-codex', model: 'gpt-5.4',
       createdAt: '2026-07-19T12:00:00.000Z', completedAt: '2026-07-19T12:00:02.000Z',
-      answer: 'The GraphiteMD note does.', error: null,
-      sources: [{ resourceId: 'res_alpha', displayPath: 'Notes/GraphiteMD.md', revision: 'rev_alpha', excerpt: 'GraphiteMD is a service-first workbench.', truncated: false }],
+      answer: 'The AnthraciteMD note does.', error: null,
+      sources: [{ resourceId: 'res_alpha', displayPath: 'Notes/AnthraciteMD.md', revision: 'rev_alpha', excerpt: 'AnthraciteMD is a service-first workbench.', truncated: false }],
     })).toBe(true)
   })
 
@@ -119,13 +119,13 @@ describe('public contracts', () => {
     })).toBe(false)
   })
 
-  it('GMD-004/S2 R1-S1 accepts only bounded, declared model-session policy', () => {
+  it('AMD-004/S2 R1-S1 accepts only bounded, declared model-session policy', () => {
     expect(matchesContract(AssistantModelSessionPolicy, {
       prompt: 'Answer only from the workspace evidence returned by the declared tools.',
       tools: ['workspace_search', 'workspace_read'],
     })).toBe(true)
     expect(matchesContract(AssistantModelSessionRequest, {
-      conversationId: 'conv_alpha', question: 'Which note explains GraphiteMD?',
+      conversationId: 'conv_alpha', question: 'Which note explains AnthraciteMD?',
       policy: { prompt: 'Ground answers in read notes.', tools: ['workspace_search', 'workspace_read'] },
     })).toBe(true)
 

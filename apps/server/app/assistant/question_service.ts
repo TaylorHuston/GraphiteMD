@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import type { AssistantError, AssistantModelSessionRequest, AssistantTurn } from '@graphitemd/contracts'
+import type { AssistantError, AssistantModelSessionRequest, AssistantTurn } from '@anthracitemd/contracts'
 import { ConversationStore, type ConversationDocument } from './conversation_store.js'
 import { AssistantWorkspaceContext, AssistantWorkspaceContextError } from './workspace_context.js'
 

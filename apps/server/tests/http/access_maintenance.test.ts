@@ -22,7 +22,7 @@ async function waitForServer(): Promise<void> {
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
-  throw new Error(`GraphiteMD test server did not start\n${serverError}`)
+  throw new Error(`AnthraciteMD test server did not start\n${serverError}`)
 }
 
 function responseCookies(response: Response): string {
@@ -60,8 +60,8 @@ async function login(password: string): Promise<{ cookie: string; token: string;
 }
 
 beforeAll(async () => {
-  stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-access-maintenance-'))
-  workspaceRoot = await mkdtemp(join(tmpdir(), 'graphitemd-access-workspace-'))
+  stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-access-maintenance-'))
+  workspaceRoot = await mkdtemp(join(tmpdir(), 'anthracitemd-access-workspace-'))
   await mkdir(join(workspaceRoot, 'Notes'))
   await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# Welcome\n', 'utf8')
   await new OwnerSetupService(stateDirectory).createOwner('original password')
@@ -73,10 +73,10 @@ beforeAll(async () => {
       NODE_ENV: 'test',
       HOST: '127.0.0.1',
       PORT: String(port),
-      APP_KEY: 'graphitemd-access-test-key-that-is-long-enough',
-      GRAPHITEMD_STATE_DIR: stateDirectory,
-      GRAPHITEMD_WORKSPACE_ROOT: workspaceRoot,
-      GRAPHITEMD_ALLOWED_ORIGINS: 'http://127.0.0.1:5173',
+      APP_KEY: 'anthracitemd-access-test-key-that-is-long-enough',
+      ANTHRACITEMD_STATE_DIR: stateDirectory,
+      ANTHRACITEMD_WORKSPACE_ROOT: workspaceRoot,
+      ANTHRACITEMD_ALLOWED_ORIGINS: 'http://127.0.0.1:5173',
     },
     stdio: ['ignore', 'ignore', 'pipe'],
   })
@@ -94,7 +94,7 @@ afterAll(async () => {
   ])
 })
 
-describe('GMD-001/S2 R1 in-app password change', () => {
+describe('AMD-001/S2 R1 in-app password change', () => {
   it('R1-S1 requires the replacement password and invalidates every existing session', async () => {
     const first = await login('original password')
     const second = await login('original password')
@@ -163,7 +163,7 @@ describe('GMD-001/S2 R1 in-app password change', () => {
   })
 })
 
-describe('GMD-001/S2 R2 host-local password reset', () => {
+describe('AMD-001/S2 R2 host-local password reset', () => {
   it('R2-S1 resets the credential and invalidates every persisted session', async () => {
     const first = await login('replacement password')
     const second = await login('replacement password')

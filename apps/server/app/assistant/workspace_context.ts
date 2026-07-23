@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 
-import type { AssistantError, AssistantSource } from '@graphitemd/contracts'
-import { WorkspaceResourceUnavailableError, WorkspaceUnavailableError, type ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
+import type { AssistantError, AssistantSource } from '@anthracitemd/contracts'
+import { WorkspaceResourceUnavailableError, WorkspaceUnavailableError, type ConfiguredWorkspaceAuthority } from '@anthracitemd/workspace'
 import { LocalSearchUnavailableError, type LocalSearchResult, type LocalSearchService } from '../search/local_search_service.js'
 
 export class AssistantWorkspaceContextError extends Error {

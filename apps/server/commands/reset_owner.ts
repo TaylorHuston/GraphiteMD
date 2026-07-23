@@ -43,7 +43,7 @@ export async function runOwnerReset(
 
 export default class ResetOwner extends BaseCommand {
   static commandName = 'owner:reset'
-  static description = 'Interactively reset the GraphiteMD owner password and sessions'
+  static description = 'Interactively reset the AnthraciteMD owner password and sessions'
 
   async run() {
     const service = new OwnerSetupService(resolveSecurityStateDirectory())

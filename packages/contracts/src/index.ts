@@ -280,6 +280,6 @@ export function matchesContract<Schema extends RuntimeSchema>(schema: Schema, va
 }
 
 export const serviceDescriptor = {
-  name: 'GraphiteMD',
+  name: 'AnthraciteMD',
   apiVersion: 'v1',
 } as const

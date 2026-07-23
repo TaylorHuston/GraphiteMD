@@ -3,19 +3,19 @@
 - Status: Accepted
 - Date: 2026-07-18
 - Related Change: [Foundation Workspace Slice](../changes/closed/2026-07-18-foundation-workspace-slice/proposal.md)
-- Related Epics / Stories: [GMD-003/S1 Bundled Plugin Platform](../epics/gmd-003-bundled-plugin-platform/epic.md#story-s1-inspect-control-and-trust-bundled-plugins)
+- Related Epics / Stories: [AMD-003/S1 Bundled Plugin Platform](../epics/amd-003-bundled-plugin-platform/epic.md#story-s1-inspect-control-and-trust-bundled-plugins)
 - Supersedes: None in this repository.
 - Superseded by:
 
 ## Context
 
-GraphiteMD should be useful as a focused Markdown and AI workbench while supporting substantial extension into structured knowledge, task workflows, Git, SDD, evidence, and developer-agent use cases. Those extensions need access to privileged service and UI behavior without becoming unrestricted Node modules that bypass workspace, credential, or agent authority.
+AnthraciteMD should be useful as a focused Markdown and AI workbench while supporting substantial extension into structured knowledge, task workflows, Git, SDD, evidence, and developer-agent use cases. Those extensions need access to privileged service and UI behavior without becoming unrestricted Node modules that bypass workspace, credential, or agent authority.
 
 The first serious version will ship bundled plugins only, but treating first-party code as privileged internal modules would leave the intended extension boundary unproven and force community plugins into a second architecture later.
 
 ## Decision
 
-GraphiteMD SHALL provide one production plugin SDK and capability broker used by bundled and future plugins.
+AnthraciteMD SHALL provide one production plugin SDK and capability broker used by bundled and future plugins.
 
 The kernel SHALL own workspace and resource identities, revisions, safe file operations, baseline search, foundational Markdown/link/property/task behavior, plugin lifecycle, commands and views, permissions, events, namespaced state, and runtime-neutral AI interaction primitives.
 
@@ -24,7 +24,7 @@ Plugins SHALL:
 - declare identity, version, compatibility, dependencies, permissions, capabilities, and contributions in a manifest;
 - receive opaque workspace, mount, resource, and revision identities rather than unrestricted absolute paths;
 - use broker-mediated operations for files, credentials, Git, processes, models, and external systems;
-- store inspectable durable state under `.graphitemd/plugins/<plugin-id>/` and use only namespaced derived projections;
+- store inspectable durable state under `.anthracitemd/plugins/<plugin-id>/` and use only namespaced derived projections;
 - register commands, views, events, tools, and settings through SDK contracts;
 - behave predictably when capabilities are denied or unavailable.
 

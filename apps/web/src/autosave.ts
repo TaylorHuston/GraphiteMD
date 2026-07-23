@@ -31,7 +31,7 @@ export interface AutosaveSnapshot {
 }
 
 /**
- * Coordinator's proven single-flight coordinator, renamed around GraphiteMD's
+ * Coordinator's proven single-flight coordinator, renamed around AnthraciteMD's
  * opaque resource/revision contract. An epoch prevents late responses from
  * attaching to a subsequently opened note.
  */

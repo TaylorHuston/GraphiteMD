@@ -4,7 +4,7 @@ import {
   AssistantProviderStatus,
   AssistantTurn,
   type AssistantTurn as AssistantTurnValue,
-} from '@graphitemd/contracts'
+} from '@anthracitemd/contracts'
 import { readApiError, requestJson } from './api.js'
 import './AssistantContext.css'
 
@@ -54,14 +54,14 @@ export function AssistantContext({ title, onSessionExpired, onOpenSettings, onOp
       if (response.status === 401) { onSessionExpired(); return }
       if (!response.ok) {
         const apiError = await readApiError(response.response)
-        setError(apiError?.error.message ?? 'GraphiteMD could not complete that question.')
+        setError(apiError?.error.message ?? 'AnthraciteMD could not complete that question.')
         return
       }
       setConversationId(response.data.conversationId)
       setTurns((current) => [...current, response.data])
       setQuestion('')
     } catch {
-      setError('GraphiteMD could not reach the Assistant.')
+      setError('AnthraciteMD could not reach the Assistant.')
     } finally {
       setAsking(false)
     }

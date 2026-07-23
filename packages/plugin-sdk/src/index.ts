@@ -7,7 +7,7 @@ import {
   type AssistantError,
   type AssistantModelSessionRequest as AssistantModelSessionRequestValue,
   type AssistantTurn as AssistantTurnValue,
-} from '@graphitemd/contracts'
+} from '@anthracitemd/contracts'
 
 export const PLUGIN_MANIFEST_SCHEMA_VERSION = 1 as const
 
@@ -135,7 +135,7 @@ export interface PluginStateBackend {
 export function createPluginStateAdapter(pluginId: string, schemaVersion: number, backend: PluginStateBackend) {
   if (!IDENTIFIER.test(pluginId)) throw new Error('Invalid plugin identity.')
   return Object.freeze({
-    namespace: `.graphitemd/plugins/${pluginId}/`,
+    namespace: `.anthracitemd/plugins/${pluginId}/`,
     read: async (): Promise<unknown | undefined> => {
       const envelope = await backend.read(pluginId)
       if (envelope === undefined) return undefined
@@ -168,7 +168,7 @@ export class AssistantModelSessionError extends Error {
     this.name = 'AssistantModelSessionError'
   }
 }
-export interface GraphitePlugin {
+export interface AnthracitePlugin {
   manifest: PluginManifest
   activate(context: PluginContext): Promise<void | (() => void | Promise<void>)>
 }
@@ -184,7 +184,7 @@ export interface PluginHostOptions {
 
 export class PluginHost {
   readonly #inventory = new Map<string, PluginInventoryItem>()
-  readonly #plugins = new Map<string, GraphitePlugin>()
+  readonly #plugins = new Map<string, AnthracitePlugin>()
   readonly #disposers = new Map<string, () => void | Promise<void>>()
   #assistantQuestionHandler: Readonly<{
     pluginId: string
@@ -209,7 +209,7 @@ export class PluginHost {
         this.#inventory.set(id, { id, status: validation.code === 'incompatible_host' ? 'incompatible' : 'invalid', message: validation.message, contributions: {} })
         continue
       }
-      const plugin = candidate as unknown as GraphitePlugin
+      const plugin = candidate as unknown as AnthracitePlugin
       this.#plugins.set(id, plugin)
       this.#inventory.set(id, { id, manifest: validation.manifest, status: 'disabled', contributions: {} })
       if (this.options.enabled[id] !== false) pending.add(id)
@@ -333,7 +333,7 @@ export class PluginHost {
   }
 
   #registerAssistantQuestionHandler(
-    plugin: GraphitePlugin,
+    plugin: AnthracitePlugin,
     capabilities: ReturnType<typeof createCapabilityBroker>,
     policy: AssistantModelSessionRequestValue['policy'],
     handler: AssistantQuestionHandler,

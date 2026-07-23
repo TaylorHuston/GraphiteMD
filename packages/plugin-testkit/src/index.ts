@@ -1,9 +1,9 @@
 import {
   PluginHost,
   resourceId,
-  type GraphitePlugin,
+  type AnthracitePlugin,
   type PluginStateBackend,
-} from '@graphitemd/plugin-sdk'
+} from '@anthracitemd/plugin-sdk'
 
 export type ConformanceReport = Readonly<{
   manifest: boolean
@@ -25,7 +25,7 @@ function backend(): PluginStateBackend & { keys(): readonly string[] } {
 }
 
 /** Runs the production host and SDK contracts without a browser or privileged test bypass. */
-export async function runPluginConformance(plugin: GraphitePlugin, hostVersion = '1.0.0'): Promise<ConformanceReport> {
+export async function runPluginConformance(plugin: AnthracitePlugin, hostVersion = '1.0.0'): Promise<ConformanceReport> {
   const state = backend()
   const provider = { async perform(operation: { resource: string }) { return { resource: operation.resource, healthy: true } } }
   const disabled = new PluginHost({ hostVersion, enabled: { [plugin.manifest.id]: false }, provider, stateBackend: state })
@@ -41,7 +41,7 @@ export async function runPluginConformance(plugin: GraphitePlugin, hostVersion =
 
   let denied = false
   try {
-    const probe: GraphitePlugin = {
+    const probe: AnthracitePlugin = {
       manifest: plugin.manifest,
       async activate(context) { await context.capabilities.perform({ permission: 'conformance:undeclared', resource: resourceId('probe') }) },
     }

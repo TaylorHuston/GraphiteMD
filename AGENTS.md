@@ -1,8 +1,8 @@
-# GraphiteMD Agent Guide
+# AnthraciteMD Agent Guide
 
 ## Purpose
 
-This repository owns the canonical GraphiteMD application. GraphiteMD is a service-first, self-hostable Markdown and AI workbench whose browser clients use server-mediated capabilities over user-controlled workspace files.
+This repository owns the canonical AnthraciteMD application. AnthraciteMD is a service-first, self-hostable Markdown and AI workbench whose browser clients use server-mediated capabilities over user-controlled workspace files.
 
 ## Operating Order
 

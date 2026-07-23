@@ -1,25 +1,30 @@
+import { lstatSync, realpathSync, renameSync } from 'node:fs'
 import { chmod, lstat, mkdir, realpath } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
 import { Scrypt } from '@adonisjs/hash/drivers/scrypt'
+import { anthraciteEnvironmentValue, type RuntimeEnvironment } from '../../config/environment.js'
 import {
   acceptsPasswordInput,
   requirePassword,
-} from '@graphitemd/domain'
+} from '@anthracitemd/domain'
 
 export {
   acceptsPasswordInput,
   PASSWORD_MAXIMUM_BYTES,
   PASSWORD_MINIMUM_BYTES,
   PasswordPolicyError,
-} from '@graphitemd/domain'
+} from '@anthracitemd/domain'
 
 const DATABASE_FILE = 'security.sqlite'
 const OWNER_ID = 1
 
-export const AUTH_REVOCATION_GENERATION_SESSION_KEY = 'graphitemd_auth_generation'
+export const AUTH_REVOCATION_GENERATION_SESSION_KEY = 'anthracitemd_auth_generation'
+
+const CANONICAL_STATE_DIRECTORY = '.anthracitemd'
+const LEGACY_STATE_DIRECTORY = '.graphitemd'
 
 class CredentialLock {
   #tail = Promise.resolve()
@@ -63,17 +68,67 @@ export class OwnerNotFoundError extends Error {
   }
 }
 
-export function resolveSecurityStateDirectory(environment = process.env): string {
-  const configured = environment.GRAPHITEMD_STATE_DIR?.trim()
+export function resolveSecurityStateDirectory(environment: RuntimeEnvironment = process.env): string {
+  const configured = anthraciteEnvironmentValue(environment, 'STATE_DIR')?.trim()
+  const workspaceRoot = anthraciteEnvironmentValue(environment, 'WORKSPACE_ROOT')?.trim()
   if (configured && !isAbsolute(configured)) {
-    throw new Error('GRAPHITEMD_STATE_DIR must be an absolute path')
+    throw new Error('ANTHRACITEMD_STATE_DIR must be an absolute path')
   }
-  const stateDirectory = configured ? resolve(configured) : join(homedir(), '.graphitemd')
-  const workspaceRoot = environment.GRAPHITEMD_WORKSPACE_ROOT?.trim()
+  const stateDirectory = configured
+    ? resolve(configured)
+    : environment === process.env
+      ? migrateImplicitSecurityStateDirectory(homedir(), workspaceRoot)
+      : join(homedir(), CANONICAL_STATE_DIRECTORY)
   if (workspaceRoot && isInside(resolve(workspaceRoot), stateDirectory)) {
-    throw new Error('GRAPHITEMD_STATE_DIR must resolve outside GRAPHITEMD_WORKSPACE_ROOT')
+    throw new Error('ANTHRACITEMD_STATE_DIR must resolve outside ANTHRACITEMD_WORKSPACE_ROOT')
   }
   return stateDirectory
+}
+
+/** Migrates only the implicit default; explicit state-directory overrides remain untouched. */
+export function migrateImplicitSecurityStateDirectory(
+  homeDirectory: string,
+  workspaceRoot?: string,
+): string {
+  const legacy = join(homeDirectory, LEGACY_STATE_DIRECTORY)
+  const destination = join(homeDirectory, CANONICAL_STATE_DIRECTORY)
+  const canonicalHome = realpathSync(homeDirectory)
+  const canonicalDestination = join(canonicalHome, CANONICAL_STATE_DIRECTORY)
+  if (workspaceRoot?.trim()) {
+    const configuredWorkspace = resolve(workspaceRoot)
+    let canonicalWorkspace = configuredWorkspace
+    try {
+      canonicalWorkspace = realpathSync(configuredWorkspace)
+    } catch {
+      // The normal workspace availability path reports a missing root later.
+    }
+    if (isInside(canonicalWorkspace, canonicalDestination)) {
+      throw new Error('ANTHRACITEMD_STATE_DIR must resolve outside ANTHRACITEMD_WORKSPACE_ROOT')
+    }
+  }
+  let legacyMetadata
+  try {
+    legacyMetadata = lstatSync(legacy)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    return destination
+  }
+  if (!legacyMetadata.isDirectory() || legacyMetadata.isSymbolicLink()
+    || realpathSync(legacy) !== join(canonicalHome, LEGACY_STATE_DIRECTORY)) {
+    throw new Error('Legacy machine-local state is unsafe; resolve ~/.graphitemd and retry')
+  }
+  try {
+    const destinationMetadata = lstatSync(destination)
+    if (!destinationMetadata.isDirectory() || destinationMetadata.isSymbolicLink()
+      || realpathSync(destination) !== join(canonicalHome, CANONICAL_STATE_DIRECTORY)) {
+      throw new Error('Canonical machine-local state is unsafe; resolve ~/.anthracitemd and retry')
+    }
+    throw new Error('Machine-local state migration conflict; both ~/.graphitemd and ~/.anthracitemd exist')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+  renameSync(legacy, destination)
+  return destination
 }
 
 function isInside(root: string, candidate: string): boolean {
@@ -99,7 +154,7 @@ async function nearestExistingAncestor(path: string): Promise<string> {
 /** Denies a configured state path that reaches the workspace through a symlinked ancestor. */
 export async function assertMachineLocalStateDirectory(
   stateDirectory: string,
-  workspaceRoot = process.env.GRAPHITEMD_WORKSPACE_ROOT,
+  workspaceRoot = anthraciteEnvironmentValue(process.env, 'WORKSPACE_ROOT'),
 ): Promise<void> {
   if (!workspaceRoot?.trim()) return
   const configuredWorkspace = resolve(workspaceRoot)
@@ -120,7 +175,7 @@ export class OwnerSetupService {
   readonly #hasher = new Scrypt({})
   readonly #credentialLock: CredentialLock
 
-  constructor(stateDirectory: string, private readonly workspaceRoot = process.env.GRAPHITEMD_WORKSPACE_ROOT) {
+  constructor(stateDirectory: string, private readonly workspaceRoot = anthraciteEnvironmentValue(process.env, 'WORKSPACE_ROOT')) {
     if (!isAbsolute(stateDirectory)) {
       throw new Error('Security state directory must be an absolute path')
     }
@@ -311,19 +366,24 @@ export class OwnerSetupService {
       ) STRICT;
       CREATE INDEX IF NOT EXISTS sessions_user_id_index ON sessions (user_id);
       CREATE INDEX IF NOT EXISTS sessions_expires_at_index ON sessions (expires_at);
-      CREATE TRIGGER IF NOT EXISTS reject_revoked_session_insert
+      DROP TRIGGER IF EXISTS reject_revoked_session_insert;
+      DROP TRIGGER IF EXISTS reject_revoked_session_update;
+      DELETE FROM sessions
+      WHERE json_extract(data, '$.message.auth_web') IS NOT NULL
+        AND json_extract(data, '$.message.anthracitemd_auth_generation') IS NULL;
+      CREATE TRIGGER IF NOT EXISTS anthracitemd_reject_revoked_session_insert
       BEFORE INSERT ON sessions
       WHEN json_extract(NEW.data, '$.message.auth_web') IS NOT NULL
-        AND json_extract(NEW.data, '$.message.graphitemd_auth_generation') IS NOT (
+        AND json_extract(NEW.data, '$.message.anthracitemd_auth_generation') IS NOT (
           SELECT revocation_generation FROM owners WHERE id = 1
         )
       BEGIN
         SELECT RAISE(ABORT, 'session credential generation is no longer current');
       END;
-      CREATE TRIGGER IF NOT EXISTS reject_revoked_session_update
+      CREATE TRIGGER IF NOT EXISTS anthracitemd_reject_revoked_session_update
       BEFORE UPDATE OF data ON sessions
       WHEN json_extract(NEW.data, '$.message.auth_web') IS NOT NULL
-        AND json_extract(NEW.data, '$.message.graphitemd_auth_generation') IS NOT (
+        AND json_extract(NEW.data, '$.message.anthracitemd_auth_generation') IS NOT (
           SELECT revocation_generation FROM owners WHERE id = 1
         )
       BEGIN

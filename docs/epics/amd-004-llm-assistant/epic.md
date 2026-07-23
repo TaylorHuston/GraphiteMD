@@ -1,6 +1,6 @@
 ---
 schema: sdd-epic-v2
-id: GMD-004
+id: AMD-004
 status: draft
 created: 2026-07-19
 modified: 2026-07-22
@@ -10,11 +10,11 @@ stories:
   - S2
 ---
 
-# GMD-004 Workspace-Grounded Assistant
+# AMD-004 Workspace-Grounded Assistant
 
 ## Product Context
 
-- PRD: private GraphiteMD Product Brief / PRD
+- PRD: private AnthraciteMD Product Brief / PRD
 - Related docs: `README.md`
 - Related ADRs:
   - `docs/adrs/2026-07-18-service-first-web-architecture.md`
@@ -23,18 +23,18 @@ stories:
   - `docs/adrs/2026-07-18-proposal-first-agent-authority.md`
   - `docs/adrs/2026-07-19-pi-backed-assistant-runtime.md`
 
-GraphiteMD makes documents, not conversation, the durable center of the product. The bundled Assistant should help the owner understand authorized workspace notes while preserving service authority, inspectable state, visible provenance, and a useful non-AI workbench.
+AnthraciteMD makes documents, not conversation, the durable center of the product. The bundled Assistant should help the owner understand authorized workspace notes while preserving service authority, inspectable state, visible provenance, and a useful non-AI workbench.
 
 ## Outcome
 
-The workspace owner will be able to connect an OpenAI Codex subscription and ask a read-only Assistant questions grounded in eligible Markdown notes, with visible evidence of the notes GraphiteMD actually supplied.
+The workspace owner will be able to connect an OpenAI Codex subscription and ask a read-only Assistant questions grounded in eligible Markdown notes, with visible evidence of the notes AnthraciteMD actually supplied.
 
 ## Current Scope
 
 - One built-in workspace Assistant surfaced through the existing Context experience.
 - OpenAI Codex subscription OAuth through a replaceable Pi runtime adapter.
 - Brokered search and bounded note reads over opaque resources issued by the active workspace authority.
-- Service-derived source provenance and a versioned, inspectable conversation record under `.graphitemd/`.
+- Service-derived source provenance and a versioned, inspectable conversation record under `.anthracitemd/`.
 - One authenticated owner and one configured workspace.
 - Read-only questions; no proposal, write, process, Git, network-tool, or autonomous authority.
 
@@ -70,19 +70,19 @@ Created: 2026-07-19
 Modified: 2026-07-22
 Last verified: 2026-07-22
 
-As the workspace owner, I want to connect and disconnect my Codex subscription, so that I control whether GraphiteMD can use the provider without exposing its credential.
+As the workspace owner, I want to connect and disconnect my Codex subscription, so that I control whether AnthraciteMD can use the provider without exposing its credential.
 
 #### Requirements And Scenarios
 
-##### Requirement R1: GraphiteMD-Owned Codex OAuth
+##### Requirement R1: AnthraciteMD-Owned Codex OAuth
 
-The system SHALL let only the authenticated owner start, inspect, answer, cancel, and retry an OpenAI Codex OAuth flow through normalized GraphiteMD contracts.
+The system SHALL let only the authenticated owner start, inspect, answer, cancel, and retry an OpenAI Codex OAuth flow through normalized AnthraciteMD contracts.
 
 ###### Scenario R1-S1: Complete Codex OAuth
 
 - WHEN the authenticated owner starts Codex setup and completes the provider's required browser, selection, device-code, or manual-code steps
-- THEN GraphiteMD exposes the provider's transient browser authorization link alongside any manual-code fallback
-- AND GraphiteMD reports the Codex provider as connected
+- THEN AnthraciteMD exposes the provider's transient browser authorization link alongside any manual-code fallback
+- AND AnthraciteMD reports the Codex provider as connected
 - AND the credential remains in the host's machine-local protected state.
 
 ###### Scenario R1-S2: Cancel Or Recover From Failed OAuth
@@ -97,7 +97,7 @@ The system SHALL keep the Codex credential in protected machine-local state, exp
 
 ###### Scenario R2-S1: Credential Stays Outside Browser And Workspace
 
-- WHEN Codex is connected or GraphiteMD restarts
+- WHEN Codex is connected or AnthraciteMD restarts
 - THEN provider status reports only sanitized provider/model/configuration metadata
 - AND credentials, callback codes, and refresh material remain absent from workspace files, browser storage/responses, conversation records, and logs.
 
@@ -110,7 +110,7 @@ The system SHALL keep the Codex credential in protected machine-local state, exp
 ###### Scenario R2-S3: Unauthenticated Provider Mutation Is Rejected
 
 - WHEN a client without a valid owner session attempts to start, answer, cancel, or disconnect a Codex flow
-- THEN GraphiteMD rejects the request without changing provider state
+- THEN AnthraciteMD rejects the request without changing provider state
 - AND returns no provider secret or interaction payload.
 
 #### Implemented By
@@ -131,10 +131,10 @@ None for the accepted Codex onboarding scope.
 |---|---|---|---|
 | S1/R1-S1 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#R1-S1 exposes the transient browser authorization link alongside the manual fallback` | Browser login and fallback. | passing |
 | S1/R1-S2 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#R1-S2 rejects concurrent and stale input, safely cancels, and retains bounded sanitized terminal summaries` | Cancellation and recovery. | passing |
-| S1/R1-S2 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#R1-S2 reserves startup before the asynchronous provider check completes` and `apps/web/src/SettingsPanel.test.tsx#GMD-004/S1 R1-S2 clears a cancelled flow, refreshes status, and restores Connect` | Concurrent starts are serialized and terminal Settings state becomes actionable again. | passing |
-| S1/R2-S1 | `apps/server/tests/security/owner_setup_service.test.ts#GMD-004/S1 R2-S1 defaults secret state to the machine vault and rejects workspace-local overrides` | Machine-local credential state. | passing |
+| S1/R1-S2 | `apps/server/tests/assistant/oauth_flow_manager.test.ts#R1-S2 reserves startup before the asynchronous provider check completes` and `apps/web/src/SettingsPanel.test.tsx#AMD-004/S1 R1-S2 clears a cancelled flow, refreshes status, and restores Connect` | Concurrent starts are serialized and terminal Settings state becomes actionable again. | passing |
+| S1/R2-S1 | `apps/server/tests/security/owner_setup_service.test.ts#AMD-004/S1 R2-S1 defaults secret state to the machine vault and rejects workspace-local overrides` | Machine-local credential state. | passing |
 | S1/R2-S2 | `apps/server/app/assistant/question_service.test.ts#R1-S3 rejects disconnected, empty, and concurrent questions without starting ambiguous work` | Disconnected provider rejects new questions. | passing |
-| S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#GMD-004/S1 R2-S3 rejects unauthenticated Codex reads and mutations without exposing flow state` | Owner-only provider mutation. | passing |
+| S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#AMD-004/S1 R2-S3 rejects unauthenticated Codex reads and mutations without exposing flow state` | Owner-only provider mutation. | passing |
 
 #### Verification Gaps
 
@@ -159,7 +159,7 @@ As the workspace owner, I want to ask Codex questions about my Markdown notes, s
 
 ##### Requirement R1: Read-Only Workspace-Grounded Answers
 
-The system SHALL answer an owner's question using Pi with only GraphiteMD-brokered search and bounded note-read tools over the active workspace.
+The system SHALL answer an owner's question using Pi with only AnthraciteMD-brokered search and bounded note-read tools over the active workspace.
 
 ###### Scenario R1-S1: Answer From An Eligible Note
 
@@ -176,7 +176,7 @@ The system SHALL answer an owner's question using Pi with only GraphiteMD-broker
 ###### Scenario R1-S3: Provider Or Workspace Is Unavailable
 
 - WHEN Codex is disconnected, the configured model is unavailable, the workspace authority is unavailable, or a question is empty or already in flight
-- THEN GraphiteMD does not start an ambiguous duplicate run
+- THEN AnthraciteMD does not start an ambiguous duplicate run
 - AND presents a specific recoverable state while ordinary workbench behavior remains usable.
 
 ##### Requirement R2: Confined Context And Source Provenance
@@ -185,14 +185,14 @@ The system SHALL enforce the active workspace's eligible-resource boundary acros
 
 ###### Scenario R2-S1: Ineligible Content Never Reaches The Model
 
-- WHEN `.graphitemd/`, legacy `.graphite/`, configured inventory exclusions, symlinks, unsupported files, oversized sources, unknown resources, or a replaced workspace root are encountered
+- WHEN `.anthracitemd/`, legacy `.graphite/`, configured inventory exclusions, symlinks, unsupported files, oversized sources, unknown resources, or a replaced workspace root are encountered
 - THEN those sources are denied before their content can enter the provider request, Assistant log, or source list
 - AND the denial cannot be bypassed by note text or model instructions.
 
 ###### Scenario R2-S2: Retrieval Remains Bounded
 
 - WHEN a relevant note or result set exceeds the Assistant context budget
-- THEN GraphiteMD supplies a deterministic bounded excerpt or rejects the read with an explicit truncation/unavailable result
+- THEN AnthraciteMD supplies a deterministic bounded excerpt or rejects the read with an explicit truncation/unavailable result
 - AND records that limitation for the model and provenance layer.
 
 ###### Scenario R2-S3: Displayed Sources Reflect Successful Reads
@@ -208,7 +208,7 @@ The system SHALL keep a versioned workspace-local record of each submitted quest
 ###### Scenario R3-S1: Successful Turn Is Inspectable
 
 - WHEN an Assistant turn completes
-- THEN its question, answer, timestamps, provider/model identity, and opaque/display source references are committed beneath `.graphitemd/`
+- THEN its question, answer, timestamps, provider/model identity, and opaque/display source references are committed beneath `.anthracitemd/`
 - AND deleting a derived index does not remove that canonical record.
 
 ###### Scenario R3-S2: Interrupted Turn Recovers Honestly
@@ -260,14 +260,14 @@ None for the accepted read-only Assistant slice.
 | S2/R1-S1 | `apps/server/app/assistant/question_service.test.ts#R1-S1 runs only brokered tools and persists the resulting service-derived sources` | Brokered grounded answer. | passing |
 | S2/R1-S2 | `apps/server/app/assistant/question_service.test.ts#R1-S2 produces an honest no-evidence terminal result when the runtime performs no successful read` | Honest no-evidence result. | passing |
 | S2/R1-S3 | `apps/server/app/assistant/question_service.test.ts#R1-S3 rejects disconnected, empty, and concurrent questions without starting ambiguous work` | Unavailable and duplicate-run handling. | passing |
-| S2/R1-S3 | `apps/server/tests/http/authentication.test.ts#GMD-004/S2 R1-S3 returns service unavailable for a concurrent question instead of invalid input` and `packages/plugin-sdk/src/index.test.ts#preserves a model-session failure code across the plugin dispatch boundary` | The HTTP and plugin adapters preserve the specific retryable failure without misclassifying it as invalid input. | passing |
+| S2/R1-S3 | `apps/server/tests/http/authentication.test.ts#AMD-004/S2 R1-S3 returns service unavailable for a concurrent question instead of invalid input` and `packages/plugin-sdk/src/index.test.ts#preserves a model-session failure code across the plugin dispatch boundary` | The HTTP and plugin adapters preserve the specific retryable failure without misclassifying it as invalid input. | passing |
 | S2/R2-S1 | `apps/server/app/assistant/workspace_context.test.ts#R2-S1 revalidates opaque resources and excludes internal or symlinked content before returning it to the model` | Reads require a current-run search result and search snippets cannot bypass context accounting. | passing |
 | S2/R2-S2 | `apps/server/app/assistant/workspace_context.test.ts#R2-S2 enforces deterministic per-source and total context budgets while recording truncation` | Bounded retrieval. | passing |
 | S2/R2-S3 | `apps/server/app/assistant/workspace_context.test.ts#R2-S3 derives source evidence only from successful brokered reads` | Source provenance. | passing |
-| S2/R3-S1 | `apps/server/app/assistant/conversation_store.test.ts#R3-S1 atomically persists only normalized turns under .graphitemd/conversations` | Inspectable canonical turn. | passing |
+| S2/R3-S1 | `apps/server/app/assistant/conversation_store.test.ts#R3-S1 atomically persists only normalized turns under .anthracitemd/conversations` | Inspectable canonical turn. | passing |
 | S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts#R3-S2 converts an interrupted in-progress turn to an honest terminal record on recovery` | Interrupted-turn recovery. | passing |
-| S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts#R3-S2 recovers every retained in-progress conversation during startup enumeration` and `apps/server/app/assistant/conversation_store.test.ts#R3-S2 rejects a preexisting redirected .graphitemd ancestor before creating descendants` | First-turn interruptions recover at startup and redirected state ancestors fail closed. | passing |
-| S2/R4-S1 | `apps/web/src/AssistantContext.test.tsx#GMD-004/S2 R1-S1 keeps the submitted question visible while one grounded turn is in progress` | Desktop busy interaction. | passing |
+| S2/R3-S2 | `apps/server/app/assistant/conversation_store.test.ts#R3-S2 recovers every retained in-progress conversation during startup enumeration` and `apps/server/app/assistant/conversation_store.test.ts#R3-S2 rejects a preexisting redirected .anthracitemd ancestor before creating descendants` | First-turn interruptions recover at startup and redirected state ancestors fail closed. | passing |
+| S2/R4-S1 | `apps/web/src/AssistantContext.test.tsx#AMD-004/S2 R1-S1 keeps the submitted question visible while one grounded turn is in progress` | Desktop busy interaction. | passing |
 | S2/R4-S2 | `apps/web/src/App.test.tsx#R4-S2 opens keyboard-accessible narrow-layout drawers and closes them with Escape` | Narrow drawer controls. | passing |
 | S2/R4-S3 | `apps/web/src/AssistantContext.test.tsx#keeps the question available behind an explicit retry action after a recoverable error` | Busy/failure recovery. | passing |
 | S2/R4-S3 | `apps/web/src/AssistantContext.test.tsx#refreshes provider availability after Assistant settings change` | The mounted Context surface observes connect/disconnect changes. | passing |
@@ -308,5 +308,5 @@ This Epic is healthy when:
 
 ## Notes
 
-- `GMD-003` owns the reusable plugin platform; this Epic owns Assistant behavior using it.
+- `AMD-003` owns the reusable plugin platform; this Epic owns Assistant behavior using it.
 - The first slice proves workspace reading only. Proposal-first writes and run-scoped autonomy remain governed by the accepted agent-authority ADR and require later Stories.

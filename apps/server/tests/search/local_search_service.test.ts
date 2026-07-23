@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rename, rm, stat, symlink, writeFile } from '
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
+import { ConfiguredWorkspaceAuthority } from '@anthracitemd/workspace'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { LocalSearchService } from '../../app/search/local_search_service.js'
@@ -10,9 +10,9 @@ import { LocalSearchService } from '../../app/search/local_search_service.js'
 const roots: string[] = []
 afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))))
 
-describe('GMD-002/S3 R2 confined local search rebuild', () => {
+describe('AMD-002/S3 R2 confined local search rebuild', () => {
   it('supports a configured workspace root reached through a canonical symlink alias', async () => {
-    const canonicalRoot = await mkdtemp(join(tmpdir(), 'graphitemd-search-canonical-'))
+    const canonicalRoot = await mkdtemp(join(tmpdir(), 'anthracitemd-search-canonical-'))
     const aliasRoot = `${canonicalRoot}-alias`
     roots.push(aliasRoot, canonicalRoot)
     await symlink(canonicalRoot, aliasRoot)
@@ -27,14 +27,14 @@ describe('GMD-002/S3 R2 confined local search rebuild', () => {
   })
 
   it('fails closed when the cache directory is replaced immediately before database commit', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'graphitemd-search-'))
-    const outside = await mkdtemp(join(tmpdir(), 'graphitemd-search-outside-'))
+    const root = await mkdtemp(join(tmpdir(), 'anthracitemd-search-'))
+    const outside = await mkdtemp(join(tmpdir(), 'anthracitemd-search-outside-'))
     roots.push(root, outside)
     await writeFile(join(root, 'Note.md'), '# Searchable\nneedle\n')
     const authority = new ConfiguredWorkspaceAuthority(root)
     await authority.openConfigured()
-    const cache = join(root, '.graphitemd', 'cache')
-    const retained = join(root, '.graphitemd', 'cache-retained')
+    const cache = join(root, '.anthracitemd', 'cache')
+    const retained = join(root, '.anthracitemd', 'cache-retained')
     const service = new LocalSearchService(root, authority, {
       beforeCommit: async () => {
         await rename(cache, retained)
@@ -48,7 +48,7 @@ describe('GMD-002/S3 R2 confined local search rebuild', () => {
   })
 
   it('does not provision search state after the accepted workspace root is replaced', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'graphitemd-search-replaced-'))
+    const root = await mkdtemp(join(tmpdir(), 'anthracitemd-search-replaced-'))
     const retained = `${root}-retained`
     roots.push(root, retained)
     await writeFile(join(root, 'Original.md'), '# Original\n')
@@ -63,7 +63,7 @@ describe('GMD-002/S3 R2 confined local search rebuild', () => {
       name: 'WorkspaceUnavailableError',
       reason: 'identity_changed',
     })
-    await expect(stat(join(root, '.graphitemd'))).rejects.toMatchObject({ code: 'ENOENT' })
-    await expect(readFile(join(root, '.graphitemd', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(join(root, '.anthracitemd'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(root, '.anthracitemd', 'workspace.json'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

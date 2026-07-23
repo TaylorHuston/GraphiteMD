@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
-import { WorkspaceResponse } from '@graphitemd/contracts'
+import { WorkspaceResponse } from '@anthracitemd/contracts'
 import { InvalidApiResponseError, requestJson } from './api.js'
 
 afterEach(() => vi.unstubAllGlobals())

@@ -11,13 +11,13 @@ export default defineConfig({
   use: { baseURL: productionOrigin, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-      command: 'pnpm build && NODE_ENV=test GRAPHITEMD_ASSISTANT_TEST_RUNTIME=grounded node --import=tsx --conditions=graphitemd-production tests/e2e/start-production-server.ts', url: `${productionOrigin}/api/v1/health`,
+      command: 'pnpm build && NODE_ENV=test ANTHRACITEMD_ASSISTANT_TEST_RUNTIME=grounded node --import=tsx --conditions=anthracitemd-production tests/e2e/start-production-server.ts', url: `${productionOrigin}/api/v1/health`,
       timeout: 120_000, reuseExistingServer: false,
       env: {
         NODE_ENV: 'production', PORT: String(productionPort), HOST: '127.0.0.1', LOG_LEVEL: 'silent',
-        APP_KEY: 'graphitemd-e2e-key-that-is-at-least-32-characters',
-        GRAPHITEMD_STATE_DIR: e2eState, GRAPHITEMD_WORKSPACE_ROOT: e2eWorkspace,
-        GRAPHITEMD_ALLOWED_ORIGINS: productionOrigin,
+        APP_KEY: 'anthracitemd-e2e-key-that-is-at-least-32-characters',
+        ANTHRACITEMD_STATE_DIR: e2eState, ANTHRACITEMD_WORKSPACE_ROOT: e2eWorkspace,
+        ANTHRACITEMD_ALLOWED_ORIGINS: productionOrigin,
       },
     },
 })

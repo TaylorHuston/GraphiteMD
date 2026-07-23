@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
+import { ConfiguredWorkspaceAuthority } from '@anthracitemd/workspace'
 import { LocalSearchService } from '../search/local_search_service.js'
 import { AssistantWorkspaceContext } from './workspace_context.js'
 
@@ -11,20 +11,20 @@ const roots: string[] = []
 afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))))
 
 async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), 'graphitemd-assistant-context-'))
+  const root = await mkdtemp(join(tmpdir(), 'anthracitemd-assistant-context-'))
   roots.push(root)
   const workspace = new ConfiguredWorkspaceAuthority(root)
   const search = new LocalSearchService(root, workspace)
   return { root, workspace, context: new AssistantWorkspaceContext(workspace, search, { maxResults: 3, maxSourceBytes: 64, maxTotalBytes: 80 }) }
 }
 
-describe('GMD-004/S2 R2 confined context and provenance', () => {
+describe('AMD-004/S2 R2 confined context and provenance', () => {
   it('R2-S1 revalidates opaque resources and excludes internal or symlinked content before returning it to the model', async () => {
     const { root, workspace, context } = await fixture()
-    await mkdir(join(root, '.graphitemd'))
+    await mkdir(join(root, '.anthracitemd'))
     await writeFile(join(root, 'Visible.md'), '# Visible\nverified workspace fact')
     await writeFile(join(root, 'Other.md'), '# Other\nunsearched-only fact')
-    await writeFile(join(root, '.graphitemd', 'Hidden.md'), '# Hidden\nsecret assistant state')
+    await writeFile(join(root, '.anthracitemd', 'Hidden.md'), '# Hidden\nsecret assistant state')
     await workspace.openConfigured()
 
     const results = await context.search('workspace')
@@ -39,7 +39,7 @@ describe('GMD-004/S2 R2 confined context and provenance', () => {
     const [unsearched] = await new LocalSearchService(root, workspace).search('unsearched-only')
     await expect(context.read(unsearched!.resourceId)).rejects.toMatchObject({ code: 'workspace_unavailable' })
 
-    const outside = await mkdtemp(join(tmpdir(), 'graphitemd-assistant-outside-'))
+    const outside = await mkdtemp(join(tmpdir(), 'anthracitemd-assistant-outside-'))
     roots.push(outside)
     await writeFile(join(outside, 'Outside.md'), '# Outside\nnever disclose')
     await symlink(join(outside, 'Outside.md'), join(root, 'Linked.md'))

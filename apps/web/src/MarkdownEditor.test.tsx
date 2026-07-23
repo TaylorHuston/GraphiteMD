@@ -15,7 +15,7 @@ if (!Range.prototype.getClientRects) {
 
 afterEach(cleanup)
 
-describe('GMD-002/S2 source-preserving Markdown editor', () => {
+describe('AMD-002/S2 source-preserving Markdown editor', () => {
   it('R1-S1 creates one exact CodeMirror document for Source/Rendered mode round trips', async () => {
     const onChange = vi.fn(); const user = userEvent.setup()
     const view = render(<MarkdownEditor source={exactSource} onChange={onChange} />)

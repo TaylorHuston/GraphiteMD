@@ -34,7 +34,7 @@ export async function runOwnerSetup(
 
 export default class SetupOwner extends BaseCommand {
   static commandName = 'owner:setup'
-  static description = 'Interactively establish the first GraphiteMD owner account'
+  static description = 'Interactively establish the first AnthraciteMD owner account'
 
   async run() {
     const service = new OwnerSetupService(resolveSecurityStateDirectory())

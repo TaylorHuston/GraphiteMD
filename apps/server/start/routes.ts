@@ -1,13 +1,13 @@
 import router from '@adonisjs/core/services/router'
-import { AssistantQuestion as AssistantQuestionContract, matchesContract, serviceDescriptor, type AssistantQuestion } from '@graphitemd/contracts'
-import { AssistantModelSessionError } from '@graphitemd/plugin-sdk'
+import { AssistantQuestion as AssistantQuestionContract, matchesContract, serviceDescriptor, type AssistantQuestion } from '@anthracitemd/contracts'
+import { AssistantModelSessionError } from '@anthracitemd/plugin-sdk'
 import {
   ConfiguredWorkspaceAuthority,
   WorkspaceInvalidMutationError,
   WorkspaceResourceUnavailableError,
   WorkspaceRevisionConflictError,
   WorkspaceUnavailableError,
-} from '@graphitemd/workspace'
+} from '@anthracitemd/workspace'
 
 import Owner from '#models/owner'
 import {
@@ -24,14 +24,16 @@ import { AssistantOAuthFlowError, AssistantOAuthFlowManager, PiModelSessionRunti
 import { AssistantQuestionError, AssistantQuestionService, type AssistantRunRuntime } from '../app/assistant/question_service.js'
 import { ConversationStore } from '../app/assistant/conversation_store.js'
 import { AssistantWorkspaceContext } from '../app/assistant/workspace_context.js'
+import { anthraciteEnvironmentValue, assistantTestRuntimeEnabled } from '../config/environment.js'
 
+const workspaceRoot = anthraciteEnvironmentValue(process.env, 'WORKSPACE_ROOT')
 const ownerSetup = new OwnerSetupService(resolveSecurityStateDirectory())
-const workspace = new ConfiguredWorkspaceAuthority(process.env.GRAPHITEMD_WORKSPACE_ROOT)
-const search = process.env.GRAPHITEMD_WORKSPACE_ROOT
-  ? new LocalSearchService(process.env.GRAPHITEMD_WORKSPACE_ROOT, workspace)
+const workspace = new ConfiguredWorkspaceAuthority(workspaceRoot)
+const search = workspaceRoot
+  ? new LocalSearchService(workspaceRoot, workspace)
   : undefined
-const plugins = process.env.GRAPHITEMD_WORKSPACE_ROOT
-  ? new PluginRuntimeService(process.env.GRAPHITEMD_WORKSPACE_ROOT, workspace, async (request) => {
+const plugins = workspaceRoot
+  ? new PluginRuntimeService(workspaceRoot, workspace, async (request) => {
     const service = await questionService()
     if (!service) throw new AssistantModelSessionError({ code: 'workspace_unavailable', message: 'The workspace is unavailable.', retryable: true })
     try { return await service.ask(request) } catch (error) {
@@ -54,9 +56,9 @@ let assistantQuestions: Promise<AssistantQuestionService> | undefined
  * Pi/Codex to a synthetic provider.
  */
 function testAssistantRuntime(): AssistantRunRuntime | undefined {
-  if (process.env.NODE_ENV !== 'test' || process.env.GRAPHITEMD_ASSISTANT_TEST_RUNTIME !== 'grounded') return undefined
+  if (process.env.NODE_ENV !== 'test' || !assistantTestRuntimeEnabled(process.env)) return undefined
   return {
-    status: async () => ({ connected: true, model: 'graphitemd-test-model' }),
+    status: async () => ({ connected: true, model: 'anthracitemd-test-model' }),
     run: async ({ question, tools }) => {
       if (question.toLowerCase().includes('hold concurrent')) {
         await new Promise((resolve) => setTimeout(resolve, 2_000))
@@ -89,11 +91,11 @@ function oauthManager(): Promise<AssistantOAuthFlowManager> {
 }
 
 async function questionService(): Promise<AssistantQuestionService | undefined> {
-  if (!search || !process.env.GRAPHITEMD_WORKSPACE_ROOT) return undefined
+  if (!search || !workspaceRoot) return undefined
   if (!assistantQuestions) {
     assistantQuestions = (async () => {
-      const runtime = testAssistantRuntime() ?? new PiModelSessionRuntime(await piBoundary(), process.env.GRAPHITEMD_WORKSPACE_ROOT!)
-      const conversationStore = new ConversationStore(process.env.GRAPHITEMD_WORKSPACE_ROOT!, workspace)
+      const runtime = testAssistantRuntime() ?? new PiModelSessionRuntime(await piBoundary(), workspaceRoot)
+      const conversationStore = new ConversationStore(workspaceRoot, workspace)
       await conversationStore.recoverAll()
       return new AssistantQuestionService({
         runtime,
@@ -183,7 +185,7 @@ router.get('/api/v1/auth/current', async ({ auth, response }) => {
 
 router.get('/api/v1/assistant/provider', async ({ auth, response }) => {
   if (!(await requireOwner(auth, response))) return
-  if (testAssistantRuntime()) return { provider: 'openai-codex' as const, status: 'connected' as const, model: 'graphitemd-test-model' }
+  if (testAssistantRuntime()) return { provider: 'openai-codex' as const, status: 'connected' as const, model: 'anthracitemd-test-model' }
   try {
     return await (await oauthManager()).providerStatus()
   } catch (error) {

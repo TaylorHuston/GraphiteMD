@@ -5,7 +5,7 @@ const loggerConfig = defineConfig({
   loggers: {
     app: {
       enabled: true,
-      name: 'graphitemd',
+      name: 'anthracitemd',
       level: process.env.LOG_LEVEL ?? 'info',
       transport: { targets: [targets.file({ destination: 1 })] },
     },

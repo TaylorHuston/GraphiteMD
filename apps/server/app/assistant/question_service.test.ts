@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
+import { ConfiguredWorkspaceAuthority } from '@anthracitemd/workspace'
 import { LocalSearchService } from '../search/local_search_service.js'
 import { ConversationStore } from './conversation_store.js'
 import { AssistantQuestionService, type AssistantRunRuntime } from './question_service.js'
@@ -14,7 +14,7 @@ const policy = { prompt: 'Answer only from evidence in read workspace notes.', t
 afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))))
 
 async function fixture(runtime: AssistantRunRuntime) {
-  const root = await mkdtemp(join(tmpdir(), 'graphitemd-question-'))
+  const root = await mkdtemp(join(tmpdir(), 'anthracitemd-question-'))
   roots.push(root)
   await writeFile(join(root, 'Launch.md'), '# Launch\nThe launch date is 2030-04-05.')
   const workspace = new ConfiguredWorkspaceAuthority(root)
@@ -27,7 +27,7 @@ async function fixture(runtime: AssistantRunRuntime) {
   }) }
 }
 
-describe('GMD-004/S2 R1 read-only workspace-grounded answers', () => {
+describe('AMD-004/S2 R1 read-only workspace-grounded answers', () => {
   it('R1-S1 runs only brokered tools and persists the resulting service-derived sources', async () => {
     const runtime: AssistantRunRuntime = {
       status: async () => ({ connected: true, model: 'gpt-5.4' }),
@@ -81,7 +81,7 @@ describe('GMD-004/S2 R1 read-only workspace-grounded answers', () => {
     const second = await service.ask({ question: 'Which note says that?', conversationId: first.conversationId, policy })
 
     expect(second).toMatchObject({ conversationId: first.conversationId, turnId: 'turn_beta', status: 'completed' })
-    const record = JSON.parse(await readFile(join(root, '.graphitemd', 'conversations', 'conv_alpha.json'), 'utf8'))
+    const record = JSON.parse(await readFile(join(root, '.anthracitemd', 'conversations', 'conv_alpha.json'), 'utf8'))
     expect(record.turns).toHaveLength(2)
     expect(record.turns.map((entry: { status: string }) => entry.status)).toEqual(['completed', 'completed'])
   })

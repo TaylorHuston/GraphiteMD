@@ -1,6 +1,6 @@
-import { resourceId, type GraphitePlugin } from '@graphitemd/plugin-sdk'
+import { resourceId, type AnthracitePlugin } from '@anthracitemd/plugin-sdk'
 
-export const systemStatusPlugin: GraphitePlugin = {
+export const systemStatusPlugin: AnthracitePlugin = {
   manifest: {
     schemaVersion: 1,
     id: 'system-status',

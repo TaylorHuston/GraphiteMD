@@ -26,7 +26,7 @@ async function waitForServer(): Promise<void> {
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
-  throw new Error(`GraphiteMD test server did not start: ${lastResponse}\n${serverError}`)
+  throw new Error(`AnthraciteMD test server did not start: ${lastResponse}\n${serverError}`)
 }
 
 function responseCookies(response: Response): string {
@@ -34,7 +34,7 @@ function responseCookies(response: Response): string {
 }
 
 function sessionCookie(response: Response): string {
-  const cookie = response.headers.getSetCookie().find((value) => value.startsWith('graphitemd_session='))
+  const cookie = response.headers.getSetCookie().find((value) => value.startsWith('anthracitemd_session='))
   if (!cookie) throw new Error('Expected a session cookie')
   return cookie.split(';', 1)[0]!
 }
@@ -68,7 +68,7 @@ async function loginOwner(): Promise<{ cookie: string; token: string }> {
 }
 
 async function waitForInProgressAssistantTurn(): Promise<void> {
-  const directory = join(workspaceRoot, '.graphitemd', 'conversations')
+  const directory = join(workspaceRoot, '.anthracitemd', 'conversations')
   for (let attempt = 0; attempt < 100; attempt += 1) {
     try {
       for (const name of await readdir(directory)) {
@@ -82,8 +82,8 @@ async function waitForInProgressAssistantTurn(): Promise<void> {
 }
 
 beforeAll(async () => {
-  stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-http-security-'))
-  workspaceRoot = await mkdtemp(join(tmpdir(), 'graphitemd-http-workspace-'))
+  stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-http-security-'))
+  workspaceRoot = await mkdtemp(join(tmpdir(), 'anthracitemd-http-workspace-'))
   await mkdir(join(workspaceRoot, 'Notes'))
   await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# Welcome\n\nUnique grounded fact: cobalt otter.\n', 'utf8')
   await new OwnerSetupService(stateDirectory).createOwner('correct horse battery staple')
@@ -95,11 +95,11 @@ beforeAll(async () => {
       NODE_ENV: 'test',
       HOST: '127.0.0.1',
       PORT: String(port),
-      APP_KEY: 'graphitemd-http-test-key-that-is-long-enough',
-      GRAPHITEMD_STATE_DIR: stateDirectory,
-      GRAPHITEMD_WORKSPACE_ROOT: workspaceRoot,
-      GRAPHITEMD_ALLOWED_ORIGINS: 'http://127.0.0.1:5173',
-      GRAPHITEMD_ASSISTANT_TEST_RUNTIME: 'grounded',
+      APP_KEY: 'anthracitemd-http-test-key-that-is-long-enough',
+      ANTHRACITEMD_STATE_DIR: stateDirectory,
+      ANTHRACITEMD_WORKSPACE_ROOT: workspaceRoot,
+      ANTHRACITEMD_ALLOWED_ORIGINS: 'http://127.0.0.1:5173',
+      ANTHRACITEMD_ASSISTANT_TEST_RUNTIME: 'grounded',
     },
     stdio: ['ignore', 'ignore', 'pipe'],
   })
@@ -118,8 +118,8 @@ afterAll(async () => {
   ])
 })
 
-describe('GMD-001/S1 R2 browser session authentication', () => {
-  it('GMD-004/S1 R2-S3 rejects unauthenticated Codex reads and mutations without exposing flow state', async () => {
+describe('AMD-001/S1 R2 browser session authentication', () => {
+  it('AMD-004/S1 R2-S3 rejects unauthenticated Codex reads and mutations without exposing flow state', async () => {
     const anonymous = await csrfSession()
     const requests = await Promise.all([
       fetch(`${origin}/api/v1/assistant/provider`),
@@ -149,7 +149,7 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
     ])
   })
 
-  it('GMD-004/S1 R1-S1 returns only the normalized provider projection to the authenticated owner', async () => {
+  it('AMD-004/S1 R1-S1 returns only the normalized provider projection to the authenticated owner', async () => {
     const owner = await loginOwner()
     const provider = await fetch(`${origin}/api/v1/assistant/provider`, { headers: { cookie: owner.cookie } })
     expect(provider.status).toBe(200)
@@ -159,7 +159,7 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
     })
   })
 
-  it('GMD-004/S2 R1-S1 dispatches an authenticated, XSRF-protected grounded question and persists the canonical turn', async () => {
+  it('AMD-004/S2 R1-S1 dispatches an authenticated, XSRF-protected grounded question and persists the canonical turn', async () => {
     const owner = await loginOwner()
     const missingProof = await fetch(`${origin}/api/v1/assistant/questions`, {
       method: 'POST', headers: { 'content-type': 'application/json', cookie: owner.cookie },
@@ -182,12 +182,12 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
     })
     expect(JSON.stringify(turn)).not.toContain(workspaceRoot)
 
-    const record = JSON.parse(await readFile(join(workspaceRoot, '.graphitemd', 'conversations', `${turn.conversationId}.json`), 'utf8'))
+    const record = JSON.parse(await readFile(join(workspaceRoot, '.anthracitemd', 'conversations', `${turn.conversationId}.json`), 'utf8'))
     expect(record.turns).toHaveLength(1)
     expect(record.turns[0]).toMatchObject({ status: 'completed', answer: expect.stringContaining('cobalt otter') })
   })
 
-  it('GMD-004/S2 R1-S3 returns service unavailable for a concurrent question instead of invalid input', async () => {
+  it('AMD-004/S2 R1-S3 returns service unavailable for a concurrent question instead of invalid input', async () => {
     const owner = await loginOwner()
     const headers = { 'content-type': 'application/json', cookie: owner.cookie, 'x-xsrf-token': owner.token }
     const first = fetch(`${origin}/api/v1/assistant/questions`, {
@@ -230,6 +230,15 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
       expect.objectContaining({ kind: 'note', displayPath: 'Notes/Welcome.md', resourceId: expect.stringMatching(/^res_/) }),
     ])
     expect(JSON.stringify(projection)).not.toContain(workspaceRoot)
+  })
+
+  it('AMD-001/S1 R4-S3 rejects the former browser cookie identity', async () => {
+    const authenticated = await loginOwner()
+    const currentCookie = /(?:^|; )(anthracitemd_session=[^;]+)/.exec(authenticated.cookie)?.[1]
+    expect(currentCookie).toBeDefined()
+    const legacyCookie = currentCookie!.replace('anthracitemd_session=', 'graphitemd_session=')
+
+    expect((await fetch(`${origin}/api/v1/auth/current`, { headers: { cookie: legacyCookie } })).status).toBe(401)
   })
 
   it('R2-S2 returns the same generic response and no authenticated session for unknown and incorrect credentials', async () => {
@@ -322,7 +331,7 @@ describe('GMD-001/S1 R2 browser session authentication', () => {
   })
 })
 
-describe('GMD-002/S1 R3 exact note reading', () => {
+describe('AMD-002/S1 R3 exact note reading', () => {
   it('R1-S3 refreshes host-created and deleted Markdown on browser reconnect', async () => {
     const authenticated = await loginOwner()
     const external = join(workspaceRoot, 'Notes', 'External.md')
@@ -390,7 +399,7 @@ describe('GMD-002/S1 R3 exact note reading', () => {
   })
 })
 
-describe('GMD-002/S2 authenticated confined note mutations', () => {
+describe('AMD-002/S2 authenticated confined note mutations', () => {
   it('R2-S1 and R4-S2 saves an exact revision-bound owner draft over the authenticated route', async () => {
     await writeFile(join(workspaceRoot, 'Notes', 'Welcome.md'), '# Before\r\nline\n', 'utf8')
     const authenticated = await loginOwner()
@@ -519,7 +528,7 @@ describe('GMD-002/S2 authenticated confined note mutations', () => {
   })
 })
 
-describe('GMD-002/S3 authenticated local search', () => {
+describe('AMD-002/S3 authenticated local search', () => {
   it('R1-S1 and R3-S1 protects host-local search and returns opaque results', async () => {
     await writeFile(join(workspaceRoot, 'Notes', 'Searchable.md'), '---\nowner: Taylor\n---\n# Searchable\nlocalneedle\n', 'utf8')
     expect((await fetch(`${origin}/api/v1/search?q=localneedle`)).status).toBe(401)
@@ -542,7 +551,7 @@ describe('GMD-002/S3 authenticated local search', () => {
 
   it('R1-S3 reports a recoverable local-index failure without misclassifying workspace authority', async () => {
     const authenticated = await loginOwner()
-    const databasePath = join(workspaceRoot, '.graphitemd', 'cache', 'search.sqlite')
+    const databasePath = join(workspaceRoot, '.anthracitemd', 'cache', 'search.sqlite')
     await rm(databasePath, { force: true })
     await mkdir(databasePath)
     try {
@@ -559,7 +568,7 @@ describe('GMD-002/S3 authenticated local search', () => {
   })
 })
 
-describe('GMD-003/S1 production plugin host', () => {
+describe('AMD-003/S1 production plugin host', () => {
   it('lists and controls the bundled plugin through authenticated endpoints and persists the setting', async () => {
     expect((await fetch(`${origin}/api/v1/plugins`)).status).toBe(401)
     const authenticated = await loginOwner()
@@ -590,12 +599,12 @@ describe('GMD-003/S1 production plugin host', () => {
     expect(await disabled.json()).toEqual({
       plugin: expect.objectContaining({ id: 'system-status', status: 'disabled', contributions: {} }),
     })
-    expect(JSON.parse(await readFile(join(workspaceRoot, '.graphitemd', 'plugins.json'), 'utf8')))
+    expect(JSON.parse(await readFile(join(workspaceRoot, '.anthracitemd', 'plugins.json'), 'utf8')))
       .toEqual({ schemaVersion: 1, enabled: { 'system-status': false } })
   })
 })
 
-describe('GMD-001/S1 R3 browser request protection', () => {
+describe('AMD-001/S1 R3 browser request protection', () => {
   it('R3-S1 rejects a state-changing authenticated request without XSRF proof and accepts valid proof', async () => {
     const authenticated = await loginOwner()
     const missingProof = await fetch(`${origin}/api/v1/auth/logout`, {
@@ -635,7 +644,7 @@ describe('GMD-001/S1 R3 browser request protection', () => {
   })
 })
 
-describe('GMD-002/S1 R1 workspace identity authority', () => {
+describe('AMD-002/S1 R1 workspace identity authority', () => {
   it('returns unavailable without provisioning a replacement workspace root', async () => {
     const authenticated = await loginOwner()
     expect((await fetch(`${origin}/api/v1/workspace`, { headers: { cookie: authenticated.cookie } })).status).toBe(200)
@@ -647,6 +656,6 @@ describe('GMD-002/S1 R1 workspace identity authority', () => {
     const response = await fetch(`${origin}/api/v1/workspace`, { headers: { cookie: authenticated.cookie } })
     expect(response.status).toBe(503)
     expect(await response.json()).toEqual({ available: false, reason: 'identity_changed' })
-    await expect(stat(join(workspaceRoot, '.graphitemd'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(join(workspaceRoot, '.anthracitemd'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

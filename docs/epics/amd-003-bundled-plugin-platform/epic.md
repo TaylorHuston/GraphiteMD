@@ -1,6 +1,6 @@
 ---
 schema: sdd-epic-v2
-id: GMD-003
+id: AMD-003
 status: draft
 created: 2026-07-18
 modified: 2026-07-22
@@ -9,26 +9,26 @@ stories:
   - S1
 ---
 
-# GMD-003 Bundled Plugin Platform
+# AMD-003 Bundled Plugin Platform
 
 ## Product Context
 
-- PRD: Private GraphiteMD Product Brief / PRD resolved through SDD workspace topology.
-- Related Epics: [GMD-001 Secure Workspace Access](../gmd-001-secure-workspace-access/epic.md), [GMD-002 Markdown Workbench](../gmd-002-markdown-workbench/epic.md)
+- PRD: Private AnthraciteMD Product Brief / PRD resolved through SDD workspace topology.
+- Related Epics: [AMD-001 Secure Workspace Access](../amd-001-secure-workspace-access/epic.md), [AMD-002 Markdown Workbench](../amd-002-markdown-workbench/epic.md)
 - Related ADR: [Capability-Mediated Plugin Platform](../../adrs/2026-07-18-capability-mediated-plugin-platform.md)
 
-GraphiteMD needs a minimal dependable kernel that can grow into structured knowledge, workflows, Git, SDD, evidence, and developer-agent use cases. Bundled extensions must prove the real SDK and capability boundary from the beginning rather than receiving internal shortcuts that future plugins cannot use.
+AnthraciteMD needs a minimal dependable kernel that can grow into structured knowledge, workflows, Git, SDD, evidence, and developer-agent use cases. Bundled extensions must prove the real SDK and capability boundary from the beginning rather than receiving internal shortcuts that future plugins cannot use.
 
 ## Outcome
 
-The workspace owner will be able to inspect and control bundled plugins while GraphiteMD validates their compatibility, confines their capabilities and state, removes their contributions when disabled, and proves lifecycle behavior through shared headless conformance plus production-runtime recovery verification.
+The workspace owner will be able to inspect and control bundled plugins while AnthraciteMD validates their compatibility, confines their capabilities and state, removes their contributions when disabled, and proves lifecycle behavior through shared headless conformance plus production-runtime recovery verification.
 
 ## Current Scope
 
 - Bundled first-party service and web plugin manifests.
 - Plugin inventory, enable/disable control, lifecycle state, compatibility reporting, and contribution registration.
 - Broker-mediated permissions for workspace resources, plugin state, commands, views, and events.
-- Inspectable namespaced durable plugin state under `.graphitemd/plugins/<plugin-id>/`.
+- Inspectable namespaced durable plugin state under `.anthracitemd/plugins/<plugin-id>/`.
 - System Status and Assistant manifests exercising the production SDK, including persisted enablement and state-recovery conformance.
 
 ## Deferred Scope
@@ -42,7 +42,7 @@ The workspace owner will be able to inspect and control bundled plugins while Gr
 
 | Candidate | Status | Story Shape | Acceptance Signals |
 |---|---|---|---|
-| `community-plugin-installation` | deferred | As an owner, I want to install a third-party plugin safely, so that I can extend GraphiteMD beyond bundled capabilities. | Package trust, isolation, signing, compatibility, permission review, and recovery are proven. |
+| `community-plugin-installation` | deferred | As an owner, I want to install a third-party plugin safely, so that I can extend AnthraciteMD beyond bundled capabilities. | Package trust, isolation, signing, compatibility, permission review, and recovery are proven. |
 | `plugin-dependency-management` | deferred | As a plugin author, I want declared dependencies and compatibility resolution, so that composed extensions fail predictably. | Deterministic resolution and user-visible failure states exist. |
 
 ## Story Index
@@ -72,7 +72,7 @@ The system SHALL load bundled plugins only through versioned manifests declaring
 ###### Scenario R1-S1: Compatible Plugin Is Listed
 
 - WHEN a bundled plugin has a valid compatible manifest
-- THEN GraphiteMD lists its identity, version, status, requested permissions, and contributions
+- THEN AnthraciteMD lists its identity, version, status, requested permissions, and contributions
 - AND activates it only through the production plugin host.
 
 ###### Scenario R1-S2: Invalid Or Incompatible Plugin Fails Closed
@@ -111,11 +111,11 @@ The system SHALL enforce supported plugin operations through declared broker cap
 
 - WHEN a trusted bundled plugin requests an undeclared permission, excluded resource, raw path, or unavailable broker operation
 - THEN the broker denies the supported operation with a normalized failure
-- AND no protected resource or secret is exposed through GraphiteMD capabilities.
+- AND no protected resource or secret is exposed through AnthraciteMD capabilities.
 
 ##### Requirement R4: Namespaced Inspectable State And Recovery
 
-The system SHALL confine durable plugin state to its documented `.graphitemd/plugins/<plugin-id>/` namespace and run lifecycle and recovery checks against every bundled plugin.
+The system SHALL confine durable plugin state to its documented `.anthracitemd/plugins/<plugin-id>/` namespace and run lifecycle and recovery checks against every bundled plugin.
 
 ###### Scenario R4-S1: Plugin State Is Isolated
 
@@ -160,7 +160,7 @@ None for the accepted bundled System Status scope. Broader resource providers be
 | S1/R3-S2 | `apps/server/tests/plugins/bundled_import_boundary.test.ts#allows every production bundled plugin source to use only the capability SDK` | Trusted-source dependency boundary. | passing |
 | S1/R4-S1 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#commits inspectable versioned state only inside the plugin namespace` | State isolation. | passing |
 | S1/R4-S2 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#recovers a complete interrupted write without treating invalid partial JSON as complete` | Recoverable state. | passing |
-| S1/R4-S3 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#GMD-003/S1 R4-S3 applies persisted enablement before every bundled plugin activates after restart` | Per-bundle production recovery. | passing |
+| S1/R4-S3 | `apps/server/tests/plugins/plugin_runtime_service.test.ts#AMD-003/S1 R4-S3 applies persisted enablement before every bundled plugin activates after restart` | Per-bundle production recovery. | passing |
 
 #### Verification Gaps
 

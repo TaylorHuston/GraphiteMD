@@ -37,7 +37,7 @@ if (!Range.prototype.getClientRects) {
   Range.prototype.getClientRects = () => ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }) as DOMRectList
 }
 
-describe('GMD-002/S1 responsive browse shell', () => {
+describe('AMD-002/S1 responsive browse shell', () => {
   it('R2-S1 presents a deterministic accessible tree with selection and collapse', async () => {
     const fetchMock = vi.fn()
       .mockImplementationOnce(() => response(200, { owner: { id: 'owner' } }))
@@ -97,6 +97,7 @@ describe('GMD-002/S1 responsive browse shell', () => {
 
     render(<App />)
     await screen.findByRole('tree', { name: 'Workspace files' })
+    expect(screen.getByLabelText('AnthraciteMD')).toHaveTextContent('A')
     await user.click(screen.getByTestId('mobile-files'))
 
     const drawer = screen.getByRole('dialog', { name: 'Files' })
@@ -114,7 +115,7 @@ describe('GMD-002/S1 responsive browse shell', () => {
 
     render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'Sign in to GraphiteMD' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Sign in to AnthraciteMD' })).toBeVisible()
     expect(screen.getByText('Enter the owner password for this host.')).toBeVisible()
     expect(screen.queryByText(/session has expired/i)).not.toBeInTheDocument()
   })
@@ -335,7 +336,7 @@ describe('GMD-002/S1 responsive browse shell', () => {
 
     await user.click(await screen.findByRole('treeitem', { name: /Alpha/ }))
 
-    expect(await screen.findByRole('heading', { name: 'Sign in to GraphiteMD' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Sign in to AnthraciteMD' })).toBeVisible()
   })
 
   it('keeps the workspace shell usable when a note success payload is malformed', async () => {
@@ -637,7 +638,7 @@ describe('GMD-002/S1 responsive browse shell', () => {
     expect(await within(navigation).findByRole('status', { name: 'Search index status' })).toHaveTextContent('Index rebuilt. 2 notes indexed.')
   })
 
-  it('GMD-003/S1 R2-S1 mounts and removes only the active declared System Status contribution', async () => {
+  it('AMD-003/S1 R2-S1 mounts and removes only the active declared System Status contribution', async () => {
     const active = { id: 'system-status', status: 'active', manifest: { name: 'System Status', version: '1.0.0', permissions: ['status:read'] }, contributions: { views: [{ id: 'system-status', title: 'System Status', surface: 'context', renderer: 'system-status' }] } }
     const disabled = { ...active, status: 'disabled', contributions: {} }
     const fetchMock = vi.fn()

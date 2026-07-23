@@ -1,6 +1,6 @@
-# GraphiteMD
+# AnthraciteMD
 
-GraphiteMD is being built as a self-hostable, document-native AI workbench around user-controlled Markdown workspaces. Its current foundation uses a persistent service for filesystem authority while responsive browser clients provide editing, search, navigation, and read-only workspace-grounded Assistant questions without copying the workspace onto every device. Proposal review remains a planned product capability.
+AnthraciteMD is being built as a self-hostable, document-native AI workbench around user-controlled Markdown workspaces. Its current foundation uses a persistent service for filesystem authority while responsive browser clients provide editing, search, navigation, and read-only workspace-grounded Assistant questions without copying the workspace onto every device. Proposal review remains a planned product capability.
 
 The product is designed around four durable promises:
 
@@ -30,12 +30,12 @@ Requires Node.js 24 or newer and pnpm 11.5.2.
 
 ```bash
 pnpm install
-export GRAPHITEMD_WORKSPACE_ROOT="/absolute/path/to/a/test-workspace"
-# Optional: defaults to ~/.graphitemd; any override must be outside the workspace.
-export GRAPHITEMD_STATE_DIR="/absolute/path/to/machine-local-state"
-export GRAPHITEMD_ALLOWED_ORIGINS="http://127.0.0.1:5173"
+export ANTHRACITEMD_WORKSPACE_ROOT="/absolute/path/to/a/test-workspace"
+# Optional: defaults to ~/.anthracitemd; any override must be outside the workspace.
+export ANTHRACITEMD_STATE_DIR="/absolute/path/to/machine-local-state"
+export ANTHRACITEMD_ALLOWED_ORIGINS="http://127.0.0.1:5173"
 export APP_KEY="replace-with-a-persisted-random-secret-of-at-least-32-characters"
-pnpm --filter @graphitemd/server exec node ace owner:setup
+pnpm --filter @anthracitemd/server exec node ace owner:setup
 pnpm dev
 pnpm lint
 pnpm typecheck
@@ -51,21 +51,21 @@ pnpm start
 
 `pnpm build` compiles the web client, stages it into the AdonisJS public tree, and includes that tree in the deployable server build. `pnpm start` then serves the browser application, hashed assets, SPA history fallback, and `/api/v1` from one origin. The fallback never handles `/api/**`; unknown API routes remain JSON/HTTP 404 responses. `pnpm test:e2e` builds and exercises this same production server path rather than the Vite development proxy.
 
-`GRAPHITEMD_WORKSPACE_ROOT` is the canonical Markdown workspace. GraphiteMD provisions `.graphitemd/workspace.json` for stable workspace identity, preserves an existing `.graphitemd/.gitignore`, and otherwise ignores only `/cache/` and `/operations/` by default. Configuration, normalized conversations, and plugin state remain inspectable beneath `.graphitemd/`; the search database under `.graphitemd/cache/` is disposable. Prepared rename receipts are cleared after a known rollback, while committed receipts under `.graphitemd/operations/` are retained indefinitely in this foundation so old-resource retries remain idempotent. Existing safe `.graphite/` state atomically migrates to `.graphitemd/`; a conflict or symlinked state path stops startup without merging or deleting either directory. `GRAPHITEMD_STATE_DIR` defaults to `~/.graphitemd` for machine-local security/session/provider state. An explicit override must be absolute and outside the configured workspace; it is never workspace content or a Git-tracked file. `GRAPHITEMD_ALLOWED_ORIGINS` is a comma-separated exact allowlist for credentialed browser origins. `APP_KEY` is mandatory outside tests: generate a strong random value, store it with the host's secrets, and reuse the same value across restarts. Never commit it or place it inside the workspace.
+`ANTHRACITEMD_WORKSPACE_ROOT` is the canonical Markdown workspace. AnthraciteMD provisions `.anthracitemd/workspace.json` for stable workspace identity, preserves an existing `.anthracitemd/.gitignore`, and otherwise ignores only `/cache/` and `/operations/` by default. Configuration, normalized conversations, and plugin state remain inspectable beneath `.anthracitemd/`; the search database under `.anthracitemd/cache/` is disposable. Prepared rename receipts are cleared after a known rollback, while committed receipts under `.anthracitemd/operations/` are retained indefinitely in this foundation so old-resource retries remain idempotent. Existing safe `.graphitemd/` or `.graphite/` state atomically migrates to `.anthracitemd/`; a conflict or symlinked state path stops startup without merging or deleting either directory. `ANTHRACITEMD_STATE_DIR` defaults to `~/.anthracitemd` for machine-local security/session/provider state. An explicit override must be absolute and outside the configured workspace; it is never workspace content or a Git-tracked file. `ANTHRACITEMD_ALLOWED_ORIGINS` is a comma-separated exact allowlist for credentialed browser origins. `APP_KEY` is mandatory outside tests: generate a strong random value, store it with the host's secrets, and reuse the same value across restarts. Never commit it or place it inside the workspace.
 
-Back up Markdown, `.graphitemd/workspace.json`, `.graphitemd/conversations/`, `.graphitemd/plugins.json`, and `.graphitemd/plugins/` together. A full-filesystem backup may also retain ignored operation receipts; `.graphitemd/cache/` can be rebuilt. Back up `~/.graphitemd` (or `GRAPHITEMD_STATE_DIR`) and `APP_KEY` separately using host-secret protections, because workspace files alone cannot restore owner access. Stop the service or use a filesystem snapshot so the workspace and inspectable state are captured consistently.
+Back up Markdown, `.anthracitemd/workspace.json`, `.anthracitemd/conversations/`, `.anthracitemd/plugins.json`, and `.anthracitemd/plugins/` together. A full-filesystem backup may also retain ignored operation receipts; `.anthracitemd/cache/` can be rebuilt. Back up `~/.anthracitemd` (or `ANTHRACITEMD_STATE_DIR`) and `APP_KEY` separately using host-secret protections, because workspace files alone cannot restore owner access. Stop the service or use a filesystem snapshot so the workspace and inspectable state are captured consistently.
 
 Storybook owns deterministic previews for authentication, loading, empty, error, editor, search, Settings, and plugin states. `pnpm test:storybook` exercises their interaction and accessibility checks in headless Chromium. `pnpm test:e2e` creates disposable workspace and security roots under the operating-system temporary directory, starts the real Adonis/Vite path on dedicated loopback ports, and removes the fixture after desktop and narrow-browser acceptance. It never reads or mutates a real workspace.
 
 For host-local credential recovery, stop competing maintenance operations and run:
 
 ```bash
-pnpm --filter @graphitemd/server exec node ace owner:reset
+pnpm --filter @anthracitemd/server exec node ace owner:reset
 ```
 
 ## Self-Hosting Boundary
 
-The current target is a technically capable single owner on a trusted private network. Build the browser and service with `pnpm build`, configure the four environment variables above for the deployment origin, and run `pnpm start`. Set `GRAPHITEMD_ALLOWED_ORIGINS` to the exact public HTTPS origin seen by the browser. A reverse proxy must preserve the original host/protocol information and forward cookies without rewriting their security attributes. Put TLS and private-network access controls in front of the service when traffic leaves loopback. Public Internet hardening, hosted tenancy, automated deployment, and managed backup automation are not delivered by this Change.
+The current target is a technically capable single owner on a trusted private network. Build the browser and service with `pnpm build`, configure the four environment variables above for the deployment origin, and run `pnpm start`. Set `ANTHRACITEMD_ALLOWED_ORIGINS` to the exact public HTTPS origin seen by the browser. A reverse proxy must preserve the original host/protocol information and forward cookies without rewriting their security attributes. Put TLS and private-network access controls in front of the service when traffic leaves loopback. Public Internet hardening, hosted tenancy, automated deployment, and managed backup automation are not delivered by this Change.
 
 ## Packages
 

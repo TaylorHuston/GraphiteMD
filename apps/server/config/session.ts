@@ -3,7 +3,7 @@ import { defineConfig, stores } from '@adonisjs/session'
 
 export default defineConfig({
   enabled: true,
-  cookieName: 'graphitemd_session',
+  cookieName: 'anthracitemd_session',
   clearWithBrowser: false,
   age: '2h',
   cookie: {

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { ConfiguredWorkspaceAuthority } from '@graphitemd/workspace'
+import { ConfiguredWorkspaceAuthority } from '@anthracitemd/workspace'
 import { ConversationStore, ConversationStoreError } from './conversation_store.js'
 
 const roots: string[] = []
@@ -16,7 +16,7 @@ const startedTurn = {
 }
 
 async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), 'graphitemd-conversations-'))
+  const root = await mkdtemp(join(tmpdir(), 'anthracitemd-conversations-'))
   roots.push(root)
   await writeFile(join(root, 'Note.md'), '# Note\nlaunch fact')
   const workspace = new ConfiguredWorkspaceAuthority(root)
@@ -24,8 +24,8 @@ async function fixture() {
   return { root, store: new ConversationStore(root, workspace) }
 }
 
-describe('GMD-004/S2 R3 inspectable conversation records', () => {
-  it('R3-S1 atomically persists only normalized turns under .graphitemd/conversations', async () => {
+describe('AMD-004/S2 R3 inspectable conversation records', () => {
+  it('R3-S1 atomically persists only normalized turns under .anthracitemd/conversations', async () => {
     const { root, store } = await fixture()
     await store.create(startedTurn)
     const completed = { ...startedTurn, status: 'completed' as const, completedAt: '2026-07-20T00:00:01.000Z', answer: 'The launch is documented.', sources: [{
@@ -34,8 +34,8 @@ describe('GMD-004/S2 R3 inspectable conversation records', () => {
     await store.replaceTurn(completed)
 
     expect(await store.read('conv_alpha')).toEqual(expect.objectContaining({ schemaVersion: 1, turns: [completed] }))
-    const source = await readFile(join(root, '.graphitemd', 'conversations', 'conv_alpha.json'), 'utf8')
-    expect(source).not.toMatch(/token|refresh|auth\.json|graphitemd-conversations-/i)
+    const source = await readFile(join(root, '.anthracitemd', 'conversations', 'conv_alpha.json'), 'utf8')
+    expect(source).not.toMatch(/token|refresh|auth\.json|anthracitemd-conversations-/i)
     expect(source).toContain('launch fact')
   })
 
@@ -66,22 +66,22 @@ describe('GMD-004/S2 R3 inspectable conversation records', () => {
   it('R3-S2 fails closed for malformed records and a redirected conversations directory', async () => {
     const { root, store } = await fixture()
     await store.create(startedTurn)
-    await writeFile(join(root, '.graphitemd', 'conversations', 'conv_alpha.json'), '{ bad json')
+    await writeFile(join(root, '.anthracitemd', 'conversations', 'conv_alpha.json'), '{ bad json')
     await expect(store.read('conv_alpha')).rejects.toBeInstanceOf(ConversationStoreError)
 
-    const redirected = await mkdtemp(join(tmpdir(), 'graphitemd-conversation-redirect-'))
+    const redirected = await mkdtemp(join(tmpdir(), 'anthracitemd-conversation-redirect-'))
     roots.push(redirected)
-    await rm(join(root, '.graphitemd', 'conversations'), { recursive: true })
-    await symlink(redirected, join(root, '.graphitemd', 'conversations'))
+    await rm(join(root, '.anthracitemd', 'conversations'), { recursive: true })
+    await symlink(redirected, join(root, '.anthracitemd', 'conversations'))
     await expect(store.create({ ...startedTurn, conversationId: 'conv_beta', turnId: 'turn_beta' })).rejects.toBeInstanceOf(ConversationStoreError)
   })
 
-  it('R3-S2 rejects a preexisting redirected .graphitemd ancestor before creating descendants', async () => {
+  it('R3-S2 rejects a preexisting redirected .anthracitemd ancestor before creating descendants', async () => {
     const { root, store } = await fixture()
-    const redirected = await mkdtemp(join(tmpdir(), 'graphitemd-ancestor-redirect-'))
+    const redirected = await mkdtemp(join(tmpdir(), 'anthracitemd-ancestor-redirect-'))
     roots.push(redirected)
-    await rm(join(root, '.graphitemd'), { recursive: true })
-    await symlink(redirected, join(root, '.graphitemd'))
+    await rm(join(root, '.anthracitemd'), { recursive: true })
+    await symlink(redirected, join(root, '.anthracitemd'))
 
     await expect(store.create(startedTurn)).rejects.toBeInstanceOf(ConversationStoreError)
     await expect(readFile(join(redirected, 'conversations', 'conv_alpha.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })

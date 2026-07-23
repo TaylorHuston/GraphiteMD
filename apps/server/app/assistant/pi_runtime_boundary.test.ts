@@ -64,9 +64,9 @@ afterEach(async () => {
   pi.session.listener = undefined
 })
 
-describe('GMD-004/S2 R1 Pi restricted model sessions', () => {
+describe('AMD-004/S2 R1 Pi restricted model sessions', () => {
   it('constructs one ephemeral allowlisted session and disposes it after the answer', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'graphitemd-pi-runtime-'))
+    const root = await mkdtemp(join(tmpdir(), 'anthracitemd-pi-runtime-'))
     roots.push(root)
     const boundary = await PiRuntimeBoundary.create(join(root, 'state'), undefined)
     const runtime = new PiModelSessionRuntime(boundary, join(root, 'workspace'))

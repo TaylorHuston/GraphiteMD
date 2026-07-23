@@ -13,7 +13,7 @@ function response(status: number, body?: unknown) {
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('Assistant Context contribution', () => {
-  it('GMD-004/S2 R1-S1 keeps the submitted question visible while one grounded turn is in progress', async () => {
+  it('AMD-004/S2 R1-S1 keeps the submitted question visible while one grounded turn is in progress', async () => {
     let complete!: (value: Response) => void
     const pending = new Promise<Response>((resolve) => { complete = resolve })
     const fetchMock = vi.fn().mockImplementation((url: string) => {

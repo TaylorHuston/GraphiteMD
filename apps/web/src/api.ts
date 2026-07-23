@@ -4,11 +4,11 @@ import {
   type ErrorResponse as ApiError,
   type RuntimeSchema,
   type SchemaValue,
-} from '@graphitemd/contracts'
+} from '@anthracitemd/contracts'
 
 export class InvalidApiResponseError extends Error {
   constructor(readonly path: string) {
-    super(`GraphiteMD received an invalid response from ${path}.`)
+    super(`AnthraciteMD received an invalid response from ${path}.`)
     this.name = 'InvalidApiResponseError'
   }
 }

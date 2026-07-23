@@ -1,28 +1,28 @@
 ---
 schema: sdd-epic-v2
-id: GMD-001
+id: AMD-001
 status: draft
 created: 2026-07-18
 modified: 2026-07-22
-last_verified: 2026-07-19
+last_verified: 2026-07-22
 stories:
   - S1
   - S2
 ---
 
-# GMD-001 Secure Workspace Access
+# AMD-001 Secure Workspace Access
 
 ## Product Context
 
-- PRD: Private GraphiteMD Product Brief / PRD resolved through SDD workspace topology.
-- Related Epic: [GMD-002 Markdown Workbench](../gmd-002-markdown-workbench/epic.md)
+- PRD: Private AnthraciteMD Product Brief / PRD resolved through SDD workspace topology.
+- Related Epic: [AMD-002 Markdown Workbench](../amd-002-markdown-workbench/epic.md)
 - Related ADR: [Service-First Web Architecture](../../adrs/2026-07-18-service-first-web-architecture.md)
 
-GraphiteMD runs where the user's files live and is accessed from other browsers over a private network. Network placement alone is not sufficient protection for private notes, credentials, and eventual agent authority, so the first hosted slice needs a built-in single-owner account and recoverable sessions.
+AnthraciteMD runs where the user's files live and is accessed from other browsers over a private network. Network placement alone is not sufficient protection for private notes, credentials, and eventual agent authority, so the first hosted slice needs a built-in single-owner account and recoverable sessions.
 
 ## Outcome
 
-A self-hosting owner will be able to establish one local GraphiteMD account, sign in securely from an authorized browser, reconnect without restarting service-owned work, change the password, and recover access from the host machine without email or an external identity provider.
+A self-hosting owner will be able to establish one local AnthraciteMD account, sign in securely from an authorized browser, reconnect without restarting service-owned work, change the password, and recover access from the host machine without email or an external identity provider.
 
 ## Current Scope
 
@@ -36,7 +36,7 @@ A self-hosting owner will be able to establish one local GraphiteMD account, sig
 - Public signup, multiple users, teams, roles, invitations, and tenant isolation.
 - Email recovery, passkeys, OAuth identity providers, and trusted reverse-proxy identity.
 - Public-internet hosting posture and untrusted-device administration.
-- Multiple simultaneously active GraphiteMD workspaces.
+- Multiple simultaneously active AnthraciteMD workspaces.
 
 ## Candidate Stories
 
@@ -49,7 +49,7 @@ A self-hosting owner will be able to establish one local GraphiteMD account, sig
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | implemented | partial | Establish an owner account and authenticate a browser session. | 2026-07-19 | Host-local setup, generation-bound browser sessions, XSRF enforcement, and exact credentialed origins are implemented; terminal masking awaits manual confirmation. |
+| S1 | implemented | partial | Establish an owner account and authenticate a browser session. | 2026-07-22 | Host-local setup, generation-bound browser sessions, compatible configuration/state migration, XSRF enforcement, and exact credentialed origins are implemented; terminal masking awaits manual confirmation. |
 | S2 | implemented | partial | Maintain and recover access without weakening session boundaries. | 2026-07-19 | Password maintenance, owner-facing change form, cross-process global revocation, host reset, and reconnect boundaries are implemented; manual host/browser confirmation remains. |
 
 ## Stories
@@ -60,7 +60,7 @@ Implementation: implemented
 Verification: partial
 Created: 2026-07-18
 Modified: 2026-07-22
-Last verified: 2026-07-19
+Last verified: 2026-07-22
 
 As a self-hosting owner, I want to establish one account and sign in from my browser, so that my workspace is protected even on a private network.
 
@@ -90,13 +90,13 @@ The system SHALL authenticate valid owner credentials into a regenerated secure 
 ###### Scenario R2-S1: Valid Login Establishes A Session
 
 - WHEN the owner submits valid credentials from an allowed application origin
-- THEN GraphiteMD regenerates the session identifier
+- THEN AnthraciteMD regenerates the session identifier
 - AND returns the authenticated workspace shell without exposing password or session material to the client bundle.
 
 ###### Scenario R2-S2: Invalid Login Fails Generically
 
 - WHEN a browser submits an unknown account or incorrect password
-- THEN GraphiteMD returns the same generic authentication failure
+- THEN AnthraciteMD returns the same generic authentication failure
 - AND does not establish an authenticated session.
 
 ###### Scenario R2-S3: Logout Invalidates The Current Session
@@ -121,6 +121,28 @@ The system SHALL accept credentialed browser requests only from configured exact
 - THEN the service rejects it without granting cross-origin access
 - AND wildcard credentialed CORS is never used.
 
+##### Requirement R4: Rebrand Compatibility And Secure State Transition
+
+The system SHALL prefer canonical AnthraciteMD configuration, safely migrate implicit machine-local security state, and reject former browser-session identities without losing owner or provider credentials.
+
+###### Scenario R4-S1: Canonical Configuration Wins
+
+- WHEN canonical and legacy environment names are evaluated
+- THEN `ANTHRACITEMD_*` values win by presence and `GRAPHITEMD_*` values are fallback only
+- AND an invalid canonical value fails visibly instead of silently using a valid legacy value.
+
+###### Scenario R4-S2: Implicit Security State Migrates Safely
+
+- WHEN only safe implicit `~/.graphitemd` machine state exists outside the configured workspace
+- THEN it atomically becomes `~/.anthracitemd` with owner credentials and provider files preserved
+- AND conflicts, symlinks, or workspace-local placement fail before mutation while explicit state overrides remain exact.
+
+###### Scenario R4-S3: Former Sessions Require Sign-In Again
+
+- WHEN persisted security state or a browser carries the former session identity
+- THEN legacy authenticated sessions and the former cookie name cannot authenticate
+- AND the preserved owner can establish a new `anthracitemd_session` normally.
+
 #### Implemented By
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
@@ -129,6 +151,9 @@ The system SHALL accept credentialed browser requests only from configured exact
 | S1/R2 | `apps/server/app/security/owner_setup_service.ts#authenticate` | primary | Authenticates owner credentials and session revocation generation. |
 | S1/R3-S1 | `apps/server/config/shield.ts#csrf` | primary | Governs CSRF protection. |
 | S1/R3-S2 | `apps/server/config/cors.ts#configuredOrigins` | primary | Governs exact credentialed origins. |
+| S1/R4-S1 | `apps/server/config/environment.ts#anthraciteEnvironmentValue` and `apps/web/vite.config.ts#configuredPort` | primary | Governs canonical configuration precedence and legacy fallback across service and development-client configuration. |
+| S1/R4-S2 | `apps/server/app/security/owner_setup_service.ts#migrateImplicitSecurityStateDirectory` | primary | Governs confined implicit machine-state migration and preservation. |
+| S1/R4-S3 | `apps/server/app/security/owner_setup_service.ts#AUTH_REVOCATION_GENERATION_SESSION_KEY` and `apps/server/config/session.ts#cookieName` | primary | Rotates persisted session payload and browser cookie identity. |
 
 #### Implementation Gaps
 
@@ -145,6 +170,9 @@ The system SHALL accept credentialed browser requests only from configured exact
 | S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#R2-S3 destroys the server-side session so replaying its cookie remains unauthorized` | Logout invalidation. | passing |
 | S1/R3-S1 | `apps/server/tests/http/authentication.test.ts#R3-S1 rejects a state-changing authenticated request without XSRF proof and accepts valid proof` | CSRF enforcement. | passing |
 | S1/R3-S2 | `apps/server/tests/http/authentication.test.ts#R3-S2 grants credentialed CORS only to an exact configured origin` | Exact CORS enforcement. | passing |
+| S1/R4-S1 | `apps/server/tests/config/environment.test.ts#R4-S1 gives canonical configuration precedence` and `apps/web/vite.config.test.ts#R4-S1 prefers canonical values and rejects an invalid canonical port` | Canonical presence wins and invalid canonical values are not masked by legacy fallback. | passing |
+| S1/R4-S2 | `apps/server/tests/security/owner_setup_service.test.ts#AMD-001/S1 R4-S2 atomically migrates the implicit machine state and preserves provider files`, `apps/server/tests/security/owner_setup_service.test.ts#AMD-001/S1 R4-S2 fails closed when %s`, `apps/server/tests/security/owner_setup_service.test.ts#AMD-001/S1 R4-S2 keeps explicit state overrides exact`, and `apps/server/tests/security/owner_setup_service.test.ts#AMD-001/S1 R4-S2 rejects unsafe implicit placement before migrating legacy state` | Safe migration preserves credentials/provider state; conflicts, symlinks, and unsafe placement do not mutate; explicit paths remain exact. | passing |
+| S1/R4-S3 | `apps/server/tests/security/owner_setup_service.test.ts#R2-S1 upgrades legacy owner/session tables before installing generation guards` and `apps/server/tests/http/authentication.test.ts#AMD-001/S1 R4-S3 rejects the former browser cookie identity` | Legacy authenticated sessions are removed, Anthracite generation guards are installed, and the former cookie cannot authenticate. | passing |
 
 #### Verification Gaps
 

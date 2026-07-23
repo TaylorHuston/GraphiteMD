@@ -92,9 +92,9 @@ test('foundation owner path works on desktop and a narrow mobile browser', async
   await settings.getByLabel('New password', { exact: true }).fill(replacementPassword)
   await settings.getByLabel('Confirm new password').fill(replacementPassword)
   await settings.getByRole('button', { name: 'Change password' }).click()
-  await expect(page.getByRole('heading', { name: 'Sign in to GraphiteMD' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to AnthraciteMD' })).toBeVisible()
   await secondPage.reload()
-  await expect(secondPage.getByRole('heading', { name: 'Sign in to GraphiteMD' })).toBeVisible()
+  await expect(secondPage.getByRole('heading', { name: 'Sign in to AnthraciteMD' })).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 844 })
   await signIn(page, replacementPassword)
@@ -144,7 +144,7 @@ test('foundation owner path works on desktop and a narrow mobile browser', async
   const expiredContext = page.getByRole('dialog', { name: 'Context' })
   await expiredContext.getByRole('textbox', { name: 'Ask Codex' }).fill('Can you still see this?')
   await expiredContext.getByRole('button', { name: 'Ask Codex' }).click()
-  await expect(page.getByRole('heading', { name: 'Sign in to GraphiteMD' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to AnthraciteMD' })).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Context' })).toHaveCount(0)
 
 })

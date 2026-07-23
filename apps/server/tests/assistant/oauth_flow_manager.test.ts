@@ -51,7 +51,7 @@ class FakePiOAuthRuntime implements PiOAuthRuntime {
   }
 }
 
-describe('GMD-004/S1 R1 GraphiteMD-owned Codex OAuth', () => {
+describe('AMD-004/S1 R1 AnthraciteMD-owned Codex OAuth', () => {
   it('R1-S2 rejects concurrent and stale input, safely cancels, and retains bounded sanitized terminal summaries', async () => {
     const runtime = new FakePiOAuthRuntime()
     const manager = new AssistantOAuthFlowManager(runtime, {
@@ -192,9 +192,9 @@ describe('GMD-004/S1 R1 GraphiteMD-owned Codex OAuth', () => {
   })
 })
 
-describe('GMD-004/S1 R2 protected credential lifecycle', () => {
+describe('AMD-004/S1 R2 protected credential lifecycle', () => {
   it('R2-S1 confines Pi state to machine-local assistant storage and protects credentials after login', async () => {
-    const stateDirectory = await mkdtemp(join(tmpdir(), 'graphitemd-state-'))
+    const stateDirectory = await mkdtemp(join(tmpdir(), 'anthracitemd-state-'))
     roots.push(stateDirectory)
     const boundary = await PiRuntimeBoundary.create(stateDirectory)
 
