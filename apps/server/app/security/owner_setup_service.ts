@@ -70,15 +70,15 @@ export class OwnerNotFoundError extends Error {
 
 export function resolveSecurityStateDirectory(environment: RuntimeEnvironment = process.env): string {
   const configured = anthraciteEnvironmentValue(environment, 'STATE_DIR')?.trim()
+  const workspaceRoot = anthraciteEnvironmentValue(environment, 'WORKSPACE_ROOT')?.trim()
   if (configured && !isAbsolute(configured)) {
     throw new Error('ANTHRACITEMD_STATE_DIR must be an absolute path')
   }
   const stateDirectory = configured
     ? resolve(configured)
     : environment === process.env
-      ? migrateImplicitSecurityStateDirectory(homedir())
+      ? migrateImplicitSecurityStateDirectory(homedir(), workspaceRoot)
       : join(homedir(), CANONICAL_STATE_DIRECTORY)
-  const workspaceRoot = anthraciteEnvironmentValue(environment, 'WORKSPACE_ROOT')?.trim()
   if (workspaceRoot && isInside(resolve(workspaceRoot), stateDirectory)) {
     throw new Error('ANTHRACITEMD_STATE_DIR must resolve outside ANTHRACITEMD_WORKSPACE_ROOT')
   }
@@ -86,10 +86,26 @@ export function resolveSecurityStateDirectory(environment: RuntimeEnvironment = 
 }
 
 /** Migrates only the implicit default; explicit state-directory overrides remain untouched. */
-export function migrateImplicitSecurityStateDirectory(homeDirectory: string): string {
+export function migrateImplicitSecurityStateDirectory(
+  homeDirectory: string,
+  workspaceRoot?: string,
+): string {
   const legacy = join(homeDirectory, LEGACY_STATE_DIRECTORY)
   const destination = join(homeDirectory, CANONICAL_STATE_DIRECTORY)
   const canonicalHome = realpathSync(homeDirectory)
+  const canonicalDestination = join(canonicalHome, CANONICAL_STATE_DIRECTORY)
+  if (workspaceRoot?.trim()) {
+    const configuredWorkspace = resolve(workspaceRoot)
+    let canonicalWorkspace = configuredWorkspace
+    try {
+      canonicalWorkspace = realpathSync(configuredWorkspace)
+    } catch {
+      // The normal workspace availability path reports a missing root later.
+    }
+    if (isInside(canonicalWorkspace, canonicalDestination)) {
+      throw new Error('ANTHRACITEMD_STATE_DIR must resolve outside ANTHRACITEMD_WORKSPACE_ROOT')
+    }
+  }
   let legacyMetadata
   try {
     legacyMetadata = lstatSync(legacy)

@@ -24,7 +24,7 @@ describe('AMD-001/S1 R1 host-local owner setup', () => {
     })).toThrow('must resolve outside')
   })
 
-  it('AMD rebrand R3-S3 atomically migrates the implicit machine state and preserves provider files', async () => {
+  it('AMD-001/S1 R4-S2 atomically migrates the implicit machine state and preserves provider files', async () => {
     const fakeHome = await mkdtemp(join(tmpdir(), 'anthracitemd-home-'))
     const legacy = join(fakeHome, '.graphitemd')
     await mkdir(join(legacy, 'assistant', 'pi'), { recursive: true })
@@ -53,16 +53,27 @@ describe('AMD-001/S1 R1 host-local owner setup', () => {
       await mkdir(join(home, '.graphitemd'))
       await symlink(outside, join(home, '.anthracitemd'))
     }],
-  ])('AMD rebrand R3-S3 fails closed when %s', async (_case, arrange) => {
+  ])('AMD-001/S1 R4-S2 fails closed when %s', async (_case, arrange) => {
     const fakeHome = await mkdtemp(join(tmpdir(), 'anthracitemd-home-'))
     await arrange(fakeHome)
     expect(() => migrateImplicitSecurityStateDirectory(fakeHome)).toThrow()
     await expect(stat(join(fakeHome, '.graphitemd'))).resolves.toBeDefined()
   })
 
-  it('AMD rebrand R3-S3 keeps explicit state overrides exact', () => {
+  it('AMD-001/S1 R4-S2 keeps explicit state overrides exact', () => {
     const explicit = join(tmpdir(), 'operator-owned-anthracitemd-state')
     expect(resolveSecurityStateDirectory({ ANTHRACITEMD_STATE_DIR: explicit })).toBe(explicit)
+  })
+
+  it('AMD-001/S1 R4-S2 rejects unsafe implicit placement before migrating legacy state', async () => {
+    const fakeHome = await mkdtemp(join(tmpdir(), 'anthracitemd-home-'))
+    const legacy = join(fakeHome, '.graphitemd')
+    await mkdir(legacy)
+    await writeFile(join(legacy, 'preserved.txt'), 'legacy state\n')
+
+    expect(() => migrateImplicitSecurityStateDirectory(fakeHome, fakeHome)).toThrow('must resolve outside')
+    await expect(readFile(join(legacy, 'preserved.txt'), 'utf8')).resolves.toBe('legacy state\n')
+    await expect(stat(join(fakeHome, '.anthracitemd'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('AMD-004/S1 R2-S1 rejects a state override whose symlinked ancestor enters the workspace', async () => {

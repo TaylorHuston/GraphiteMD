@@ -4,7 +4,7 @@ id: AMD-001
 status: draft
 created: 2026-07-18
 modified: 2026-07-22
-last_verified: 2026-07-19
+last_verified: 2026-07-22
 stories:
   - S1
   - S2
@@ -49,7 +49,7 @@ A self-hosting owner will be able to establish one local AnthraciteMD account, s
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | implemented | partial | Establish an owner account and authenticate a browser session. | 2026-07-19 | Host-local setup, generation-bound browser sessions, XSRF enforcement, and exact credentialed origins are implemented; terminal masking awaits manual confirmation. |
+| S1 | implemented | partial | Establish an owner account and authenticate a browser session. | 2026-07-22 | Host-local setup, generation-bound browser sessions, compatible configuration/state migration, XSRF enforcement, and exact credentialed origins are implemented; terminal masking awaits manual confirmation. |
 | S2 | implemented | partial | Maintain and recover access without weakening session boundaries. | 2026-07-19 | Password maintenance, owner-facing change form, cross-process global revocation, host reset, and reconnect boundaries are implemented; manual host/browser confirmation remains. |
 
 ## Stories
@@ -60,7 +60,7 @@ Implementation: implemented
 Verification: partial
 Created: 2026-07-18
 Modified: 2026-07-22
-Last verified: 2026-07-19
+Last verified: 2026-07-22
 
 As a self-hosting owner, I want to establish one account and sign in from my browser, so that my workspace is protected even on a private network.
 
@@ -121,6 +121,28 @@ The system SHALL accept credentialed browser requests only from configured exact
 - THEN the service rejects it without granting cross-origin access
 - AND wildcard credentialed CORS is never used.
 
+##### Requirement R4: Rebrand Compatibility And Secure State Transition
+
+The system SHALL prefer canonical AnthraciteMD configuration, safely migrate implicit machine-local security state, and reject former browser-session identities without losing owner or provider credentials.
+
+###### Scenario R4-S1: Canonical Configuration Wins
+
+- WHEN canonical and legacy environment names are evaluated
+- THEN `ANTHRACITEMD_*` values win by presence and `GRAPHITEMD_*` values are fallback only
+- AND an invalid canonical value fails visibly instead of silently using a valid legacy value.
+
+###### Scenario R4-S2: Implicit Security State Migrates Safely
+
+- WHEN only safe implicit `~/.graphitemd` machine state exists outside the configured workspace
+- THEN it atomically becomes `~/.anthracitemd` with owner credentials and provider files preserved
+- AND conflicts, symlinks, or workspace-local placement fail before mutation while explicit state overrides remain exact.
+
+###### Scenario R4-S3: Former Sessions Require Sign-In Again
+
+- WHEN persisted security state or a browser carries the former session identity
+- THEN legacy authenticated sessions and the former cookie name cannot authenticate
+- AND the preserved owner can establish a new `anthracitemd_session` normally.
+
 #### Implemented By
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
@@ -129,6 +151,9 @@ The system SHALL accept credentialed browser requests only from configured exact
 | S1/R2 | `apps/server/app/security/owner_setup_service.ts#authenticate` | primary | Authenticates owner credentials and session revocation generation. |
 | S1/R3-S1 | `apps/server/config/shield.ts#csrf` | primary | Governs CSRF protection. |
 | S1/R3-S2 | `apps/server/config/cors.ts#configuredOrigins` | primary | Governs exact credentialed origins. |
+| S1/R4-S1 | `apps/server/config/environment.ts#anthraciteEnvironmentValue` and `apps/web/vite.config.ts#configuredPort` | primary | Governs canonical configuration precedence and legacy fallback across service and development-client configuration. |
+| S1/R4-S2 | `apps/server/app/security/owner_setup_service.ts#migrateImplicitSecurityStateDirectory` | primary | Governs confined implicit machine-state migration and preservation. |
+| S1/R4-S3 | `apps/server/app/security/owner_setup_service.ts#AUTH_REVOCATION_GENERATION_SESSION_KEY` and `apps/server/config/session.ts#cookieName` | primary | Rotates persisted session payload and browser cookie identity. |
 
 #### Implementation Gaps
 
@@ -145,6 +170,9 @@ The system SHALL accept credentialed browser requests only from configured exact
 | S1/R2-S3 | `apps/server/tests/http/authentication.test.ts#R2-S3 destroys the server-side session so replaying its cookie remains unauthorized` | Logout invalidation. | passing |
 | S1/R3-S1 | `apps/server/tests/http/authentication.test.ts#R3-S1 rejects a state-changing authenticated request without XSRF proof and accepts valid proof` | CSRF enforcement. | passing |
 | S1/R3-S2 | `apps/server/tests/http/authentication.test.ts#R3-S2 grants credentialed CORS only to an exact configured origin` | Exact CORS enforcement. | passing |
+| S1/R4-S1 | `apps/server/tests/config/environment.test.ts#R4-S1 gives canonical configuration precedence` and `apps/web/vite.config.test.ts#R4-S1 prefers canonical values and rejects an invalid canonical port` | Canonical presence wins and invalid canonical values are not masked by legacy fallback. | passing |
+| S1/R4-S2 | `apps/server/tests/security/owner_setup_service.test.ts#AMD-001/S1 R4-S2 atomically migrates the implicit machine state and preserves provider files`, `apps/server/tests/security/owner_setup_service.test.ts#AMD-001/S1 R4-S2 fails closed when %s`, `apps/server/tests/security/owner_setup_service.test.ts#AMD-001/S1 R4-S2 keeps explicit state overrides exact`, and `apps/server/tests/security/owner_setup_service.test.ts#AMD-001/S1 R4-S2 rejects unsafe implicit placement before migrating legacy state` | Safe migration preserves credentials/provider state; conflicts, symlinks, and unsafe placement do not mutate; explicit paths remain exact. | passing |
+| S1/R4-S3 | `apps/server/tests/security/owner_setup_service.test.ts#R2-S1 upgrades legacy owner/session tables before installing generation guards` and `apps/server/tests/http/authentication.test.ts#AMD-001/S1 R4-S3 rejects the former browser cookie identity` | Legacy authenticated sessions are removed, Anthracite generation guards are installed, and the former cookie cannot authenticate. | passing |
 
 #### Verification Gaps
 

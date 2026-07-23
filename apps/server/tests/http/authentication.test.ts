@@ -232,7 +232,7 @@ describe('AMD-001/S1 R2 browser session authentication', () => {
     expect(JSON.stringify(projection)).not.toContain(workspaceRoot)
   })
 
-  it('AMD rebrand R4-S1 rejects the former browser cookie identity', async () => {
+  it('AMD-001/S1 R4-S3 rejects the former browser cookie identity', async () => {
     const authenticated = await loginOwner()
     const currentCookie = /(?:^|; )(anthracitemd_session=[^;]+)/.exec(authenticated.cookie)?.[1]
     expect(currentCookie).toBeDefined()

@@ -4,7 +4,7 @@ id: AMD-002
 status: draft
 created: 2026-07-18
 modified: 2026-07-22
-last_verified: 2026-07-19
+last_verified: 2026-07-22
 stories:
   - S1
   - S2
@@ -55,7 +55,7 @@ An authenticated owner will be able to browse, read, edit, rename, and search Ma
 
 | Story | Implementation | Verification | Capability | Last Verified | Notes |
 |---|---|---|---|---|---|
-| S1 | implemented | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-19 | Service-owned authority, validated browser contracts, confined inventory, exact reads, safe history, and responsive composition are implemented; visual confirmation remains. |
+| S1 | implemented | partial | Browse and read a server-hosted Markdown workspace. | 2026-07-22 | Service-owned authority, safe legacy-state migration, validated browser contracts, confined inventory, exact reads, safe history, and responsive composition are implemented; visual confirmation remains. |
 | S2 | implemented | partial | Edit and rename a note with source and revision safety. | 2026-07-19 | Source-preserving Source/Rendered editing, response-bound autosave, confined atomic save, and authoritative no-overwrite rename retry are implemented; browser confirmation remains. |
 | S3 | implemented | partial | Search the workspace through a rebuildable local index. | 2026-07-19 | Local FTS, validated APIs, persistent desktop/mobile search states, rebuild, external reconciliation, and guarded result navigation are implemented; manual and egress confirmation remain. |
 
@@ -67,7 +67,7 @@ Implementation: implemented
 Verification: partial
 Created: 2026-07-18
 Modified: 2026-07-22
-Last verified: 2026-07-19
+Last verified: 2026-07-22
 
 As a workspace owner, I want to browse and open Markdown from any authenticated browser, so that I can reach my notes without synchronizing the underlying files to that device.
 
@@ -148,6 +148,22 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 - THEN the document remains the primary surface
 - AND files, search, and context remain reachable through touch-sized, keyboard-accessible controls without horizontal page overflow.
 
+##### Requirement R5: Legacy Workspace-State Migration
+
+The system SHALL migrate one safe former workspace-state directory to `.anthracitemd` before workspace services use it, without merging, deleting conflicts, or traversing symlinks.
+
+###### Scenario R5-S1: One Safe Legacy Namespace Migrates Atomically
+
+- WHEN exactly one safe `.graphitemd` or `.graphite` directory exists and `.anthracitemd` does not
+- THEN the entire directory atomically becomes `.anthracitemd`
+- AND workspace identity, conversations, plugin state, receipts, caches, and other files remain intact.
+
+###### Scenario R5-S2: Ambiguous Or Unsafe State Fails Without Mutation
+
+- WHEN canonical and legacy directories coexist, both legacy directories exist, or a relevant path is a symlink or otherwise unsafe
+- THEN workspace startup fails closed
+- AND no state directory is merged, deleted, or renamed.
+
 #### Implemented By
 
 | Requirement / Scenario | Location / Anchor | Kind | Responsibility |
@@ -156,6 +172,7 @@ The system SHALL keep reading and editing primary on desktop and narrow browsers
 | S1/R2 | `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority` | primary | Governs confined inventory. |
 | S1/R3 | `packages/workspace/src/index.ts#ConfiguredWorkspaceAuthority` | primary | Governs opaque note reads. |
 | S1/R4 | `apps/web/src/App.tsx#Workbench` | primary | Governs responsive workbench navigation. |
+| S1/R5 | `packages/workspace/src/index.ts#migrateLegacyWorkspaceState` | primary | Governs atomic former-to-current workspace-state migration and fail-closed conflict handling. |
 
 #### Implementation Gaps
 
@@ -175,6 +192,8 @@ None.
 | S1/R3-S2 | `packages/workspace/src/index.test.ts#AMD-002/S1/R3-S2 rejects unknown resource identities without guessing a path` | Opaque-resource denial. | passing |
 | S1/R4-S1 | `apps/web/src/App.test.tsx#R2-S1 presents a deterministic accessible tree with selection and collapse` | Desktop workbench controls. | passing |
 | S1/R4-S2 | `apps/web/src/App.test.tsx#R4-S2 opens keyboard-accessible narrow-layout drawers and closes them with Escape` | Narrow workbench controls. | passing |
+| S1/R5-S1 | `packages/workspace/src/index.test.ts#AMD-002/S1 R5-S1 atomically migrates safe %s workspace state without altering its files` | Each supported former namespace migrates atomically with nested state intact. | passing |
+| S1/R5-S2 | `packages/workspace/src/index.test.ts#AMD-002/S1 R5-S2 fails closed without mutation when %s` | Canonical conflicts, two legacy sources, and symlinked source/destination paths are rejected without mutation. | passing |
 
 #### Verification Gaps
 

@@ -167,7 +167,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
     expect(await readFile(pluginState, 'utf8')).toBe('{"schemaVersion":1,"value":{"healthy":true}}\n')
   })
 
-  it.each(['.graphitemd', '.graphite'])('AMD rebrand R3-S1 atomically migrates safe %s workspace state without altering its files', async (legacyName) => {
+  it.each(['.graphitemd', '.graphite'])('AMD-002/S1 R5-S1 atomically migrates safe %s workspace state without altering its files', async (legacyName) => {
     const workspaceRoot = await createWorkspace()
     const legacy = join(workspaceRoot, legacyName)
     await mkdir(join(legacy, 'plugins', 'system-status'), { recursive: true })
@@ -204,7 +204,7 @@ describe('ConfiguredWorkspaceAuthority', () => {
       await mkdir(join(root, '.graphite'))
       await symlink(outside, join(root, '.anthracitemd'))
     }],
-  ])('AMD rebrand R3-S2 fails closed without mutation when %s', async (_case, arrange) => {
+  ])('AMD-002/S1 R5-S2 fails closed without mutation when %s', async (_case, arrange) => {
     const workspaceRoot = await createWorkspace()
     await arrange(workspaceRoot)
     const before = await readdir(workspaceRoot)

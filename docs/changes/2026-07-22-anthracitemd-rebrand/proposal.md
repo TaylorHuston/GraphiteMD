@@ -2,7 +2,7 @@
 
 ## Why
 
-The product is adopting AnthraciteMD as its canonical identity. Leaving AnthraciteMD identifiers across public copy, packages, configuration, persisted state, repository topology, and SDD truth would create a split identity and make future operation and maintenance ambiguous.
+The product is adopting AnthraciteMD as its canonical identity. Leaving former GraphiteMD identifiers across public copy, packages, configuration, persisted state, repository topology, and SDD truth would create a split identity and make future operation and maintenance ambiguous.
 
 ## What Changes
 
@@ -20,11 +20,11 @@ Rename every canonical product and project identifier to AnthraciteMD while safe
 
 ### Existing Epic Directory Updates
 
-- Rename `AMD-001` through `AMD-004` and their directories to `AMD-001` through `AMD-004`, preserving Story semantics and evidence while updating current product identity.
+- Rename `GMD-001` through `GMD-004` and their directories to `AMD-001` through `AMD-004`, preserving Story semantics and evidence while updating current product identity.
 
 ## Epic Story Changes
 
-- Preserve every existing Story boundary and local Requirement/Scenario number while changing full references from `AMD-*` to `AMD-*`.
+- Preserve every existing Story boundary and local Requirement/Scenario number while changing full references from `GMD-*` to `AMD-*`.
 - Reconcile current product-name, environment, state-path, package, and evidence-anchor wording in the four canonical Epics.
 - Move timestamped verification reports with their renamed Epic directories but retain their contemporaneous commands, hashes, paths, and verdict evidence.
 
@@ -62,7 +62,7 @@ Rename every canonical product and project identifier to AnthraciteMD while safe
 ## Success Signals
 
 - Fresh installations expose only AnthraciteMD current identity.
-- Existing safe AnthraciteMD workspace and implicit machine-local state migrate without data loss; conflicts and symlinks stop without mutation.
+- Existing safe GraphiteMD workspace and implicit machine-local state migrate without data loss; conflicts and symlinks stop without mutation.
 - Existing operators may retain legacy environment configuration, but canonical variables take precedence.
 - Owners sign in again after migration and retain credentials plus provider state.
 - Package resolution, full verification, rendered identity, SDD context, Git origin, repository name, and local/private topology all agree on AnthraciteMD.

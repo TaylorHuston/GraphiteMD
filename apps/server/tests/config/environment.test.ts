@@ -4,22 +4,22 @@ import { configuredOrigins } from '../../config/cors.js'
 import { anthraciteEnvironmentValue, assistantTestRuntimeEnabled } from '../../config/environment.js'
 import { resolveSecurityStateDirectory } from '../../app/security/owner_setup_service.js'
 
-describe('AMD rebrand R2 configuration compatibility', () => {
-  it('R2-S1 uses a canonical environment value', () => {
+describe('AMD-001/S1 R4 configuration compatibility', () => {
+  it('R4-S1 uses a canonical environment value', () => {
     expect(anthraciteEnvironmentValue({ ANTHRACITEMD_WORKSPACE_ROOT: '/canonical' }, 'WORKSPACE_ROOT'))
       .toBe('/canonical')
     expect(configuredOrigins({ ANTHRACITEMD_ALLOWED_ORIGINS: 'https://one.test, https://two.test' }))
       .toEqual(['https://one.test', 'https://two.test'])
   })
 
-  it('R2-S2 accepts the legacy counterpart as fallback', () => {
+  it('R4-S1 accepts the legacy counterpart as fallback', () => {
     expect(anthraciteEnvironmentValue({ GRAPHITEMD_WORKSPACE_ROOT: '/legacy' }, 'WORKSPACE_ROOT'))
       .toBe('/legacy')
     expect(configuredOrigins({ GRAPHITEMD_ALLOWED_ORIGINS: 'https://legacy.test' }))
       .toEqual(['https://legacy.test'])
   })
 
-  it('R2-S3 gives canonical configuration precedence', () => {
+  it('R4-S1 gives canonical configuration precedence', () => {
     expect(anthraciteEnvironmentValue({
       ANTHRACITEMD_WORKSPACE_ROOT: '/canonical',
       GRAPHITEMD_WORKSPACE_ROOT: '/legacy',
@@ -30,14 +30,14 @@ describe('AMD rebrand R2 configuration compatibility', () => {
     })).toEqual(['https://canonical.test'])
   })
 
-  it('R2-S3 reports an invalid canonical state directory instead of using valid legacy configuration', () => {
+  it('R4-S1 reports an invalid canonical state directory instead of using valid legacy configuration', () => {
     expect(() => resolveSecurityStateDirectory({
       ANTHRACITEMD_STATE_DIR: 'relative/canonical',
       GRAPHITEMD_STATE_DIR: '/valid/legacy',
     })).toThrow('ANTHRACITEMD_STATE_DIR must be an absolute path')
   })
 
-  it('R2-S3 reports an invalid canonical assistant test runtime instead of using its legacy fallback', () => {
+  it('R4-S1 reports an invalid canonical assistant test runtime instead of using its legacy fallback', () => {
     expect(() => assistantTestRuntimeEnabled({
       ANTHRACITEMD_ASSISTANT_TEST_RUNTIME: 'synthetic',
       GRAPHITEMD_ASSISTANT_TEST_RUNTIME: 'grounded',

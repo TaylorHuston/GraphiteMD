@@ -13,13 +13,13 @@ The decision must also preserve a useful non-AI workbench, keep provider secrets
 
 ## Decision
 
-AnthraciteMD SHALL adopt Pi `0.80.x` as the first replaceable embedded Assistant runtime behind a AnthraciteMD-owned model/auth adapter and capability boundary.
+AnthraciteMD SHALL adopt Pi `0.80.x` as the first replaceable embedded Assistant runtime behind an AnthraciteMD-owned model/auth adapter and capability boundary.
 
 - The service owns Pi lifecycle, provider status, OAuth-flow normalization, model resolution, session events, abort, and credential storage.
 - OpenAI Codex OAuth is the only provider onboarding path in the first Assistant Change.
 - Workspace-canonical AnthraciteMD state lives beneath `<workspace>/.anthracitemd/`: workspace identity/configuration, plugin configuration/state, normalized conversations, and other inspectable workspace-scoped data. Derived caches and operation receipts are excluded from normal workspace tracking as documented by its `.gitignore`.
 - Provider credentials, owner password/session state, encryption keys, and Pi runtime scratch live beneath machine-local `~/.anthracitemd/` by default with owner-only permissions. `ANTHRACITEMD_STATE_DIR` remains a supported explicit override, but it must resolve outside the configured workspace and never under `.anthracitemd/`.
-- Existing valid `.graphite/` workspace state migrates to `.anthracitemd/` before workspace services use it. Migration is an atomic rename only when the destination is absent and both paths are safe real directories; a destination conflict, symlink, or invalid layout fails closed with an actionable recovery message and never merges directories.
+- Existing valid `.graphitemd/` or `.graphite/` workspace state migrates to `.anthracitemd/` before workspace services use it. Migration is an atomic rename only when exactly one legacy source exists, the destination is absent, and all paths are safe real directories; a destination conflict, multiple legacy sources, symlink, or invalid layout fails closed with an actionable recovery message and never merges directories.
 - The bundled Assistant plugin owns the Assistant prompt, retrieval strategy, tool policy, and presentation contribution, but invokes models and workspace resources only through production SDK capabilities. It never receives raw provider credentials or unrestricted Pi, filesystem, shell, process, or network authority.
 - Pi automatic project resources, extensions, skills, prompt templates, themes, context-file discovery, and built-in tools are disabled. The first session receives only AnthraciteMD-defined search and bounded-read tools backed by opaque workspace resources.
 - Runtime-neutral contracts own provider status, normalized OAuth interaction, question/answer state, successful source provenance, errors, and durable conversation events. Pi-specific session records are not browser authority.
@@ -60,7 +60,7 @@ This decision clarifies the existing plugin ADR: brokered model/auth capability 
 ## Validation
 
 - Prove unauthenticated clients and disabled plugins cannot start OAuth or model work.
-- Prove `.graphite/` migrates without loss to `.anthracitemd/`, and conflicting or unsafe legacy layouts fail closed without overwriting workspace data.
+- Prove `.graphitemd/` and `.graphite/` each migrate without loss to `.anthracitemd/`, and conflicting, multiple-source, or unsafe legacy layouts fail closed without overwriting workspace data.
 - Prove the default machine-local state directory and any override remain outside the workspace; Codex credentials, password/session state, and Pi scratch are absent from workspace files, browser responses/storage, conversation records, logs, and source evidence.
 - Prove Pi sessions load no automatic workspace context and expose only the two brokered read-only tools.
 - Prove `.anthracitemd/`, excluded, symlinked, oversized, stale, unknown, and replaced-root resources cannot reach provider context.
