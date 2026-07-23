@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router'
-import { AssistantQuestion as AssistantQuestionContract, matchesContract, serviceDescriptor, type AssistantQuestion } from '@anthracitemd/contracts'
+import { AssistantQuestion as AssistantQuestionContract, matchesContract, serviceDescriptor, type AssistantQuestion, type AuthBootstrapResponse } from '@anthracitemd/contracts'
 import { AssistantModelSessionError } from '@anthracitemd/plugin-sdk'
 import {
   ConfiguredWorkspaceAuthority,
@@ -181,6 +181,11 @@ router.get('/api/v1/auth/current', async ({ auth, response }) => {
   } catch {
     return response.unauthorized({ error: { code: 'unauthenticated', message: 'Authentication required.' } })
   }
+})
+
+router.get('/api/v1/auth/bootstrap', async () => {
+  const response: AuthBootstrapResponse = { state: await ownerSetup.hasOwner() ? 'login_required' : 'setup_required' }
+  return response
 })
 
 router.get('/api/v1/assistant/provider', async ({ auth, response }) => {

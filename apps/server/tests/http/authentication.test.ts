@@ -118,6 +118,29 @@ afterAll(async () => {
   ])
 })
 
+describe('AMD-001/S3 R1 browser setup discovery', () => {
+  it('R1-S1 and R1-S2 disclose only the required setup state', async () => {
+    const database = new DatabaseSync(join(stateDirectory, 'security.sqlite'))
+    database.exec('DELETE FROM sessions; DELETE FROM owners')
+    database.close()
+
+    try {
+      const fresh = await fetch(`${origin}/api/v1/auth/bootstrap`)
+      expect(fresh.status).toBe(200)
+      expect(await fresh.json()).toEqual({ state: 'setup_required' })
+
+      await new OwnerSetupService(stateDirectory).createOwner('correct horse battery staple')
+
+      const claimed = await fetch(`${origin}/api/v1/auth/bootstrap`)
+      expect(claimed.status).toBe(200)
+      expect(await claimed.json()).toEqual({ state: 'login_required' })
+    } finally {
+      const restore = new OwnerSetupService(stateDirectory)
+      if (!(await restore.hasOwner())) await restore.createOwner('correct horse battery staple')
+    }
+  })
+})
+
 describe('AMD-001/S1 R2 browser session authentication', () => {
   it('AMD-004/S1 R2-S3 rejects unauthenticated Codex reads and mutations without exposing flow state', async () => {
     const anonymous = await csrfSession()
